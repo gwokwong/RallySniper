@@ -12,8 +12,10 @@ from typing import Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier
+from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, replay
 from . import sellwatch, yesterday
+import json
+
 from .config import load_config
 
 _scheduler: BackgroundScheduler | None = None
@@ -39,6 +41,72 @@ def _push_times_cfg() -> list[tuple[str, str]]:
         except (ValueError, AttributeError):
             continue
     return times or [("14", "00"), ("14", "40")]
+
+
+def _system_email(title: str, body: str) -> None:
+    """系统级通知（自检/心跳/异常）：站内 + 邮件。"""
+    notifications.add(title, body, [], kind="system")
+    cfg = load_config()
+    if cfg.notification:
+        notifier.broadcast(cfg.notification, title, body, [])
+
+
+def run_daily_check() -> dict[str, Any]:
+    """每日系统自检：逐项检查并发邮件（全部正常/异常标题区分）。"""
+    cfg = load_config()
+    checks: list[tuple[str, bool, str]] = []
+    try:
+        h = ds.health()
+        degraded = bool(h.get("degraded"))
+        checks.append(("数据源", not degraded,
+                       f"akshare {h.get('akshare_version', '')}{'，降级中' if degraded else '，接口正常'}"))
+    except Exception as exc:  # noqa: BLE001
+        checks.append(("数据源", False, str(exc)[:80]))
+    try:
+        cs = replay.cache_status()
+        checks.append(("K线缓存(回放)", cs["codes"] > 100,
+                       f"{cs['codes']} 只，覆盖至 {cs['end_date']}"))
+    except Exception as exc:  # noqa: BLE001
+        checks.append(("K线缓存(回放)", False, str(exc)[:80]))
+    # 定时调度状态走本地 HTTP 自查：无论自检从服务进程还是独立进程触发，看到的都是服务真实状态
+    try:
+        import urllib.request
+        with urllib.request.urlopen("http://127.0.0.1:8000/api/market/scan-status", timeout=8) as resp:
+            sch = json.loads(resp.read().decode()).get("data", {})
+        n_jobs = len(sch.get("jobs", []))
+        checks.append(("定时调度", bool(sch.get("running")), f"{'运行中' if sch.get('running') else '未运行'}，{n_jobs} 个任务"))
+    except Exception as exc:  # noqa: BLE001
+        checks.append(("定时调度", False, f"查询失败：{str(exc)[:60]}"))
+    ch_ok = any(c.enabled and c.smtp_host and c.mail_to for c in cfg.notification)
+    checks.append(("邮件渠道", ch_ok, "已配置" if ch_ok else "未配置"))
+    mf = cfg.market_filter
+    boards = "/".join(n for n, on in (("主板", mf.main_board), ("科创", mf.kcb), ("创业", mf.cyb)) if on) or "无"
+    checks.append(("筛选口径", True, f"{boards}，价格 {mf.min_price:g}-{mf.max_price:g} 元"))
+    checks.append(("持仓", True, f"{len(cfg.holdings)} 只（0 只时卖出风控无对象）"))
+    ok_all = all(ok for _, ok, _ in checks)
+    title = "【系统自检】全部正常" if ok_all else "【系统自检·异常】"
+    body = "\n".join(f"- {n}: {'正常' if ok else '异常'}（{detail}）" for n, ok, detail in checks)
+    _system_email(title, body)
+    return {"success": True, "ok_all": ok_all,
+            "checks": [{"name": n, "ok": ok, "detail": d} for n, ok, d in checks]}
+
+
+def _daily_check_job() -> None:
+    try:
+        run_daily_check()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 每日自检失败: {exc}")
+
+
+def _cache_refresh_job() -> None:
+    """收盘后刷新全市场K线缓存（休市日跳过）。"""
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        r = replay.refresh()
+        print(f"[scheduler] K线缓存刷新: {r.get('message')}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] K线缓存刷新失败: {exc}")
 
 
 def run_market_push(push_time: str | None = None) -> dict[str, Any]:
@@ -178,14 +246,31 @@ def run_sell_alert(mode: str) -> dict[str, Any]:
             "notify_times": times, "notify_titles": titles}
 
 
-def _job(push_time: str) -> None:
+def _job(push_time: str, heartbeat: bool = False) -> None:
+    """heartbeat=True（末次推送时点）时：无信号也发系统正常邮件，扫描抛错发异常邮件。"""
     try:
         # 休市日不触发（cron 每日都会到点）：周五信号周五已推送，周末/节假日
         # 若无闸门会拿最近交易日数据重复推送（2026-11-21 审计确认的缺口）
         if ds.market_status()["status"] == "closed":
             return
-        run_market_push(push_time)
+        result = run_market_push(push_time)
+        if heartbeat and not result.get("signals"):
+            if result.get("success"):
+                ign = result.get("ignition") or {}
+                body = (f"数据交易日：{result.get('scan_date_label') or '--'}\n"
+                        f"候选：{result.get('candidates', 0)} 只；命中：0 只\n"
+                        f"闸门：{ign.get('median', '--')}"
+                        f"（阈值 {ign.get('threshold', '--')}，"
+                        f"{'已点火' if ign.get('ignited') else '未点火'}）\n"
+                        f"{('提示：' + result.get('note')) if result.get('note') else ''}\n"
+                        f"调度任务、卖出风控运行正常。")
+                _system_email(f"【系统自检】{push_time} 推送正常 · 今日无命中信号", body)
+            else:
+                _system_email(f"【系统自检·异常】{push_time} 扫描失败",
+                              f"错误：{result.get('error')}")
     except Exception as exc:  # noqa: BLE001
+        if heartbeat:
+            _system_email(f"【系统自检·异常】{push_time} 推送任务抛错", str(exc)[:300])
         print(f"[scheduler] {push_time} 全市场推送失败: {exc}")
 
 
@@ -230,11 +315,13 @@ def start() -> dict[str, Any]:
         if _scheduler is not None and _scheduler.running:
             return {"success": True, "message": "定时推送已在运行", "times": _times()}
         _scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
-        for hour, minute in _push_times_cfg():
+        push_times = _push_times_cfg()
+        for idx, (hour, minute) in enumerate(push_times):
             t = f"{hour}:{minute}"
+            heartbeat = idx == len(push_times) - 1  # 末次推送时点无信号也发自检邮件
             _scheduler.add_job(
                 _job, trigger=CronTrigger(hour=int(hour), minute=int(minute), timezone="Asia/Shanghai"),
-                args=[t], id=f"market_push_{hour}{minute}", max_instances=1, coalesce=True,
+                args=[t, heartbeat], id=f"market_push_{hour}{minute}", max_instances=1, coalesce=True,
             )
         for hour, minute in YESTERDAY_TIMES:
             t = f"{hour}:{minute}"
@@ -262,6 +349,18 @@ def start() -> dict[str, Any]:
                                 timezone="Asia/Shanghai"),
             id="ignition_watch", max_instances=1, coalesce=True,
         )
+        kr_h, kr_m = cfg.scan.kline_refresh_time.split(":")
+        _scheduler.add_job(
+            _cache_refresh_job,
+            trigger=CronTrigger(hour=int(kr_h), minute=int(kr_m), timezone="Asia/Shanghai"),
+            id="kline_refresh", max_instances=1, coalesce=True,
+        )
+        dc_h, dc_m = cfg.scan.daily_check_time.split(":")
+        _scheduler.add_job(
+            _daily_check_job,
+            trigger=CronTrigger(hour=int(dc_h), minute=int(dc_m), timezone="Asia/Shanghai"),
+            id="daily_check", max_instances=1, coalesce=True,
+        )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -276,11 +375,13 @@ def refresh() -> dict[str, Any]:
         for job in list(_scheduler.get_jobs()):
             if job.id.startswith("market_push_"):
                 _scheduler.remove_job(job.id)
-        for hour, minute in _push_times_cfg():
+        push_times = _push_times_cfg()
+        for idx, (hour, minute) in enumerate(push_times):
             t = f"{hour}:{minute}"
+            heartbeat = idx == len(push_times) - 1  # 末次推送时点无信号也发自检邮件
             _scheduler.add_job(
                 _job, trigger=CronTrigger(hour=int(hour), minute=int(minute), timezone="Asia/Shanghai"),
-                args=[t], id=f"market_push_{hour}{minute}", max_instances=1, coalesce=True,
+                args=[t, heartbeat], id=f"market_push_{hour}{minute}", max_instances=1, coalesce=True,
             )
         for job_id in ("sell_intraday", "sell_confirm"):
             if _scheduler.get_job(job_id):
@@ -304,6 +405,22 @@ def refresh() -> dict[str, Any]:
             trigger=CronTrigger(hour="9-14", minute=f"*/{max(1, int(cfg.market_regime.ignition_watch_minutes))}",
                                 timezone="Asia/Shanghai"),
             id="ignition_watch", max_instances=1, coalesce=True,
+        )
+        if _scheduler.get_job("kline_refresh"):
+            _scheduler.remove_job("kline_refresh")
+        kr_h, kr_m = cfg.scan.kline_refresh_time.split(":")
+        _scheduler.add_job(
+            _cache_refresh_job,
+            trigger=CronTrigger(hour=int(kr_h), minute=int(kr_m), timezone="Asia/Shanghai"),
+            id="kline_refresh", max_instances=1, coalesce=True,
+        )
+        if _scheduler.get_job("daily_check"):
+            _scheduler.remove_job("daily_check")
+        dc_h, dc_m = cfg.scan.daily_check_time.split(":")
+        _scheduler.add_job(
+            _daily_check_job,
+            trigger=CronTrigger(hour=int(dc_h), minute=int(dc_m), timezone="Asia/Shanghai"),
+            id="daily_check", max_instances=1, coalesce=True,
         )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}

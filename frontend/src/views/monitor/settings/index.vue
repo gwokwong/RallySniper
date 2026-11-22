@@ -367,6 +367,23 @@
               <ElInputNumber v-model="config.scan.cooldown_seconds" :min="0" :step="3600" style="width:100%" />
               <div class="text-xs text-gray-400">默认 86400（24小时），避免同一信号反复发邮件</div>
             </ElFormItem>
+            <ElRow :gutter="12">
+              <ElCol :span="12">
+                <ElFormItem label="K线缓存刷新时点">
+                  <ElInput v-model="config.scan.kline_refresh_time" placeholder="15:10" style="width:100%" />
+                  <div class="text-xs text-gray-400">收盘后自动刷新回放缓库（休市日跳过）</div>
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="12">
+                <ElFormItem label="系统自检邮件时点">
+                  <ElInput v-model="config.scan.daily_check_time" placeholder="09:20" style="width:100%" />
+                  <div class="text-xs text-gray-400">每天检查数据源/缓存/任务/邮件并汇报</div>
+                </ElFormItem>
+              </ElCol>
+            </ElRow>
+            <p class="text-xs text-gray-400 m-0">
+              末次推送（默认 14:40）无信号也会发「系统自检·推送正常」邮件，扫描异常会发异常告警——每天必有邮件，便于发现服务中断。
+            </p>
           </ElForm>
         </ElCard>
       </ElCol>
@@ -636,7 +653,8 @@ const config = reactive<any>({
     cooldown_enabled: true, cooldown_reset_pct: 0.03,
     tier_enabled: false, tier_profit_pct: 0.30, tier_rapid_pct: 0.12,
     tier_shrink_drop: 0.115, tier_ma10_trail: true,
-    intraday_interval_minutes: 5, confirm_time: '14:50', notify_times: 2
+    intraday_interval_minutes: 5, confirm_time: '14:50', notify_times: 2,
+    kline_refresh_time: '15:10', daily_check_time: '09:20'
   },
   notification: []
 })

@@ -757,6 +757,12 @@ def market_replay_refresh() -> dict[str, Any]:
     return ok(replay.refresh())
 
 
+@app.post("/api/system/check")
+def system_check() -> dict[str, Any]:
+    """手动触发一次系统自检并发送邮件（部署验收/排障用）。"""
+    return ok(scheduler.run_daily_check())
+
+
 @app.get("/api/ignition/status")
 def ignition_status() -> dict[str, Any]:
     """点火盘中监控状态（状态机/当日读数/提醒情况）。"""

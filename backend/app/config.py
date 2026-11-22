@@ -137,6 +137,14 @@ class ScanConfig(BaseModel):
         description="全市场扫描推送/买进时点(HH:MM 列表，支持全天任意交易时段)。"
                     "默认 14:00/14:40 尾盘双时点；改动后由 scheduler.refresh 立即重排，无需重启",
     )
+    kline_refresh_time: str = Field(
+        default="15:10",
+        description="收盘后自动刷新全市场K线缓存的时点(HH:MM，回放功能数据源；休市日自动跳过)",
+    )
+    daily_check_time: str = Field(
+        default="09:20",
+        description="每日系统自检邮件时点(HH:MM)：检查数据源/K线缓存/调度任务/邮件渠道/持仓并邮件汇报",
+    )
 
 
 class SellConfig(BaseModel):
