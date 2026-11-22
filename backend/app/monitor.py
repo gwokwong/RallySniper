@@ -158,6 +158,10 @@ def _job() -> None:
         return
     if cfg.scan.only_trading_days and datetime.now().weekday() >= 5:
         return
+    # 仅盘中推送：非交易时段（凌晨/盘前/午休/盘后）行情是最近交易日收盘快照，
+    # 此时扫描推送会造成"半夜收到主升浪提醒"的时间错乱（2026-11-23 用户反馈）
+    if getattr(cfg.scan, "only_trading_hours", True) and ds.market_status()["status"] != "trading":
+        return
     scan_once(cfg, push=True)
     with _scheduler_lock:
         if _scheduler is not None:

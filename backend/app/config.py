@@ -130,6 +130,10 @@ class ScanConfig(BaseModel):
     lunch_interval: int = Field(default=600, ge=30, description="午休扫描间隔(秒)")
     closed_interval: int = Field(default=1800, ge=60, description="收盘后扫描间隔(秒)")
     only_trading_days: bool = Field(default=True, description="仅交易日扫描")
+    only_trading_hours: bool = Field(default=True,
+                                     description="仅盘中推送标的池信号（9:30-11:30/13:00-15:00）。"
+                                                 "关闭后凌晨/周末也会拿最近交易日数据扫描推送——"
+                                                 "2026-11-23 凌晨误推【主升浪提醒】的根因，默认开")
     cooldown_seconds: int = Field(default=86400, ge=0,
                                   description="同一股票同一战法告警冷却时间(秒)，默认24小时避免重复提醒")
     market_push_times: list[str] = Field(
