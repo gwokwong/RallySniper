@@ -29,9 +29,22 @@ fi
 echo "[1/4] Python: $($PY --version)"
 
 cd "$ROOT/backend"
+# 虚拟环境不可跨机器移植（macOS 打包到 Linux 后 bin/python 是失效软链），
+# 每次安装都全新创建，幂等且避免脏环境
+if [ -d .venv ]; then
+  echo "  移除旧 .venv（虚拟环境不可跨机器使用，将全新创建）..."
+  rm -rf .venv
+fi
+echo "  创建虚拟环境 .venv ..."
+"$PY" -m venv .venv 2>/tmp/gupiao_venv_err.log || true
 if [ ! -x .venv/bin/python ]; then
-  echo "  创建虚拟环境 .venv ..."
-  "$PY" -m venv .venv
+  echo "❌ venv 创建失败（通常是缺少 ensurepip/venv 组件），错误信息："
+  tail -5 /tmp/gupiao_venv_err.log 2>/dev/null
+  echo "   修复命令："
+  echo "     CentOS/OpenCloudOS:  dnf install -y python3.11 python3.11-devel"
+  echo "     Ubuntu/Debian:       apt install -y python3.11-venv"
+  echo "   修复后重新运行 ./install.sh"
+  exit 1
 fi
 echo "[2/4] 安装后端依赖 (requirements.txt) ..."
 .venv/bin/python -m pip install -q --upgrade pip

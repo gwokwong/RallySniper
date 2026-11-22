@@ -9,6 +9,18 @@
 ./install.sh
 ```
 
+**打包上传的正确姿势**（虚拟环境与缓存不可跨机器使用，排除后打包）：
+
+```bash
+# 本机打包（排除本机 .venv / __pycache__ / logs / .git；kline_cache 可留可不留，留着可省首次刷新）
+tar --exclude='gupiao/backend/.venv' --exclude='gupiao/backend/app/__pycache__' \
+    --exclude='gupiao/logs' --exclude='gupiao/.git' \
+    -czf gupiao.tar.gz gupiao
+# 服务器解压后：./install.sh（脚本会全新创建 .venv）
+```
+
+> install.sh 每次运行都会移除并重建 `.venv`——虚拟环境包含指向本机 Python 的绝对路径软链，mac 打包到 Linux 必然失效。
+
 脚本自动完成：创建 venv → 安装后端依赖 → 构建前端（有 node 时）→ 启动服务 → 健康检查 → 打印访问地址。重复执行安全（旧进程自动替换）。
 
 ```bash
