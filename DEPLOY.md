@@ -77,6 +77,11 @@ sudo systemctl daemon-reload && sudo systemctl enable --now gupiao
 6. 命中信号时收到站内通知 + 邮件（正文含【广度档位】与【买入理由明细】）；`GET /api/notifications` 有记录
 7. 回放功能首次使用前刷新K线缓存：`curl -X POST http://127.0.0.1:8000/api/market/replay/refresh`（约 4 分钟后台完成）；「历史回放」选 8/4 应出 71 只、选 11/20 应显示未点火拦截
 
+## 危险操作提醒
+
+- **部署机不要执行 `git clean -fdx`**：会删掉未跟踪的 `backend/data/config.json`（邮件配置）、`kline_cache/`（回放缓存）与 `logs/`。
+- **Python 版本**：依赖锁定了 pandas 3.1.1 等，要求 **3.11+**（推荐 3.13）；install.sh 已自动检查，低于 3.11 直接拒绝安装。
+
 ## 上线后建议
 
 - 前两周只观察：记录每日点火读数（中位溢价）与实际信号收益。11 月前瞻验证显示正期望未复现（详见回测报告第七章），实盘口径与回测有约 2pp 差异，阈值 3.0 可能需要按实盘读数微调（如 2.5）。
