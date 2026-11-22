@@ -51,17 +51,21 @@ echo "[2/4] 安装后端依赖 (requirements.txt) ..."
 .venv/bin/python -m pip install -q -r requirements.txt
 
 # ---------- 2) 前端 ----------
-echo "[3/4] 前端构建 ..."
+# dist 已随仓库提供（git 部署无需 node）；仅当 dist 缺失时才尝试本地构建
+echo "[3/4] 前端产物检查 ..."
 cd "$ROOT/frontend"
-if command -v node >/dev/null 2>&1; then
-  echo "  node: $(node --version)"
-  [ -d node_modules ] || npm ci --no-audit --no-fund 2>&1 | tail -2 || npm install --no-audit --no-fund 2>&1 | tail -2
-  CODEBUDDY_SAFE_DELETE_ENABLED=0 npm run build 2>&1 | tail -3
+if [ -f dist/index.html ]; then
+  echo "  ✓ dist 已随仓库提供，直接使用（无需 node 构建）"
 else
-  echo "  ⚠️ 未检测到 node —— 跳过前端构建。"
-  echo "     若 frontend/dist 已存在，后端 8000 端口会直接托管 UI（无需 node）。"
-  echo "     若 dist 也不存在，请先在有 node 的机器上构建后拷贝 dist 目录。"
-  [ -d dist ] || { echo "❌ frontend/dist 不存在且无法构建，UI 将无法访问"; exit 1; }
+  if ! command -v node >/dev/null 2>&1; then
+    echo "❌ frontend/dist 缺失且本机无 node，无法提供 UI"
+    echo "   修复：安装 node 后运行 npm ci && npm run build；或从本机拷贝 frontend/dist 目录"
+    exit 1
+  fi
+  echo "  无 dist，使用 node $(node --version) 构建（需数分钟）..."
+  npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+  npm run build || { echo "❌ 前端构建失败（可从本机拷贝 frontend/dist 后重试）"; exit 1; }
+  [ -f dist/index.html ] || { echo "❌ 构建后仍无 dist/index.html"; exit 1; }
 fi
 
 # ---------- 3) 启动 ----------
