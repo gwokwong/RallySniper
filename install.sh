@@ -16,9 +16,14 @@ echo " A股主升浪捕手 · 一键安装"
 echo "=============================================="
 
 # ---------- 1) Python ----------
-PY="$(command -v python3.13 || command -v python3 || true)"
+PY="$(command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3 || true)"
 if [ -z "$PY" ]; then
   echo "❌ 未找到 python3，请先安装 Python 3.11+（推荐 3.13）"
+  exit 1
+fi
+PYVER=$("$PY" -c "import sys; print('%d%02d' % (sys.version_info[0], sys.version_info[1]))")
+if [ "$PYVER" -lt 311 ]; then
+  echo "❌ Python 版本过低（$($PY --version)）：本系统依赖需要 3.11+，推荐 3.13"
   exit 1
 fi
 echo "[1/4] Python: $($PY --version)"
