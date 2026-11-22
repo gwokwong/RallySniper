@@ -197,9 +197,9 @@ export const monitorApi = {
     request.get<{ snapshot: any; signals: MarketSignal[] }>({ url: '/api/market/signals' }),
   marketScanStatus: () => request.get<any>({ url: '/api/market/scan-status' }),
   marketReplay: (date: string) =>
-    request.get<any>({ url: `/api/market/replay?date=${date}` }),
+    request.get<any>({ url: `/api/market/replay?date=${date}`, timeout: 120000 }),
   marketReplayDates: () =>
-    request.get<any>({ url: '/api/market/replay/dates' }),
+    request.get<any>({ url: '/api/market/replay/dates', timeout: 120000 }),
   marketReplayRefresh: () =>
     request.post<any>({ url: '/api/market/replay/refresh' }),
   marketPushNow: () => request.post<any>({ url: '/api/market/push-now' }),

@@ -104,10 +104,17 @@ def trading_dates() -> list[str]:
 
 
 def cache_status() -> dict[str, Any]:
-    bars = _load_bars()
-    ref = bars.get(REF_CODE)
-    end = str(ref["date"].iloc[-1])[:10] if ref is not None else None
+    """轻量状态查询：只读参考股一个 CSV，绝不触发全量加载（轮询接口不能卡顿）。"""
+    ref = CACHE_DIR / f"{REF_CODE}.csv"
+    end = None
+    if ref.exists():
+        try:
+            df = pd.read_csv(ref, usecols=["date"])
+            end = str(df["date"].iloc[-1])[:10]
+        except Exception:  # noqa: BLE001
+            pass
     return {"codes": len(_cache_files()), "end_date": end,
+            "bars_loaded": _bars_loaded,
             "refresh": dict(_refresh_progress)}
 
 
@@ -150,6 +157,11 @@ def refresh(end_date: str | None = None) -> dict[str, Any]:
                     else:
                         _refresh_progress["fail"] += 1
             invalidate()
+            # 后台线程内预热内存索引（约数十秒），避免下一个用户请求同步承担全量加载
+            try:
+                _load_bars(force=True)
+            except Exception:  # noqa: BLE001
+                pass
         finally:
             _refresh_progress["finished"] = datetime.now().isoformat(timespec="seconds")
             _refreshing = False

@@ -44,6 +44,12 @@ async def lifespan(app: FastAPI):
     cfg = load_config()
     if cfg.scan.enabled:
         monitor.start_monitor()
+    # 回放K线索引后台预热（约数千个CSV，避免首个用户请求同步承担全量加载）
+    try:
+        import threading as _th
+        _th.Thread(target=replay._load_bars, kwargs={"force": True}, daemon=True).start()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[启动] 回放缓存预热失败：{exc}")
     scheduler.start()  # 全市场 14:00 / 14:40 定时推送
     threading.Thread(target=_warm_market_cache, name="warm-market-cache", daemon=True).start()
     yield
