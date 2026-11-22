@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>全市场扫描胜率优化 · 三个月回测报告 20261121</title>
+<style>
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:24px;max-width:1180px;color:#1f2329;background:#f7f8fa}
+h1{font-size:22px} h2{font-size:17px;margin-top:28px;border-left:4px solid #2563eb;padding-left:10px}
+p,li{font-size:13.5px;line-height:1.75}
+table{border-collapse:collapse;width:100%;background:#fff;font-size:12.5px;margin:10px 0}
+th,td{border:1px solid #e5e6eb;padding:6px 8px;text-align:center}
+th{background:#f2f3f5;font-weight:600}
+td:first-child{text-align:left}
+.good{color:#d92b2b;font-weight:600} .warn{color:#b45309;font-weight:600}.neg{color:#0a8f3c;font-weight:600}
+.note{color:#8a919f;font-size:11.5px}
+.card{background:#fff;border:1px solid #e5e6eb;border-radius:8px;padding:16px 20px;margin:12px 0}
+.hl{background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;margin:14px 0}
+.big{font-size:26px;font-weight:700;color:#2563eb}
+.kpi{display:flex;gap:24px;flex-wrap:wrap}
+.kpi div{background:#fff;border:1px solid #e5e6eb;border-radius:8px;padding:12px 18px}
+code{background:#f2f3f5;padding:1px 5px;border-radius:4px;font-size:12px}
+</style></head><body>
+<h1>全市场机会扫描 · 买进/预警卖出胜率优化</h1>
+<p>回测区间 <b>2026-08-01 ~ 2026-10-30</b>（8/9/10 三个月，59 个交易日）· 全市场 5031 只非北交非ST · 无未来函数逐日回放 · 买点=真实战法 trigger 当日收盘价 · 卖点=真实 sellwatch._evaluate(confirm) 首次确认 · 共 <b>2014</b> 笔买入信号，其中「妖股」（买入后最高价收益≥30%）<b>369</b> 笔。报告生成 2026-11-21。</p>
+
+<div class="kpi">
+<div><div class="big">22.8%</div>基线胜率（-3.92%）</div>
+<div><div class="big">44.9%</div>+点火闸门（中位≥3%）</div>
+<div><div class="big">64.5%</div>点火+洗盘反包</div>
+<div><div class="big">+5.36%</div>推荐方案平均收益（基线-3.92%）</div>
+<div><div class="big">15笔</div>推荐方案大亏笔数（基线565笔）</div>
+</div>
+
+<div class="hl" style="border-color:#dc2626;background:#fef2f2">
+<p><b>⚠️ 2026-11-21 更新：11 月前瞻验证（11/2–11/20）已出——冠军配置当月亏损 -49,192 元（胜率 9.5%），但比基线少亏 82%，详见「七、11 月前瞻验证」。</b>正期望未在样本外复现，上线请按小资金 + 每日上限运行。</p>
+</div>
+
+<h2>一、涨停股后面的走势（你点名要的回测）</h2>
+<div class="card">
+<p>对 3 个月全部 <b>3689 家次</b> 收盘涨停（含连板），统计其后续走势：</p>
+<table><thead><tr><th>月份</th><th>涨停家次</th><th>次日开盘溢价均%</th><th>次日收盘溢价均%</th><th>溢价为负天数</th><th>连板晋级率%</th><th>涨停后5日中位%</th></tr></thead><tbody><tr><td>2026-08</td><td>1609</td><td>+1.65</td><td>+1.62</td><td>4/21</td><td>20.1</td><td>-0.78</td></tr><tr><td>2026-09</td><td>1206</td><td>+1.88</td><td>+1.26</td><td>5/21</td><td>22.0</td><td>-3.29</td></tr><tr><td>2026-10</td><td>874</td><td>+1.61</td><td>+1.05</td><td>6/17</td><td>22.9</td><td>-4.79</td></tr></tbody></table>
+<p><b>结论：</b>① 涨停股次日开盘溢价每月都是正的（+1.6%~+1.9%），但<b>持有 5 天的中位收益逐月恶化</b>（8月 -0.78% → 9月 -3.29% → 10月 -4.79%）——涨停股只能短拿，追高持有 5 天以上是负期望；② 连板晋级率约 20%~23%，即近 8 成涨停股次日不再板；③ 溢价为负的天数占 1/5~1/4，这些「冰点日」追高信号系统性亏钱。</p>
+<p><b>可交易的规律——情绪点火日：</b>昨日涨停股今日的涨幅<b>中位数≥3%</b> 的日子（8月6天/9月4天/10月2天，约1/4交易日）是「点火日」。点火日发出的买入信号胜率 44.9%（基线 22.8%），配合洗盘反包达 <b>64.5%</b>。阈值 2.0~4.0 全区间稳健（55%~65.5%），不是过拟合孤点。已落地为 <code>ignition_premium()</code> 实时闸门。</p>
+</div>
+
+<h2>二、方案对比（卖出口径统一=首次确认卖出）</h2>
+<table><thead><tr><th>方案</th><th>信号数</th><th>胜率%</th><th>平均%</th><th>中位%</th><th>大亏(<-10%)</th><th>最差%</th><th>赚30%+</th><th>妖股数</th><th>妖股保留%</th><th>妖股兑现均%</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+<p class="note">妖股=max_ret≥30%（买入后给过 ≥30% 的机会）；妖股兑现均%=妖股实际卖出收益均值；样本：S0 全部 2014 笔。</p>
+
+<h2>三、分战法与环境交叉</h2>
+<table><thead><tr><th>方案</th><th>信号数</th><th>胜率%</th><th>平均%</th><th>中位%</th><th>大亏(<-10%)</th><th>最差%</th><th>赚30%+</th><th>妖股数</th><th>妖股保留%</th><th>妖股兑现均%</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+<div class="hl">
+<p><b>三个反直觉发现：</b></p>
+<ul>
+<li><b>洗盘反包在弱市反而最准：</b>弱市日胜率 42.4%（8月弱市 60.6%、平均 +4.82%），强市日只有 18.2%。所以弱市动作从 pause 改为 <b>half</b>（只留洗盘反包）——彻底空仓会把最好的信号也扔掉。</li>
+<li><b>强度评分越高反而越差：</b>按 strength 取每日 Top5 的信号胜率 16.6%（低于基线），因为强度加分主要来自量比放大=追高特征。现排序逻辑（强度优先）建议仅作展示，不要当作买入优先级。</li>
+<li><b>大盘越热、生态指标越好的持续期，信号越差：</b>近10日涨停股5日中位收益均值≥0 的日子，信号胜率只有 16.6%——情绪持续过热=行情末端。点火闸门抓的是「点火初期」而非「过热持续期」，两者必须区分。</li>
+</ul>
+</div>
+
+<h2>四、按月分布（为什么之前胜率只有 22%）</h2>
+<table><thead><tr><th>label</th><th>n</th><th>win</th><th>avg</th><th>big</th><th>mon</th></tr></thead><tbody><tr><td>2026-08</td><td>982</td><td>31.5</td><td>-1.27</td><td>199</td><td>255</td></tr><tr><td>2026-09</td><td>624</td><td>15.2</td><td>-6.33</td><td>232</td><td>63</td></tr><tr><td>2026-10</td><td>408</td><td>13.7</td><td>-6.62</td><td>134</td><td>51</td></tr></tbody></table>
+<p class="note">8 月 31.5% 胜率被 9 月 15.2%、10 月 13.7% 拉平——你看到的 22% 是「一个好月份 + 两个 hostile 月份」的平均值。点火闸门在 hostile 月份把信号量砍掉 72%~86%，这正是保住收益的关键。</p>
+
+<h2>五、卖出预警端（保住收益）</h2>
+<div class="card">
+<ul>
+<li><b>卖出纪律的贡献已验证：</b>同一批信号（S2 池 1601 笔），首次确认卖出平均 <b class="good">-3.21%</b>，死拿到 11/20 平均 <b class="warn">-28.6%</b>（中位 -30.2%，最大 -68.5%）——卖出预警把平均亏损收窄 25 个百分点，这是全系统最大的单项贡献，<b>维持现状不要动</b>。</li>
+<li><b>分批卖出（首确认50%+二次确认50%）更差：</b>平均 -3.80% vs 一次全出 -3.21%，大亏 482 vs 386 笔。第二根确认通常来得更晚更深，不如一次了结。<b>否决。</b></li>
+<li><b>妖股兑现缺口是结构性的：</b>369 只妖股事后最高收益平均 +56.4%，实际卖出只兑现 +10.2%。缺口来自洗盘日触发预警（深洗日与真破位日 K 线同形）。此前 50+ 套放宽方案已全部证伪（给妖股时间=给垃圾票时间），本次维持严格纪律 + 依靠买入端提纯（点火闸门直接过滤掉洗盘假信号多的非点火日）。</li>
+<li><b>天量破位通道几乎不触发</b>（3个月仅 2 次），量比 4.5 的盘中阈值对收盘口径太高；急跌破位 925 次、20日线破位 1081 次是主力。建议保留现状（盘中预警通道另有用途）。</li>
+</ul>
+</div>
+
+<h2>六、盈亏比与月度营收（按单只买进 1 万元计算）</h2>
+<table><thead><tr><th>方案</th><th>信号数</th><th>胜率%</th><th>平均%</th><th>盈亏比</th><th>均盈%</th><th>均亏%</th><th>8月营收(元)</th><th>9月营收(元)</th><th>10月营收(元)</th><th>总营收(元)</th><th>平均每笔(元)</th></tr></thead><tbody><tr><td>S0 基线（旧默认 3 战法）</td><td>2014</td><td>22.8</td><td>-3.92</td><td>1.42</td><td>+12.47</td><td>-8.77</td><td>-124,532</td><td>-394,767</td><td>-270,198</td><td><b class='neg'>-789,497</b></td><td>-392</td></tr><tr><td>H1 洗盘全开+强续仅强市vr3</td><td>946</td><td>28.2</td><td>-2.4</td><td>1.5</td><td>+12.23</td><td>-8.16</td><td>-38,211</td><td>-139,451</td><td>-49,839</td><td><b class='neg'>-227,501</b></td><td>-240</td></tr><tr><td>★ 冠军方案：洗盘反包+点火中位≥3%（当前默认）</td><td>155</td><td>64.5</td><td>5.36</td><td>1.73</td><td>+12.17</td><td>-7.03</td><td>+97,285</td><td>-2,487</td><td>-11,725</td><td><b class='good'>+83,073</b></td><td>+536</td></tr><tr><td>☆ 冠军+ret5<15（可选加强）</td><td>122</td><td>68.9</td><td>5.42</td><td>1.79</td><td>+10.52</td><td>-5.87</td><td>+80,732</td><td>-9,637</td><td>-5,029</td><td><b class='good'>+66,066</b></td><td>+542</td></tr></tbody></table>
+<div class="hl">
+<p><b>资金效益解读：</b></p>
+<ul>
+<li>冠军方案 3 个月总营收 <b class="good">+83,073 元</b>（155 笔 × 单只 1 万），盈亏比 <b>1.73</b>（均盈 +12.17% / 均亏 -7.03%）；基线方案同期 <b class="warn">-789,497 元</b>，差距 87 万。</li>
+<li><b>收益高度集中：</b>8/4（点火爆发日）单日 +62,196 元，Top3 日贡献 117% 总营收——其余日子合计为负。这就是点火闸门的本质：一个季度只有约 12 个点火日，赚大钱靠爆发日，其余时间少亏。</li>
+<li><b>月度视角：</b>8 月 +97,285 元 / 9 月 -2,487 元 / 10 月 -11,725 元。hostile 月份靠信号量收缩（110→20/25 笔）把亏损压到万把块，这即是「保住收益」的机制。</li>
+<li><b>每日买入上限（蒙特卡洛 200 次随机等权抽签）：</b></li>
+</ul>
+<table><thead><tr><th>每日买入上限</th><th>平均动用笔数</th><th>3个月总营收(元)</th><th>平均每笔(元)</th><th>胜率</th><th>峰值资金占用</th></tr></thead><tbody><tr><td>不限</td><td>155</td><td class='good'>+83,073</td><td>+536</td><td>64.5%</td><td>71万</td></tr><tr><td>20</td><td>97</td><td class='good'>+32,843</td><td>+339</td><td>54.5%</td><td>20万</td></tr><tr><td>10</td><td>71</td><td class='good'>+16,128</td><td>+227</td><td>48.2%</td><td>10万</td></tr><tr><td>5</td><td>40</td><td class='good'>+10,194</td><td>+255</td><td>48.7%</td><td>5万</td></tr></tbody></table>
+<p class="note">抽签而非按强度挑选：强度 Top-K 已被回测证伪（高分=追高）。已在系统落地 <code>daily_signal_cap</code> 配置（默认 0=不限，设置页可改），端到端实测 11 只信号 → 抽取 2 只推送。</p>
+<p><b>资金占用口径（单只 1 万，占用区间=买入日至卖出前一日）：</b>冠军方案三个月峰值占用 <b>710,000 元</b>（2026-08-04，71 笔同时持仓），有持仓天数内平均每日占用约 63 万；区间总营收 +83,073 元，<b>资金收益率 11.7%</b>（营收/峰值占用，非年化）。分月峰值：8月 71万 / 9月 14万 / 10月 21万 / 11月 64万，资金收益率 13.7% / -1.8% / -5.6% / -7.7%——峰值占用由点火日信号量决定，用「每日上限」控制峰值即可线性压缩风险敞口。</p>
+</div>
+
+<h2>七、11 月前瞻验证（11/2–11/20 已有交易日，进行中）</h2>
+<div class="hl">
+<p><b>诚实结论：冠军配置在 11 月失效但仍是"最抗跌"档位。</b>11 月 14 个交易日里仅 3 天点火（11/4、11/6、11/9 涨停池溢价），冠军配置据此开仓 74 笔，胜率仅 9.5%（回测期 64.5%），亏损 -49,192 元；但对比基线 -280,162 元仍少亏 82%。8-10 月的正期望<b>没有在样本外第一个月复现</b>——回测兑现了此前的提示：「点火闸门在有行情的月份是放大器，在无行情的月份只是少亏」。</p>
+<table><thead><tr><th>方案（11/2-11/20，未平仓按11/20收盘浮动）</th><th>信号数</th><th>持仓中</th><th>胜率%</th><th>平均%</th><th>盈亏比</th><th>总营收(元)</th></tr></thead><tbody><tr><td style='text-align:left'>基线：3战法全开（无闸门）</td><td>486</td><td>49</td><td>19.1</td><td>-5.76</td><td>0.81</td><td class='neg'>-280,162</td></tr><tr><td style='text-align:left'>只留洗盘反包（无闸门）</td><td>245</td><td>19</td><td>29.0</td><td>-2.64</td><td>1.1</td><td class='neg'>-64,711</td></tr><tr><td style='text-align:left'>★ 冠军配置：洗盘反包+点火中位≥3%</td><td>74</td><td>1</td><td>9.5</td><td>-6.65</td><td>1.1</td><td class='neg'>-49,192</td></tr></tbody></table>
+<p><b>11 月逐日点火读数</b>（昨日涨停股今日中位溢价，≥3% 判点火）：</p>
+<table><thead><tr><th>日期</th><th>涨停家数</th><th>次日中位溢价%</th><th>次日均值溢价%</th><th>闸门判定</th></tr></thead><tbody><tr><td>2026-10-30</td><td>47</td><td>+1.53</td><td>+2.83</td><td>—</td></tr><tr><td>2026-11-02</td><td>126</td><td>+0.13</td><td>+1.00</td><td>—</td></tr><tr><td>2026-11-03</td><td>47</td><td>-2.51</td><td>-0.54</td><td>—</td></tr><tr><td>2026-11-04</td><td>120</td><td>+4.13</td><td>+4.30</td><td>🔥 点火</td></tr><tr><td>2026-11-05</td><td>81</td><td>-2.16</td><td>-0.51</td><td>—</td></tr><tr><td>2026-11-06</td><td>31</td><td>+5.33</td><td>+4.44</td><td>🔥 点火</td></tr><tr><td>2026-11-09</td><td>54</td><td>+4.67</td><td>+5.08</td><td>🔥 点火</td></tr><tr><td>2026-11-10</td><td>93</td><td>+2.79</td><td>+2.92</td><td>—</td></tr><tr><td>2026-11-11</td><td>83</td><td>-2.24</td><td>-1.02</td><td>—</td></tr><tr><td>2026-11-12</td><td>36</td><td>-4.46</td><td>-1.75</td><td>—</td></tr><tr><td>2026-11-13</td><td>37</td><td>-1.73</td><td>+0.70</td><td>—</td></tr><tr><td>2026-11-16</td><td>32</td><td>-0.45</td><td>+0.23</td><td>—</td></tr><tr><td>2026-11-17</td><td>37</td><td>+0.73</td><td>+1.61</td><td>—</td></tr><tr><td>2026-11-18</td><td>39</td><td>-0.71</td><td>+0.03</td><td>—</td></tr><tr><td>2026-11-19</td><td>23</td><td>-7.13</td><td>-3.84</td><td>—</td></tr></tbody></table>
+<p><b>失败日的教训：</b>11/10 是典型陷阱——闸门读到 11/9 的 +4.67% 点火开仓 34 笔，当日均亏 -9.42%（-32,025 元），因为 11/10 自身溢价已回落到 +2.79%，点火一日游。11 月整体生态恶劣（14 天读数 11 天为负），追涨停接力类策略在该环境下全线亏损，闸门的作用只剩"少亏"。</p>
+<p><b>口径对照：</b>11/19 封板池在 11/20 的表现，回测口径（收盘封板）中位 -7.13%，实盘东财涨停池（含炸板）-5.08%，口径差约 2pp——实盘读数系统性高于回测口径，本次方向与预期相反，阈值校准需积累更多实盘读数后再定。</p>
+<p><b>待办：</b>12 月初回测完整 11 月（含 11/23-11/30 与持仓终值）后更新本节；上线初期按 DEPLOY.md 建议小资金/低每日上限运行，不要按 8 月数字外推放大仓位。</p>
+</div>
+
+<h2>八、已落地的改动</h2>
+<div class="card">
+<table><thead><tr><th>文件</th><th>改动</th><th>依据</th></tr></thead><tbody>
+<tr><td><code>datasource.py</code></td><td>新增 <code>ignition_premium()</code>：上一交易日涨停池股票今日涨幅中位数/均值，10分钟缓存，数据不可用自动放行</td><td>点火闸门核心数据源</td></tr>
+<tr><td><code>market_scan.py</code></td><td>扫描前先过点火闸门：中位数&lt;阈值 → paused_by_ignition 返回空信号；结果/状态带 ignition 字段；妖股模式绕过</td><td>胜率 22.8%→44.9%</td></tr>
+<tr><td><code>config.py</code></td><td>MarketRegConfig 新增 ignition_enabled(默认True)/ignition_threshold(默认3.0)；weak_action 默认 pause→half</td><td>弱市洗盘反包 42.4% 胜率</td></tr>
+<tr><td><code>config.json</code></td><td>strong_max_vol_ratio 0→3.0；涨停回调开关 true→false；weak_action=half；点火开、阈值3.0</td><td>S2/H1/点火回测</td></tr>
+<tr><td>设置页 <code>settings/index.vue</code></td><td>大盘环境卡片点火开关+阈值输入；市场筛选卡新增「每次扫描最多推送」（每日上限，随机等权抽签）；机会页点火状态标签；dist 已重建</td><td>可随时调整/关闭</td></tr>
+<tr><td><code>backend/requirements.txt</code></td><td>新增（服务器部署依赖清单，Python 3.13 实测版本锁定）</td><td>部署件</td></tr>
+<tr><td><code>DEPLOY.md</code> + <code>frontend/.env.production</code></td><td>部署指南（systemd/nginx 示例、验收清单）；生产 API 地址从硬编码 127.0.0.1:8000 改为相对路径（nginx 反代）或服务器 IP</td><td>服务器部署</td></tr>
+</tbody></table>
+<p><b>端到端验证：</b>后端重启后 POST /api/market/scan 返回 paused_by_ignition=True——11/19 的 23 只涨停股 11/20 中位溢价 -5.08%（情绪冰点），闸门正确拦截；配置 API 新字段全部生效；dist 含新文案。</p>
+</div>
+
+<h2>九、诚实的风险提示</h2>
+<div class="card">
+<ul>
+<li><b>样本外验证首月已部分证伪：</b>11 月前瞻验证显示冠军配置胜率从 64.5% 跌到 9.5%（亏损 -49,192 元），正期望未复现；其价值暂体现在「最抗跌」（比基线少亏 82%）。8 月贡献了回测期大部分收益，结构性过热行情不可外推。<b>继续前瞻验证</b>：记录每日闸门读数与实际信号收益，12 月初回测完整 11 月。</li>
+<li><b>实盘点火读数与回测有口径差：</b>回测用「收盘封板股」的次日收盘溢价，实盘用东财涨停池（含炸板股）的 14:00 盘中涨幅——炸板股次日表现更弱，实盘中位数会略偏低，阈值 3.0 可能需要按实盘读数微调（如 2.5）。</li>
+<li><b>胜率换信号量：</b>推荐方案 3 个月约 155 笔（日均 1.7 个），比基线少 92%。对机会扫描而言这是 feature 不是 bug——少而精才能保住收益。</li>
+<li><b>涨停回调战法已默认关闭</b>（34 笔、胜率 8.8%、妖股 0，被洗盘反包严格占优）；如需重开，设置页一键恢复。</li>
+</ul>
+</div>
+
+<h2>附：点火阈值敏感性（洗盘反包池）</h2>
+<table><thead><tr><th>方案</th><th>信号数</th><th>胜率%</th><th>平均%</th><th>中位%</th><th>大亏(<-10%)</th><th>最差%</th><th>赚30%+</th><th>妖股数</th><th>妖股保留%</th><th>妖股兑现均%</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+<p class="note">全部方案均为无未来函数：点火值只用 T-1 涨停池与 T 日已实现涨幅；战法逐日截断历史；卖出用真实 _evaluate 回放。</p>
+</body></html>

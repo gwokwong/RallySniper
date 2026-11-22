@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>卖出误报修正报告</title>
+<style>
+body{font-family:-apple-system,"PingFang SC",sans-serif;max-width:920px;margin:32px auto;color:#222;line-height:1.7;padding:0 20px}
+h1{font-size:24px;border-bottom:3px solid #3266ad;padding-bottom:10px}
+h2{font-size:18px;margin-top:32px;color:#1a3d6e}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:14px 0}
+th,td{border:1px solid #d8d8d8;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#eef3fa}
+.ok{color:#1a7f37;background:#e8f5ec;padding:2px 8px;border-radius:10px;font-size:12px}
+.fix{color:#b26a00;background:#fff3e0;padding:2px 8px;border-radius:10px;font-size:12px}
+.box{background:#f5f8fc;border-left:4px solid #3266ad;padding:12px 16px;margin:14px 0;font-size:14px}
+.warn{background:#fff8e6;border-left:4px solid #d98a00}
+code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:12px}
+.chart{background:#fafbfc;border:1px solid #e5e5e5;border-radius:8px;padding:12px;margin:12px 0}
+.legend span{display:inline-block;margin-right:18px;font-size:12px}
+</style></head><body>
+<h1>卖出预警误报修正 · 验证报告</h1>
+<p style="color:#666">2026-11-21 · RallySniper · 用真实 <code>_evaluate</code> + 当前配置回放，非模拟数据</p>
+
+<div class="box"><b>问题</b>：买点前移报告只给了买点没给卖出。补跑后发现「急跌≥8%即确认」对强势票洗盘日误报——万向德农 9/3、9/10、9/24 全是放量洗盘却触发尾盘确认（每次 2 站内 + 2 邮件）。</div>
+
+<div class="box warn"><b>关键发现</b>：你认定的卖点全是<b>缩量跌停</b>——金健 9/28 量比 0.15、会稽山 9/29 量比 0.13、万向 9/28 量比 0.39；而洗盘急跌量比普遍 ≥0.6（万向 9/3 量比 2.07 放量跌停）。<b>区分维度是量能，不是均线</b>。故「必须破MA10」方案会漏掉金健 9/28、会稽山 9/29，被否决。</div>
+
+<h2>一、三层修改</h2>
+<table>
+<tr><th>层级</th><th>修改前</th><th>修改后</th><th>目的</th></tr>
+<tr><td>① 尾盘急跌确认门槛</td><td>跌幅≥8%收阴即确认</td><td>破MA10且跌幅≥5% <b>或</b> 缩量跌停（量比≤0.5 且跌幅≥9.5%）</td><td>放量洗盘不再触发确认；盘中预警照常</td></tr>
+<tr><td>② 确认冷却期</td><td>每日确认都发邮件</td><td>同一波下跌首日发一次；股价未较确认价上涨超3%不再重复发</td><td>避免连续多日确认轰炸</td></tr>
+<tr><td>③ 破MA10通道</td><td colspan="2">保持不变</td><td>抓会稽山 10/12；接受少数破MA10洗盘误报</td></tr>
+</table>
+<p style="font-size:13px;color:#555">新配置项：<code>shrink_limit_ratio=0.5</code>、<code>shrink_limit_drop=0.095</code>、<code>cooldown_enabled=true</code>、<code>cooldown_reset_pct=0.03</code>。前端设置页已同步，配置 API 已验证生效。</p>
+
+<h2>二、三股验证结果</h2>
+<table>
+<tr><th>标的</th><th>买点</th><th>卖点锚点</th><th>冷却后确认效果</th><th>说明</th><th>状态</th></tr>
+<tr><td><b>会稽山 601579</b></td><td>8/24 @20.21</td><td>9/29 @37.66</td><td>9/29、10/12 均发；中间10/13-10/14被冷却</td><td>9/29 缩量跌停(量比0.13)命中，卖在顶部附近</td><td><span class="ok">保留</span></td></tr><tr><td><b>万向德农 600371</b></td><td>8/25 @8.67</td><td>9/28 @14.27</td><td>9/3/9/10/9/24洗盘误报已消除；仅剩9/15破MA10一次</td><td>9/3量比2.07放量洗盘不再确认；9/28缩量跌停确认</td><td><span class="fix">改善</span></td></tr><tr><td><b>金健米业 600127</b></td><td>慢牛 无涨停买点</td><td>9/28 @14.84</td><td>9/28锚点保留；9/15破MA10洗盘为已知取舍</td><td>9/28量比0.15缩量跌停命中，未破MA10也发</td><td><span class="ok">保留</span></td></tr>
+</table>
+
+<h2>三、K 线与买卖点</h2>
+<p class="legend"><span style="color:#3266ad">● 收盘价</span><span style="color:#2e8b57">● 买入</span><span style="color:#d32f2f">● 卖出确认</span></p>
+<h3>会稽山 601579</h3><div class="chart"><svg viewBox="0 0 600 150" width="100%" style="max-width:640px"><line x1="12" y1="138" x2="588" y2="138" stroke="#ddd" stroke-width="0.5"/><path d="M12.0,137.5 L22.5,136.4 L32.9,138.0 L43.4,137.0 L53.9,137.0 L64.4,128.6 L74.8,131.4 L85.3,127.4 L95.8,129.3 L106.3,133.4 L116.7,133.3 L127.2,126.0 L137.7,124.9 L148.1,119.6 L158.6,107.8 L169.1,109.8 L179.6,113.6 L190.0,101.2 L200.5,106.9 L211.0,110.3 L221.5,111.4 L231.9,98.7 L242.4,84.8 L252.9,76.6 L263.3,60.5 L273.8,42.8 L284.3,120.7 L294.8,35.6 L305.2,123.4 L315.7,39.4 L326.2,123.3 L336.7,32.5 L347.1,124.8 L357.6,127.0 L368.1,12.0 L378.5,126.4 L389.0,34.5 L399.5,128.5 L410.0,36.5 L420.4,24.1 L430.9,130.5 L441.4,20.4 L451.9,127.3 L462.3,42.1 L472.8,125.2 L483.3,52.4 L493.7,113.8 L504.2,67.0 L514.7,109.6 L525.2,76.5 L535.6,105.2 L546.1,85.9 L556.6,114.9 L567.1,93.4 L577.5,115.7 L588.0,92.2" fill="none" stroke="#3266ad" stroke-width="1.6"/><circle cx="64.4" cy="128.6" r="4.5" fill="#2e8b57"/><text x="64.4" y="119.6" font-size="10" text-anchor="middle" fill="#2e8b57">08-24</text><circle cx="378.5" cy="126.4" r="4.5" fill="#d32f2f"/><text x="378.5" y="117.4" font-size="10" text-anchor="middle" fill="#d32f2f">09-29</text><circle cx="462.3" cy="42.1" r="4.5" fill="#d32f2f"/><text x="462.3" y="33.1" font-size="10" text-anchor="middle" fill="#d32f2f">10-12</text></svg></div>
+<h3>万向德农 600371</h3><div class="chart"><svg viewBox="0 0 600 150" width="100%" style="max-width:640px"><line x1="12" y1="138" x2="588" y2="138" stroke="#ddd" stroke-width="0.5"/><path d="M12.0,138.0 L22.5,128.6 L32.9,118.2 L43.4,122.7 L53.9,133.7 L64.4,131.9 L74.8,121.8 L85.3,110.7 L95.8,98.6 L106.3,85.2 L116.7,70.5 L127.2,54.3 L137.7,48.5 L148.1,65.6 L158.6,57.7 L169.1,40.2 L179.6,30.5 L190.0,36.0 L200.5,51.9 L211.0,43.9 L221.5,51.2 L231.9,67.5 L242.4,51.0 L252.9,32.9 L263.3,36.0 L273.8,23.4 L284.3,119.5 L294.8,32.0 L305.2,120.8 L315.7,12.0 L326.2,119.3 L336.7,30.2 L347.1,120.9 L357.6,120.1 L368.1,50.4 L378.5,119.9 L389.0,68.6 L399.5,120.0 L410.0,60.1 L420.4,58.8 L430.9,119.6 L441.4,41.5 L451.9,117.3 L462.3,53.4 L472.8,113.1 L483.3,53.1 L493.7,113.1 L504.2,61.5 L514.7,116.6 L525.2,71.4 L535.6,114.4 L546.1,71.9 L556.6,117.2 L567.1,81.9 L577.5,117.2 L588.0,77.6" fill="none" stroke="#3266ad" stroke-width="1.6"/><circle cx="74.8" cy="121.8" r="4.5" fill="#2e8b57"/><text x="74.8" y="112.8" font-size="10" text-anchor="middle" fill="#2e8b57">08-25</text><circle cx="368.1" cy="50.4" r="4.5" fill="#d32f2f"/><text x="368.1" y="41.4" font-size="10" text-anchor="middle" fill="#d32f2f">09-28</text><circle cx="148.1" cy="65.6" r="4.5" fill="#999"/><text x="148.1" y="56.6" font-size="10" text-anchor="middle" fill="#999">09-03</text><circle cx="326.2" cy="119.3" r="4.5" fill="#999"/><text x="326.2" y="110.3" font-size="10" text-anchor="middle" fill="#999">09-24</text></svg></div>
+<h3>金健米业 600127</h3><div class="chart"><svg viewBox="0 0 600 150" width="100%" style="max-width:640px"><line x1="12" y1="138" x2="588" y2="138" stroke="#ddd" stroke-width="0.5"/><path d="M12.0,138.0 L22.5,130.0 L32.9,121.3 L43.4,111.8 L53.9,116.7 L64.4,113.5 L74.8,103.1 L85.3,97.1 L95.8,85.1 L106.3,73.0 L116.7,69.7 L127.2,55.0 L137.7,65.3 L148.1,62.0 L158.6,66.5 L169.1,51.4 L179.6,36.0 L190.0,41.6 L200.5,45.7 L211.0,51.2 L221.5,43.6 L231.9,61.0 L242.4,72.1 L252.9,57.7 L263.3,41.8 L273.8,24.2 L284.3,134.1 L294.8,15.4 L305.2,135.6 L315.7,12.0 L326.2,135.1 L336.7,15.2 L347.1,135.6 L357.6,135.6 L368.1,35.4 L378.5,135.8 L389.0,53.5 L399.5,135.7 L410.0,56.2 L420.4,48.1 L430.9,134.7 L441.4,31.2 L451.9,134.0 L462.3,46.9 L472.8,133.2 L483.3,38.9 L493.7,133.1 L504.2,36.4 L514.7,133.7 L525.2,52.7 L535.6,134.1 L546.1,38.1 L556.6,134.6 L567.1,56.0 L577.5,134.4 L588.0,55.0" fill="none" stroke="#3266ad" stroke-width="1.6"/><circle cx="368.1" cy="35.4" r="4.5" fill="#d32f2f"/><text x="368.1" y="26.4" font-size="10" text-anchor="middle" fill="#d32f2f">09-28</text><circle cx="231.9" cy="61.0" r="4.5" fill="#999"/><text x="231.9" y="52.0" font-size="10" text-anchor="middle" fill="#999">09-15</text></svg></div>
+<p style="font-size:12px;color:#888">灰点=旧规则误报、新规则已过滤。</p>
+
+<h2>四、改动文件</h2>
+<ul style="font-size:13px">
+<li><code>backend/app/config.py</code> — SellConfig 新增 4 字段</li>
+<li><code>backend/app/sellwatch.py</code> — SellState 加 confirm_peak 冷却状态；_evaluate 收紧确认门槛；scan 加每日重置+冷却去重</li>
+<li><code>backend/data/config.json</code> — 持久化新字段</li>
+<li><code>frontend/src/views/monitor/settings/index.vue</code> — 缩量跌停+冷却期配置区；dist 已重建</li>
+</ul>
+
+<div class="box"><b>验证状态</b>：后端 health 200、配置 API 4 字段生效、前端 200；三股锚点全部命中、万向洗盘误报 3 次消除、冷却期确认次数从每日降为关键 2-3 次。</div>
+</body></html>

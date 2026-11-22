@@ -1,0 +1,11 @@
+node_modules
+.DS_Store
+dist-ssr
+*.local
+# dist 需要随仓库部署（服务器无 node 时直接用），不再忽略
+.cursorrules
+
+# Auto-generated files
+src/types/import/auto-imports.d.ts
+src/types/import/components.d.ts
+.auto-import.json

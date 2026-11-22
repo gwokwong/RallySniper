@@ -1,0 +1,86 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>妖股持仓专属卖出规则研究</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:1080px;margin:0 auto;padding:28px;color:#222;background:#fafafa;line-height:1.65}
+h1{font-size:23px;border-bottom:3px solid #c62828;padding-bottom:10px}
+h2{font-size:18px;margin-top:32px;border-left:4px solid #1565c0;padding-left:10px}
+h3{font-size:15px;margin-top:18px}
+table{border-collapse:collapse;width:100%;background:#fff;margin:12px 0;font-size:13px}
+th,td{border:1px solid #ddd;padding:7px 9px;text-align:center}
+th{background:#eef4fb}
+td:first-child{text-align:left}
+.hero{background:#fff;border-left:5px solid #c62828;padding:16px 20px;margin:18px 0;border-radius:4px}
+.good{background:#fff;border-left:5px solid #2e7d32;padding:16px 20px;margin:18px 0;border-radius:4px}
+.info{background:#fff;border-left:5px solid #1565c0;padding:16px 20px;margin:18px 0;border-radius:4px}
+.small{font-size:12px;color:#777}
+</style></head><body>
+<h1>妖股持仓专属卖出规则：严谨验证与诚实结论</h1>
+<p class="small">研究日期 2026-11-21 ｜ 样本：10月273个买点(35只妖股机会) ｜ 关键：用真实 sellwatch 判定逻辑做回测，而非自造引擎，保证结论与实盘一致</p>
+
+<div class="hero"><b>核心结论（必须先说清楚）</b>：我用真实卖出逻辑做了 50+ 套参数回测，<b>没有找到任何"自动放宽卖出"规则能同时多抓妖股又不放大亏损</b>。
+所有看似"救到妖股"的方案，代价都是垃圾票跟着多扛、大亏笔数翻倍。根因不是参数没调好，而是<b>妖股在卖出信号触发那一刻，和真破位在量价上无法区分</b>——这是信息壁垒，不是规则问题。
+因此我没有把一个经不起验证的"伪优化"写进生产代码，而是落地了两轮回测都验证有效的<b>买入端量比过滤</b>，并如实说明卖出端的边界。</div>
+
+<h2>一、为什么要推翻直觉：卖飞妖股到底被什么洗掉</h2>
+<p>24只卖飞妖股中，14只被"破MA10且跌≥5%"洗掉、10只被"20日线破位"洗掉。典型路径(文投控股)：买入@1.84 → 10/22跌5.9%破MA10被卖@1.76 → 洗到10/26的1.70(浮亏-7.6%) → 10/27起连续涨停到2.52(+37%)。
+直觉上"再扛3天就好了",但这是<b>事后视角</b>——当日触发卖出时，没有任何信息能预判它3天后会V型反转。</p>
+
+<h2>二、严谨回测：5类放宽方案全部失败</h2>
+<p>用真实 <code>_evaluate</code> 作为破位触发器(与实盘完全一致)，再叠加各种"宽容"逻辑。基线：胜率14.3%、平均-6.31%、大亏31笔、妖股吃到7/35。</p>
+<h3>方案A：破位后观察窗(收复则留、深亏止损、满期确认)</h3>
+<table><tr><th>方案</th><th>胜率</th><th>平均收益</th><th>大亏笔数</th><th>妖股吃到</th></tr>
+<tr><td>S0 基线(破位即卖)</td><td>14.3%</td><td color:#2e7d32>-6.31%</td><td color:#c62828>31</td><td>7/35</td></tr><tr><td>W2 观察2日收复3%硬停12%</td><td>11.4%</td><td color:#2e7d32>-7.81%</td><td color:#c62828>54</td><td>8/35</td></tr><tr><td>W3 观察3日收复3%硬停12%</td><td>10.3%</td><td color:#2e7d32>-9.09%</td><td color:#c62828>67</td><td>7/35</td></tr><tr><td>W2 硬停10%</td><td>11.4%</td><td color:#2e7d32>-7.49%</td><td color:#c62828>42</td><td>8/35</td></tr><tr><td>W2 硬停15%</td><td>12.5%</td><td color:#2e7d32>-7.74%</td><td color:#c62828>67</td><td>8/35</td></tr><tr><td>W2 收复5%</td><td>11.4%</td><td color:#2e7d32>-7.61%</td><td color:#c62828>52</td><td>8/35</td></tr><tr><td>W3 硬停10%</td><td>10.3%</td><td color:#2e7d32>-8.59%</td><td color:#c62828>46</td><td>7/35</td></tr></table>
+<p>全部劣化：观察2日大亏从31→54笔、平均从-6.31%→-7.81%。文投/日出东方一个都没救到——它们的洗盘持续3天以上，超过合理观察窗，而垃圾票却多扛了2天。</p>
+
+<h3>方案B：厚利票宽容(浮盈达标后改用峰值回撤止盈)</h3>
+<table><tr><th>方案</th><th>胜率</th><th>平均收益</th><th>大亏笔数</th><th>妖股吃到</th></tr>
+<tr><td>S0 全部严格(基线)</td><td>14.7%</td><td style='color:#2e7d32'>-5.86%</td><td>30</td><td>7/35</td></tr><tr><td>T15-回撤20%</td><td>11.0%</td><td style='color:#2e7d32'>-6.17%</td><td>30</td><td>5/35</td></tr><tr><td>T15-回撤25%</td><td>9.2%</td><td style='color:#2e7d32'>-6.5%</td><td>30</td><td>6/35</td></tr><tr><td>T15-回撤30%</td><td>9.2%</td><td style='color:#2e7d32'>-6.63%</td><td>30</td><td>6/35</td></tr><tr><td>T10-回撤25%</td><td>5.5%</td><td style='color:#2e7d32'>-6.57%</td><td>29</td><td>6/35</td></tr><tr><td>T20-回撤25%</td><td>9.2%</td><td style='color:#2e7d32'>-6.58%</td><td>30</td><td>6/35</td></tr><tr><td>T15-回撤35%</td><td>8.8%</td><td style='color:#2e7d32'>-6.64%</td><td>30</td><td>5/35</td></tr></table>
+<p>同样劣化。10月弱市里能涨到浮盈15%的票太少，多数妖股在浮盈转正前就被洗出，"厚利才宽容"救不到它们。</p>
+
+<h3>方案C/D/E（简述，数据不一一列）</h3>
+<div class="info">
+· <b>前置筛选候选只宽容</b>：用"ret20高/量比低/上影短"选出的候选，妖股率12.6% ≈ 全体12.8%，无区分力；且最大妖股文投恰是量比4.09的上影长票，被筛除。<br>
+· <b>缩量洗盘降级预警</b>：273笔里没有一笔卖出日满足"缩量+跌幅3-9.5%+未深套"——卖飞日根本不是缩量，此路不通。<br>
+· <b>通道阈值微调</b>：关破MA10确认→大亏31→51笔；破MA10门槛提到8%→大亏31→41笔。都是"妖股多吃1只、大亏多10-20笔"。
+</div>
+
+<h2>三、唯一有区分力的信号：持有时间</h2>
+<p>按实际卖出收益看持有天数，规律非常清晰：</p>
+<table><tr><th>持有天数</th><th>笔数</th><th>胜率</th><th>平均收益</th></tr>
+<tr><td>≤3天</td><td>85</td><td>4.7%</td><td color:#2e7d32>-8.4%</td></tr><tr><td>4-7天</td><td>61</td><td>1.6%</td><td color:#2e7d32>-11.0%</td></tr><tr><td>8-14天</td><td>83</td><td>19.3%</td><td color:#2e7d32>-6.2%</td></tr><tr><td>15-21天</td><td>29</td><td>34.5%</td><td color:#2e7d32>-0.8%</td></tr><tr><td>>21天</td><td>12</td><td>41.7%</td><td color:#c62828>7.8%</td></tr></table>
+<p>吃到妖股中位持有17.5天，卖飞仅10天。但"最短持有期保护"回测同样失败：持有8日+硬停15%妖股吃到12/35，大亏却从23飙到100笔。
+因为强行延长持有，等于让所有垃圾票都扛过最危险的时期。</p>
+
+<div class="hero"><b>为什么卖出端无解</b>：35只妖股里，17只(49%)要先经历≥8%浮亏的深洗才拉升，18只直接拉升。
+深洗日和真破位日在当日K线上完全同形。任何"给妖股更多时间"的规则，都会无差别地给垃圾票更多时间——在弱市里，垃圾票远多于妖股，净效应必然为负。
+这不是模型不够好，是<b>事前信息不足</b>。</div>
+
+<h2>四、真正有效的杠杆：回到买入端</h2>
+<p>既然卖出端无法区分，正确做法是<b>在买入端提高信号质量</b>。上一轮"分战法差异化"回测已验证：强势续攻是大亏重灾区(大亏率39.9%)，对它的信号量比设上限能显著提纯。
+本轮把这条规则<b>落地到代码</b>：</p>
+<div class="good">
+<b>新增配置</b> <code>strategy_rules.strong_max_vol_ratio</code>（强势续攻量比上限，默认0=不限）。<br>
+<b>效果（10月回测）</b>：强势续攻量比&lt;3 时，大亏笔数 -43%、妖股仍保留 85.7%(30/35)，胜率 14.3%→16.8%。<br>
+<b>落地位置</b>：<br>
+· <code>backend/app/config.py</code>：新增配置字段<br>
+· <code>backend/app/market_scan.py</code>：扫描时对强势续攻信号应用量比上限，只砍强势续攻、不动洗盘反包/涨停回调<br>
+· <code>frontend/src/views/monitor/settings/index.vue</code>：设置页新增输入框与说明<br>
+<b>使用</b>：抓妖股模式下建议设为 3.0；默认 0 表示不过滤，不改变现有行为。
+</div>
+
+<h2>五、给你的最终实操结论</h2>
+<div class="good">
+1. <b>不要指望靠"放松卖出"抓妖股</b>——本轮50+回测证明这条路在弱市是负收益，我已如实否决。<br>
+2. <b>抓妖股靠两件事</b>：买入端提纯(设量比上限3.0) + 极小仓位分散(妖股机会仅占13%，靠1-2只翻倍覆盖多数小亏)。<br>
+3. <b>卖出纪律保持严格</b>：缩量跌停、破MA10确认、冷却期都已是最优，别动它们。接受"会卖飞一些妖股"是这套体系的必要成本。<br>
+4. 若确实想提高妖股捕获，唯一有数据支持的方向是<b>资金管理</b>(分仓、单票上限)而非信号规则——这是下一阶段课题。
+</div>
+
+<h2>六、口径与局限</h2>
+<p class="small">
+· 样本：10/8-10/30全程弱市273买点；8月390买点已在上一轮验证因子方向一致性。<br>
+· 严谨性：本轮所有卖出回测复用真实 sellwatch._evaluate(confirm)判定，仅在其上叠加状态机，避免自造引擎口径偏差。早期自造引擎的基线数字与真实逻辑不符，已全部弃用。<br>
+· 妖股定义：买入后最高收益≥30%；吃到：实际卖出收益≥20%。<br>
+· 收盘价成交、未计费用滑点；大亏定义：卖出收益&lt;-15%。
+</p>
+</body></html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>策略优化前后对比</title><style>
+body{font-family:-apple-system,"PingFang SC",sans-serif;max-width:1000px;margin:28px auto;color:#222;line-height:1.65;padding:0 20px}
+h1{font-size:24px;border-bottom:3px solid #3266ad;padding-bottom:10px}
+h2{font-size:18px;margin-top:30px;color:#1a3d6e}
+.metric{display:inline-block;background:#f5f8fc;border-radius:10px;padding:13px 18px;margin:8px 10px 8px 0;min-width:190px;vertical-align:top}
+.metric .l{font-size:12px;color:#777} .metric .v{font-size:23px;font-weight:600;margin-top:3px} .metric .sub{font-size:12px;color:#666;margin-top:3px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:12px 0}
+th,td{border:1px solid #dcdcdc;padding:8px 10px;text-align:left} th{background:#eef3fa}
+.best{color:#1a7f37;background:#e8f5ec;padding:1px 7px;border-radius:8px;font-size:11px}
+.off{color:#999;background:#f0f0f0;padding:1px 7px;border-radius:8px;font-size:11px}
+.note{background:#fff8e6;border-left:4px solid #d98a00;padding:12px 16px;font-size:13px;margin:14px 0}
+.good{background:#e8f5ec;border-left:4px solid #1a7f37;padding:12px 16px;font-size:13px;margin:14px 0}
+code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:12px}
+</style></head><body>
+<h1>三项策略优化 · 前后回测对比</h1>
+<p style="color:#666">RallySniper · 2026-11-21 · 同一批 8/10–8/30 全市场信号 · 真实战法+卖出函数逐日回放 · 无未来函数</p>
+
+<div class="good"><b>一句话结论</b>：三项里<b>真正有效的是「战法倾斜」</b>——只做洗盘反包，118只、胜率22.0%、平均-2.68%、<b>零笔大亏（最差-18.1%）</b>，全面优于基准的19.5%/-3.65%/5笔大亏。大盘过滤削掉了最差的一批票但误杀了部分妖股；卖出分档在这段下跌市<b>未证明有效，已默认关闭</b>。</div>
+
+<h2>一、四种方案对比</h2>
+<table><tr><th>方案</th><th>交易数</th><th>胜率</th><th>平均收益</th><th>中位收益</th><th>大赚>30%</th><th>大亏<-20%</th><th>最差单笔</th></tr>
+<tr><td>① 基准（原规则） </td><td>508</td><td>19.5%</td><td style="color:#2e7d32">-3.6%</td><td style="color:#2e7d32">-6.5%</td><td>15</td><td>5</td><td style="color:#2e7d32">-26.6%</td></tr><tr><td>② +大盘过滤 </td><td>321</td><td>19.0%</td><td style="color:#2e7d32">-3.8%</td><td style="color:#2e7d32">-6.7%</td><td>7</td><td>3</td><td style="color:#2e7d32">-25.7%</td></tr><tr><td>③ +战法倾斜(仅洗盘反包) <span class="best">推荐</span></td><td>118</td><td>22.0%</td><td style="color:#2e7d32">-2.7%</td><td style="color:#2e7d32">-6.3%</td><td>4</td><td>0</td><td style="color:#2e7d32">-18.1%</td></tr><tr><td>④ 最终(+卖出分档) <span class="off">默认关</span></td><td>118</td><td>22.0%</td><td style="color:#2e7d32">-2.6%</td><td style="color:#2e7d32">-6.3%</td><td>2</td><td>0</td><td style="color:#2e7d32">-18.1%</td></tr></table>
+<p style="font-size:12px;color:#888">大赚/大亏数量随交易数减少而下降属正常，关键看<b>胜率、平均收益、最差单笔</b>。红涨绿跌。</p>
+
+<h2>二、逐项解读</h2>
+<div class="note"><b>② 大盘环境过滤</b>：窗口15个交易日中9强市、6弱市。只在强市日开仓，508→321只。胜率19.5%→19.0%（基本不变），但大亏5→3、最差-26.6%→-25.7%。<b>代价</b>：大赚从15→7——会稽山8/14（+101.6%）等妖股恰在弱市日启动，被误杀。<b>结论</b>：它能削掉尾部风险，但不提升胜率；作为风控闸门有价值，作为收益增强有限。</div>
+<div class="good"><b>③ 战法权重倾斜（推荐）</b>：洗盘反包应试盘数据显示胜率25.2% vs 强势续攻17.9%。只做洗盘反包且限强市日开仓：118只、胜率22.0%、平均-2.68%、<b>零笔大亏</b>、最差仅-18.1%。这是三项中唯一同时改善胜率、平均收益和尾部风险的改动。已设为主战法（优先推送/排序），强势续攻改为仅强市开启。</div>
+<div class="note"><b>④ 卖出分档（默认关闭）</b>：给浮盈>15%的票放宽急跌阈值到12%并启用10日线移动止盈。回测结果：胜率不变(22.0%)、平均仅-2.68%→-2.62%，且移动止盈把 002667（*ST威领）从 +45.9%(持34天) 提前到 +15.8%(持9天)——<b>误伤了最大牛股</b>。下跌市里放宽止损既救不了多数破位票，也会砍掉少数妖股。代码保留但默认关闭；如需在震荡/上涨市尝试，门槛已提高到30%。</div>
+
+<h2>三、战法倾斜下相对基准改善最多的票</h2>
+<table><tr><th>代码</th><th>名称</th><th>战法</th><th>买入</th><th>基准收益</th><th>优化后</th><th>改善</th></tr><tr><td>600540</td><td>新赛股份</td><td>洗盘反包</td><td>买08-27@4.59</td><td style="color:#2e7d32">-1.5%</td><td style="color:#c62828">+32.0%</td><td style="color:#c62828">+33.5pp</td></tr><tr><td>603106</td><td>恒银科技</td><td>洗盘反包</td><td>买08-26@8.2</td><td style="color:#2e7d32">-22.7%</td><td style="color:#2e7d32">-0.1%</td><td style="color:#c62828">+22.6pp</td></tr><tr><td>002491</td><td>通鼎互联</td><td>洗盘反包</td><td>买08-20@19.27</td><td style="color:#2e7d32">-7.5%</td><td style="color:#c62828">+9.1%</td><td style="color:#c62828">+16.6pp</td></tr><tr><td>300951</td><td>博硕科技</td><td>洗盘反包</td><td>买08-27@75.27</td><td style="color:#2e7d32">-10.5%</td><td style="color:#c62828">+5.1%</td><td style="color:#c62828">+15.6pp</td></tr><tr><td>603626</td><td>科森科技</td><td>洗盘反包</td><td>买08-20@16.95</td><td style="color:#2e7d32">-6.9%</td><td style="color:#c62828">+5.8%</td><td style="color:#c62828">+12.7pp</td></tr><tr><td>603608</td><td>天创股份</td><td>洗盘反包</td><td>买08-28@19.7</td><td style="color:#2e7d32">-4.4%</td><td style="color:#c62828">+5.9%</td><td style="color:#c62828">+10.3pp</td></tr><tr><td>688300</td><td>联瑞新材</td><td>洗盘反包</td><td>买08-27@143.26</td><td style="color:#2e7d32">-15.8%</td><td style="color:#2e7d32">-6.2%</td><td style="color:#c62828">+9.6pp</td></tr><tr><td>605288</td><td>凯迪股份</td><td>洗盘反包</td><td>买08-27@63.14</td><td style="color:#2e7d32">-12.3%</td><td style="color:#2e7d32">-3.1%</td><td style="color:#c62828">+9.1pp</td></tr><tr><td>603065</td><td>宿迁联盛</td><td>洗盘反包</td><td>买08-21@17.33</td><td style="color:#2e7d32">-8.2%</td><td style="color:#2e7d32">-2.4%</td><td style="color:#c62828">+5.8pp</td></tr><tr><td>002552</td><td>宝鼎科技</td><td>洗盘反包</td><td>买08-20@57.04</td><td style="color:#2e7d32">-13.7%</td><td style="color:#2e7d32">-9.0%</td><td style="color:#c62828">+4.7pp</td></tr></table>
+
+<h2>四、落地状态</h2>
+<ul style="font-size:13px">
+<li><code>大盘过滤</code>：已启用（弱市暂停开新仓，指数在MA20下方或均线向下）。当前大盘 3533.79 &lt; MA20 3636.54、斜率-0.874%，判为弱势——实测扫描返回「已暂停开新仓」、0信号。</li>
+<li><code>战法倾斜</code>：已启用（洗盘反包主战法优先；强势续攻仅强市；并修复了实盘扫描此前漏注册洗盘反包的问题）。</li>
+<li><code>卖出分档</code>：代码就位但默认关闭（浮盈门槛30%）；需先在标的池标记持有并录入成本价才生效。</li>
+<li>前端：设置页新增「大盘环境过滤」「浮盈分档」配置区；标的池标记持有时可录入成本价、显示浮盈标签。dist 已重建。</li>
+</ul>
+<div class="note"><b>口径提醒</b>：腾讯前复权日线、收盘价成交、未计手续费滑点；单一区间（8–10月单边下跌市），结论方向可信、数字偏乐观。分档与大盘过滤在不同市况下表现可能反转，实盘建议按周/月复盘。</div>
+</body></html>

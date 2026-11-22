@@ -1,0 +1,12 @@
+# 运行产物与缓存（部署机自动生成/可重建）
+logs/
+backend/app/__pycache__/
+__pycache__/
+*.pyc
+backend/data/kline_cache/
+backend/data/replay_cache/
+backend/data/ignition_state.json
+.workbuddy/
+# 前端构建产物体积大但部署需要 dist —— 保留跟踪
+backend/data/config.json
+backend/data/notifications.json

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>波段/情绪周期/短线心法 整合研究 · 20261122</title>
+<style>
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:24px;max-width:1180px;color:#1f2329;background:#f7f8fa}
+h1{font-size:22px} h2{font-size:17px;margin-top:28px;border-left:4px solid #2563eb;padding-left:10px}
+p,li{font-size:13.5px;line-height:1.75}
+table{border-collapse:collapse;width:100%;background:#fff;font-size:12px;margin:10px 0}
+th,td{border:1px solid #e5e6eb;padding:5px 7px;text-align:center}
+th{background:#f2f3f5;font-weight:600} td:first-child{text-align:left}
+.good{color:#d92b2b;font-weight:600} .warn{color:#b45309;font-weight:600}.neg{color:#0a8f3c;font-weight:600}
+.hl{background:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;margin:14px 0}
+.note{color:#8a919f;font-size:12px}
+.kpi{display:flex;gap:16px;flex-wrap:wrap}
+.kpi div{background:#fff;border:1px solid #e5e6eb;border-radius:8px;padding:10px 16px}
+.big{font-size:24px;font-weight:700;color:#2563eb}
+</style></head><body>
+<h1>三段方法论的逻辑审读与整合验证（波段选股 / 阅盘八句 / 情绪周期四阶段）</h1>
+<p>回放区间 <b>2026-08-01 ~ 2026-11-20</b>（75 个交易日）· 无未来函数 · 与当前策略同口径对照（同期 +33,881 元 / 胜率 46.7%）。</p>
+
+<div class="hl">
+<p><b>总结论：</b>① 情绪周期四阶段逻辑正确且分类器验证有效，其中「高潮」阶段与当前策略叠加后胜率 82.7%——已落地为「点火广度确认」配置（默认关）。② 阅盘八句中第 5/6 句（缩量急跌=洗盘/放量急跌=出逃）与本项目实证<b>方向相反</b>，不采纳。③ 波段选股语句全口径亏损，「死拿 1-2 月」更是灾难（-138 万），不整合。④ 首板/连板接力所需数据（市值/股东/板块）系统缺失，无法验证，不整合。</p>
+</div>
+
+<h2>一、波段操作 + 同花顺选股语句（可量化部分全测）</h2>
+<p>量化条件（缺市值维度）：近2月回撤≥30%后回暖≥5% + 近10日≥7%大阳 + MA20拐头向上 + MA5&gt;MA10&gt;MA20 + 站上5日线或回踩10/20企稳 + 红肥绿瘦 + 上市>100天。3737 笔原始信号（日均 50 笔），每日随机抽 10 笔评估：</p>
+<table><thead><tr><th>卖出方式</th><th>样本</th><th>胜率%</th><th>平均%</th><th>中位%</th><th>盈亏比</th><th>大亏</th><th>总营收(元)</th></tr></thead><tbody>
+<tr><td style='text-align:left'>系统首确认</td><td>530</td><td>19.8</td><td>-4.59</td><td>-7.39</td><td>1.57</td><td>175</td><td class='neg'>-243,349</td></tr>
+<tr><td style='text-align:left'>死拿到11/20（方法本意1-2月持有）</td><td>530</td><td>10.2</td><td>-26.07</td><td>-29.87</td><td>0.67</td><td>436</td><td class='neg'>-1,381,836</td></tr>
+<tr><td style='text-align:left'>方法自带纪律（破MA20止损/涨25%走弱止盈）</td><td>530</td><td>16.0</td><td>-6.51</td><td>-9.47</td><td>1.88</td><td>251</td><td class='neg'>-345,189</td></tr>
+</tbody></table>
+<p><b>解读：</b>「深回调抄底 + 均线多头拐头」在样本内选出的是下跌中继股，抄底逻辑与低吸五招同病；「1-2 月持仓」在 hostile 月份是灾难（死拿 -138 万 vs 卖出纪律 -24 万，<b>卖出引擎又救了 114 万</b>）。逻辑框架本身没错（趋势+回调+纪律），错在市场结构：当前接力周期&lt;1 天，「回调企稳」多数是下跌中继。不整合。</p>
+
+<h2>二、情绪周期四阶段（冰点/修复/高潮/退潮）——分类器有效，已部分落地</h2>
+<p>用涨停家数 + 昨日池中位溢价 + 晋级率做日度分类（规则：溢价≥1.5%且家数≥100=高潮；溢价≥1.5%=修复；≤-2.5%=冰点；(-2.5,0)且家数萎缩=退潮）：75 天 = 冰点10 / 退潮13 / 中性26 / 修复20 / 高潮4。</p>
+<table><thead><tr><th>阶段</th><th>天数</th><th>涨停均家数</th><th>涨停股5日中位</th><th>晋级率</th></tr></thead><tbody>
+<tr><td>冰点</td><td>10</td><td>47</td><td class='neg'>-5.87%</td><td>14.8%</td></tr>
+<tr><td>退潮</td><td>13</td><td>53</td><td class='neg'>-2.81%</td><td>18.7%</td></tr>
+<tr><td>中性</td><td>26</td><td>68</td><td class='neg'>-3.02%</td><td>20.5%</td></tr>
+<tr><td>修复</td><td>20</td><td>56</td><td class='neg'>-2.83%</td><td class='good'>27.4%</td></tr>
+<tr><td>高潮</td><td>4</td><td>116</td><td class='good'>+4.55%</td><td>23.1%</td></tr>
+</tbody></table>
+<p>生态排序完全符合定义（高潮唯一正、冰点最差、修复晋级率最高）——<b>分类器有效</b>。</p>
+<p><b>当前策略分阶段表现（229 笔冠军信号）：高潮 82.7% 胜率全在普涨日</b></p>
+<table><thead><tr><th>阶段</th><th>信号数</th><th>胜率%</th><th>平均%</th><th>总营收(元)</th></tr></thead><tbody>
+<tr><td>修复</td><td>82</td><td class='warn'>14.6</td><td class='neg'>-6.26</td><td class='neg'>-51,351</td></tr>
+<tr><td>高潮</td><td>98</td><td class='good'>82.7</td><td class='good'>+8.52</td><td class='good'>+83,466</td></tr>
+<tr><td>中性</td><td>18</td><td class='good'>66.7</td><td class='good'>+11.37</td><td class='good'>+20,463</td></tr>
+<tr><td>冰点</td><td>8</td><td class='warn'>12.5</td><td class='neg'>-6.55</td><td class='neg'>-5,243</td></tr>
+<tr><td>退潮</td><td>23</td><td class='warn'>4.3</td><td class='neg'>-5.85</td><td class='neg'>-13,454</td></tr>
+</tbody></table>
+<p><b>高潮+中性 = 116 笔 +103,929 元（胜率约 81%）；修复+冰点+退潮 = 113 笔 -70,048 元。</b>「点火确认」只看溢价强度，漏掉了「广度」维度：溢价≥3% 但涨停家数不足 = 修复型一日游（11 月的形态）。<b>已落地：</b>新增配置 <code>ignition_min_breadth</code>（点火日广度确认，当日实时涨停家数≥阈值才开仓，默认 0 关闭；设 100 复现「只做普涨日」）。11/10 陷阱日（34 笔 -32,025 元）当日家数不足 100，该配置开启后可完全避开。⚠️ 高潮样本仅 4 天且集中于 8 月，样本外有效性待 12 月前瞻验证，故默认关。</p>
+
+<h2>三、阅盘八句：两句与本项目实证方向相反，其余已实现或不可验证</h2>
+<table><thead><tr><th>句</th><th>主张</th><th>本项目实证</th><th>判定</th></tr></thead><tbody>
+<tr><td>1/8 企稳才进、未企稳不建仓</td><td>别碰弱势股、别抄下跌中继</td><td>点火闸门即此思想</td><td class='good'>已融入</td></tr>
+<tr><td>2 稳步小涨优于暴涨</td><td>别追暴涨</td><td>动量研究：追涨全负</td><td class='good'>一致</td></tr>
+<tr><td>3/4 连涨见顶止盈、放量狂热卖出</td><td>高位兑现</td><td>天量破位通道+止盈分档已有</td><td class='good'>已融入</td></tr>
+<tr><td><b>5 缩量急跌=洗盘会再拉</b></td><td>缩量下跌别卖</td><td><b>相反</b>：实测卖点全是缩量跌停（金健9/28量比0.15、会稽山9/29量比0.13、万向9/28量比0.39），缩量=买盘枯竭</td><td class='warn'>方向相反，不采纳</td></tr>
+<tr><td><b>6 放量急跌=主力出逃赶紧卖</b></td><td>放量下跌止损</td><td><b>相反</b>：放量急跌多为洗盘后创新高（金健9/15、万向9/3量比2.07），故引擎只在缩量跌停时确认卖出</td><td class='warn'>方向相反，不采纳</td></tr>
+<tr><td>7 猛涨回踩看承接</td><td>承接=持有</td><td>承接需盘口数据，无法验证</td><td>跳过</td></tr>
+</tbody></table>
+<p><b>特别说明句5/6：</b>这两句是很多教程的常见说法，但本项目用真实持仓回测（2026-09~10）验证的方向恰好相反——「缩量跌停才是趋势末端，放量急跌常是洗盘」。当前卖出引擎的「缩量跌停确认 + 放量急跌仅盘中预警」正是按此实现并经过 13 项场景测试。两套说法不可能都对——本项目的判据来自本市场本样本的逐日实证，维持现有引擎。</p>
+
+<h2>四、首板/连板接力语句</h2>
+<p>所需数据（流通市值、大股东持股比例、板块涨停家数、历史涨停溢价）系统缺失，无法回测；且打板/接力定位与系统「只低吸不打板」不符。情绪周期部分（上面第二节）已验证并部分落地。若未来接入板池明细数据（东财涨停池已有连板数/炸板次数/封板资金字段），可补测。</p>
+
+<h2>五、整合清单</h2>
+<ul>
+<li class='good'>✅ 已落地：点火广度确认 <code>ignition_min_breadth</code>（默认 0 关，设 100 只做普涨日高潮）——设置页大盘环境卡可调，妖股模式绕过。</li>
+<li class='good'>✅ 已实现（此前）：阅盘句 1/2/3/4/8 对应的闸门、止盈、天量破位通道。</li>
+<li class='warn'>❌ 不采纳：阅盘句 5/6（与实证相反）；波段抄底选股（-24万~-138万）；五招低吸（前次研究）；首板接力（数据缺失）。</li>
+<li>⏳ 待验证：广度阈值 100 的样本外表现（12 月前瞻验证后决定是否默认开启）；东财涨停池明细字段接入后补测首板溢价。</li>
+</ul>
+<p class="note">生成 2026-11-22 · 数据：腾讯前复权日线至 11/20 + 涨停生态缓存 · 阶段阈值(1.5%/-2.5%/100家)为经验设定，未逐格寻优 · 非交易建议</p>
+</body></html>

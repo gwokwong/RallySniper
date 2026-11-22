@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>动量上涨融入研究 · 20261121</title>
+<style>
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:24px;max-width:1180px;color:#1f2329;background:#f7f8fa}
+h1{font-size:22px} h2{font-size:17px;margin-top:28px;border-left:4px solid #2563eb;padding-left:10px}
+p,li{font-size:13.5px;line-height:1.75}
+table{border-collapse:collapse;width:100%;background:#fff;font-size:12px;margin:10px 0}
+th,td{border:1px solid #e5e6eb;padding:5px 7px;text-align:center}
+th{background:#f2f3f5;font-weight:600} td:first-child{text-align:left}
+.good{color:#d92b2b;font-weight:600} .warn{color:#b45309;font-weight:600}.neg{color:#0a8f3c;font-weight:600}
+.hl{background:#fef2f2;border:1px solid #dc2626;border-radius:8px;padding:14px 18px;margin:14px 0}
+.note{color:#8a919f;font-size:12px}
+.kpi{display:flex;gap:16px;flex-wrap:wrap}
+.kpi div{background:#fff;border:1px solid #e5e6eb;border-radius:8px;padding:10px 16px}
+.big{font-size:24px;font-weight:700;color:#d92b2b}
+</style></head><body>
+<h1>「动量上涨」能否融入当前策略 · 实证研究</h1>
+<p>回放区间 <b>2026-08-01 ~ 2026-11-20</b>（75 个交易日，全市场 5031 只）· 无未来函数 · 买入=信号日收盘 · 卖出=真实 sellwatch 首次确认 · 单只 1 万 · 每变体每日随机等权抽 10 笔上限（模拟系统 daily_signal_cap=10）。与当前冠军方案（洗盘反包+点火中位≥3%）同口径对照。</p>
+
+<div class="kpi">
+<div><div class="big">0 / 24</div>正期望组合（5变体×4闸门）</div>
+<div><div class="big">14~28%</div>动量全组合胜率区间</div>
+<div><div class="big">-2.8万~-92万</div>动量组合总营收区间</div>
+<div><div class="big" style="color:#d92b2b">+3.4万</div>当前策略同期对照</div>
+</div>
+
+<div class="hl">
+<p><b>结论先行：不建议融入。</b>五种动量定义（新高突破/连阳/强动量/横截面排名/涨停接力）×四种闸门（无闸门/点火/强市/点火∧强市），<b>24 个组合全部亏损</b>，胜率 14%~28%，无一接近盈亏平衡。动量能把开仓量从当前日均 3 笔放大到 10~22 笔，但每多开一笔都是负期望——开仓增多 = 亏钱增多。</p>
+</div>
+
+<h2>一、动量变体与信号量</h2>
+<table><thead><tr><th>动量变体</th><th>定义</th><th>原始信号数(75日)</th><th>日均</th></tr></thead><tbody><tr><td style='text-align:left'>MN20新高</td><td style='text-align:left'>创20日收盘新高 + 量比≥1.5 + 涨3%~9.8%（未涨停）</td><td>6010</td><td>80.1</td></tr><tr><td style='text-align:left'>MN60新高</td><td style='text-align:left'>创60日收盘新高 + 量比≥1.5 + 涨3%~9.8%（未涨停）</td><td>2189</td><td>29.2</td></tr><tr><td style='text-align:left'>M3连阳</td><td style='text-align:left'>连续3阳 + 3日累计≥8% + 量比≥1.2 + 未涨停</td><td>5797</td><td>77.3</td></tr><tr><td style='text-align:left'>M5R强动量</td><td style='text-align:left'>5日累计≥12% + 站上5日线 + 未涨停</td><td>14932</td><td>199.1</td></tr><tr><td style='text-align:left'>MR10横截面Top10</td><td style='text-align:left'>当日5日涨幅全市场排名前10（5日涨幅>8%，未涨停）</td><td>740</td><td>9.9</td></tr></tbody></table>
+<p class="note">排除当日收盘涨停股（避免与洗盘反包/强势续攻重叠）。原始信号日均 30~200 笔，评估按每日 10 笔抽样。</p>
+
+<h2>二、5 变体 × 4 闸门方案矩阵（全期 2026-08~11）</h2>
+<table><thead><tr><th>动量变体</th><th>方案</th><th>样本数</th><th>日均开仓</th><th>胜率%</th><th>平均%</th><th>盈亏比</th><th>大亏</th><th>赚30%+</th><th>总营收(元)</th><th>峰值占用(元)</th><th>资金收益率%</th></tr></thead><tbody><tr><td>MN20新高</td><td style='text-align:left'>无闸门</td><td>735</td><td>9.9</td><td>17.3</td><td>-5.49</td><td>1.02</td><td>197</td><td class='good'>4</td><td class='neg'>-403,396</td><td class='warn'>1,490,000</td><td>-27.1</td></tr><tr><td>MN20新高</td><td style='text-align:left'>点火闸门(中位≥3)</td><td>110</td><td>10.0</td><td>20.0</td><td>-5.97</td><td>0.82</td><td>39</td><td class=''>0</td><td class='neg'>-65,625</td><td class='warn'>370,000</td><td>-17.7</td></tr><tr><td>MN20新高</td><td style='text-align:left'>强市(上证MA20)</td><td>170</td><td>10.0</td><td>15.3</td><td>-4.78</td><td>1.64</td><td>40</td><td class='good'>2</td><td class='neg'>-81,258</td><td class='warn'>990,000</td><td>-8.2</td></tr><tr><td>MN20新高</td><td>点火∧强市</td><td colspan='9'>n=0</td></tr><tr><td>MN20新高</td><td style='text-align:left'>非点火日(当前策略停机时)</td><td>625</td><td>9.9</td><td>16.8</td><td>-5.40</td><td>1.06</td><td>158</td><td class='good'>4</td><td class='neg'>-337,771</td><td class='warn'>1,370,000</td><td>-24.7</td></tr><tr><td>MN60新高</td><td style='text-align:left'>无闸门</td><td>711</td><td>9.6</td><td>17.4</td><td>-5.83</td><td>1.02</td><td>223</td><td class='good'>8</td><td class='neg'>-414,560</td><td class='warn'>1,400,000</td><td>-29.6</td></tr><tr><td>MN60新高</td><td style='text-align:left'>点火闸门(中位≥3)</td><td>98</td><td>8.9</td><td>27.6</td><td>-2.88</td><td>1.43</td><td>25</td><td class='good'>4</td><td class='neg'>-28,244</td><td class='warn'>370,000</td><td>-7.6</td></tr><tr><td>MN60新高</td><td style='text-align:left'>强市(上证MA20)</td><td>170</td><td>10.0</td><td>14.1</td><td>-5.63</td><td>1.39</td><td>50</td><td class='good'>3</td><td class='neg'>-95,768</td><td class='warn'>1,010,000</td><td>-9.5</td></tr><tr><td>MN60新高</td><td>点火∧强市</td><td colspan='9'>n=0</td></tr><tr><td>MN60新高</td><td style='text-align:left'>非点火日(当前策略停机时)</td><td>613</td><td>9.7</td><td>15.8</td><td>-6.30</td><td>0.92</td><td>198</td><td class='good'>4</td><td class='neg'>-386,316</td><td class='warn'>1,290,000</td><td>-29.9</td></tr><tr><td>M3连阳</td><td style='text-align:left'>无闸门</td><td>738</td><td>10.0</td><td>17.6</td><td>-4.74</td><td>1.31</td><td>190</td><td class='good'>8</td><td class='neg'>-349,810</td><td class='warn'>1,440,000</td><td>-24.3</td></tr><tr><td>M3连阳</td><td style='text-align:left'>点火闸门(中位≥3)</td><td>110</td><td>10.0</td><td>18.2</td><td>-4.43</td><td>1.48</td><td>30</td><td class='good'>1</td><td class='neg'>-48,704</td><td class='warn'>360,000</td><td>-13.5</td></tr><tr><td>M3连阳</td><td style='text-align:left'>强市(上证MA20)</td><td>170</td><td>10.0</td><td>18.2</td><td>-4.13</td><td>1.78</td><td>47</td><td class='good'>4</td><td class='neg'>-70,227</td><td class='warn'>930,000</td><td>-7.6</td></tr><tr><td>M3连阳</td><td>点火∧强市</td><td colspan='9'>n=0</td></tr><tr><td>M3连阳</td><td style='text-align:left'>非点火日(当前策略停机时)</td><td>628</td><td>10.0</td><td>17.5</td><td>-4.79</td><td>1.28</td><td>160</td><td class='good'>7</td><td class='neg'>-301,106</td><td class='warn'>1,310,000</td><td>-23.0</td></tr><tr><td>M5R强动量</td><td style='text-align:left'>无闸门</td><td>740</td><td>10.0</td><td>16.1</td><td>-6.22</td><td>1.04</td><td>258</td><td class='good'>7</td><td class='neg'>-460,241</td><td class='warn'>1,350,000</td><td>-34.1</td></tr><tr><td>M5R强动量</td><td style='text-align:left'>点火闸门(中位≥3)</td><td>110</td><td>10.0</td><td>20.0</td><td>-5.48</td><td>1.03</td><td>37</td><td class='good'>2</td><td class='neg'>-60,298</td><td class='warn'>360,000</td><td>-16.7</td></tr><tr><td>M5R强动量</td><td style='text-align:left'>强市(上证MA20)</td><td>170</td><td>10.0</td><td>22.4</td><td>-4.92</td><td>1.16</td><td>51</td><td class='good'>4</td><td class='neg'>-83,597</td><td class='warn'>910,000</td><td>-9.2</td></tr><tr><td>M5R强动量</td><td>点火∧强市</td><td colspan='9'>n=0</td></tr><tr><td>M5R强动量</td><td style='text-align:left'>非点火日(当前策略停机时)</td><td>630</td><td>10.0</td><td>15.4</td><td>-6.35</td><td>1.05</td><td>221</td><td class='good'>5</td><td class='neg'>-399,943</td><td class='warn'>1,240,000</td><td>-32.3</td></tr><tr><td>MR10横截面Top10</td><td style='text-align:left'>无闸门</td><td>740</td><td>10.0</td><td>17.3</td><td>-7.61</td><td>1.06</td><td>352</td><td class='good'>12</td><td class='neg'>-563,334</td><td class='warn'>1,130,000</td><td>-49.9</td></tr><tr><td>MR10横截面Top10</td><td style='text-align:left'>点火闸门(中位≥3)</td><td>110</td><td>10.0</td><td>19.1</td><td>-6.93</td><td>1.16</td><td>48</td><td class='good'>3</td><td class='neg'>-76,274</td><td class='warn'>310,000</td><td>-24.6</td></tr><tr><td>MR10横截面Top10</td><td style='text-align:left'>强市(上证MA20)</td><td>170</td><td>10.0</td><td>21.2</td><td>-6.69</td><td>0.96</td><td>74</td><td class='good'>2</td><td class='neg'>-113,770</td><td class='warn'>780,000</td><td>-14.6</td></tr><tr><td>MR10横截面Top10</td><td>点火∧强市</td><td colspan='9'>n=0</td></tr><tr><td>MR10横截面Top10</td><td style='text-align:left'>非点火日(当前策略停机时)</td><td>630</td><td>10.0</td><td>17.0</td><td>-7.73</td><td>1.04</td><td>304</td><td class='good'>9</td><td class='neg'>-487,060</td><td class='warn'>1,000,000</td><td>-48.7</td></tr><tr><td>强续(涨停接力·现有关闭)</td><td style='text-align:left'>无闸门</td><td>1618</td><td>21.9</td><td>16.4</td><td>-5.70</td><td>1.36</td><td>540</td><td class='good'>31</td><td class='neg'>-922,731</td><td class='warn'>3,710,000</td><td>-24.9</td></tr><tr><td>强续(涨停接力·现有关闭)</td><td style='text-align:left'>点火闸门(中位≥3)</td><td>272</td><td>24.7</td><td>27.9</td><td>-3.24</td><td>1.34</td><td>90</td><td class='good'>10</td><td class='neg'>-88,091</td><td class='warn'>1,280,000</td><td>-6.9</td></tr><tr><td>强续(涨停接力·现有关闭)</td><td style='text-align:left'>强市(上证MA20)</td><td>490</td><td>28.8</td><td>15.9</td><td>-5.02</td><td>1.71</td><td>150</td><td class='good'>10</td><td class='neg'>-245,858</td><td class='warn'>2,520,000</td><td>-9.8</td></tr><tr><td>强续(涨停接力·现有关闭)</td><td>点火∧强市</td><td colspan='9'>n=0</td></tr><tr><td>强续(涨停接力·现有关闭)</td><td style='text-align:left'>非点火日(当前策略停机时)</td><td>1346</td><td>21.4</td><td>14.1</td><td>-6.20</td><td>1.36</td><td>450</td><td class='good'>21</td><td class='neg'>-834,640</td><td class='warn'>3,110,000</td><td>-26.8</td></tr></tbody></table>
+<p class="note">「非点火日」= 当前策略闸门判定未点火、系统停机的日子——若为动量单独开闸，交易就发生在这些日子。盈亏比=均盈/均亏；总营收按单只1万。</p>
+
+<h2>三、为什么动量在这个市场失效</h2>
+<ul>
+<li><b>情绪周期太短：</b>08月涨停股次日中位溢价均 +0.36% | 09月涨停股次日中位溢价均 +0.17% | 10月涨停股次日中位溢价均 +0.47% | 11月涨停股次日中位溢价均 -0.26%——涨停股次日平均还有溢价，但持有 5 日的中位收益逐月恶化（8月 -0.78% → 9月 -3.29% → 10月 -4.79% → 11月更差）。动量的前提「强者恒强」需要 3~5 天的趋势持续期，这个市场的接力周期不到 1 天：点火 → 次日冲高兑现 → 第三日退潮。</li>
+<li><b>强市日反而是动量陷阱：</b>上证站上 MA20 的日子，动量胜率 14%~22%，比无闸门还差——样本内强市日多为反弹中继（9/10 月下跌途中的反抽），追高盘在这些日子被兑现盘收割。与既有发现一致：这个市场里唯一有效的形态是「洗盘反包」这类逆向反转，而非顺势追涨。</li>
+<li><b>点火闸门救不了动量：</b>闸门把动量亏损压缩 4~7 倍（强续 -92万→-8.8万、MN60 -41万→-2.8万），说明点火日确实是短线情绪最好的日子，但动量信号本身在点火日也是接盘方——点火日买入的正确姿势是洗盘反包（逆势首板反包），不是追新高。</li>
+<li><b>与 8-10 月涨停池回测互相印证：</b>强势续攻（动量臂）当时胜率 17.6%、本次全市场复测 16.4%，两套独立口径结论一致，非抽样偶然。</li>
+</ul>
+
+<h2>四、回答你的三个问题</h2>
+<table><thead><tr><th>问题</th><th>答案</th></tr></thead><tbody>
+<tr><td style='text-align:left'>能否融入当前？</td><td style='text-align:left'>技术上能（强势续攻就是现成的动量臂，代码在 mainwave.py，开关即可），<b>数据上不建议</b>：24 组合零正期望。</td></tr>
+<tr><td style='text-align:left'>开仓能否增多？</td><td style='text-align:left'>能：日均从 3 笔增至 10~22 笔（+230%~630%），但增量交易合计亏损——4 个月无闸门动量多亏 35~92 万。</td></tr>
+<tr><td style='text-align:left'>收益怎么样？</td><td style='text-align:left'>无闸门 -35万~-92万；叠加点火闸门后最好组合（强续+点火）仍 -8.8 万；同期当前策略 +3.4 万。资金收益率全部为负（-6%~-50%）。</td></tr>
+</tbody></table>
+
+<h2>五、如果仍想保留动量敞口</h2>
+<ul>
+<li><b>唯一可接受的形态：</b>强续（涨停接力）+ 点火闸门 + 量比≤3——胜率 27.9%、亏损最小的动量组合，作为点火日的第二臂与洗盘反包并行，但必须接受它是负期望，仓位要低于洗盘反包。</li>
+<li><b>等待环境切换：</b>动量策略在「涨停股 5 日中位收益转正且持续」的市场才有效（如 8 月上旬）。可把该指标做成动量臂的专用闸门：仅当近 10 日涨停股 5 日中位 > 0 时放行动量信号。按当前数据，这个闸门 9-11 月始终关闭——等于没开，但保留了自动启用的可能。</li>
+<li><b>不要用强市（MA20）做动量闸门：</b>数据证伪，强市日动量反而更差。</li>
+</ul>
+<p class="note">生成 2026-11-21 · 数据：腾讯前复权日线（hist_cache 至 11/20）· 卖出引擎：sellwatch._evaluate 真实回放 · 抽样 seed=42 可复现</p>
+</body></html>

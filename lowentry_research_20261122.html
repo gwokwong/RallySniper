@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8"><title>野哥五招低吸法量化研究 · 20261122</title>
+<style>
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;margin:24px;max-width:1180px;color:#1f2329;background:#f7f8fa}
+h1{font-size:22px} h2{font-size:17px;margin-top:28px;border-left:4px solid #2563eb;padding-left:10px}
+p,li{font-size:13.5px;line-height:1.75}
+table{border-collapse:collapse;width:100%;background:#fff;font-size:12px;margin:10px 0}
+th,td{border:1px solid #e5e6eb;padding:5px 7px;text-align:center}
+th{background:#f2f3f5;font-weight:600} td:first-child{text-align:left}
+.good{color:#d92b2b;font-weight:600} .warn{color:#b45309;font-weight:600}.neg{color:#0a8f3c;font-weight:600}
+.hl{background:#fef2f2;border:1px solid #dc2626;border-radius:8px;padding:14px 18px;margin:14px 0}
+.note{color:#8a919f;font-size:12px}
+</style></head><body>
+<h1>野哥五招低吸法 · 量化整合可行性研究</h1>
+<p>回放区间 <b>2026-08-01 ~ 2026-11-20</b>（75 个交易日，全市场 5031 只）· 无未来函数 · 买入=信号日收盘 · 卖出=真实 sellwatch 首确认（V4 次日收盘、V5 涨停日/首确认孰早）· 单只 1 万 · 每变体每日随机抽 10 笔上限。「辨识度龙头」代理 = 近 20 日涨停次数 / 最高连板数（项目只有 OHLCV，无板块/带动性数据）。</p>
+
+<div class="hl">
+<p><b>结论：五招量化后在 8-11 月样本全部负期望，不建议整合为买入战法。</b>最接近打平的是「龙头首阴次日套利」（40.7%/-1.14%）与「二波低吸」（38.6%/-0.91%），但仍是负数；「假阴真阳」惨烈（5.6% 胜率、中位 -12.4%）。「辨识度龙头」过滤无一拯救（V3 龙头≥3 中位反而 -14.5%）。同期当前策略 +33,881 元。</p>
+</div>
+
+<h2>一、招式 → 量化条件映射</h2>
+<table><thead><tr><th>招式</th><th>量化条件（无未来函数）</th></tr></thead><tbody><tr><td style='text-align:left'>V1黄金坑</td><td style='text-align:left'>15日内涨≥15% → 回撤4~16% → 跌速放缓+缩量(量比≤0.9)+止跌阳线</td></tr><tr><td style='text-align:left'>V2突破回踩</td><td style='text-align:left'>近8日涨停突破20日箱体 → 回踩至突破日收盘±2%内且守住-3%</td></tr><tr><td style='text-align:left'>V3假阴真阳</td><td style='text-align:left'>距30日低≤60% + 近5日2~3连板 → 阴线形态但收盘高于昨收(实体≥1.5%)+量比≥1</td></tr><tr><td style='text-align:left'>V4龙头首阴</td><td style='text-align:left'>连板≥3或涨停≥3 + 10日涨≥25% → 3日首阴(≥-8.5%) → 次日收盘无条件出局</td></tr><tr><td style='text-align:left'>V5二波低吸</td><td style='text-align:left'>连板≥5(或涨停≥4且20日涨≥50%) → 回踩10/20日线 → 3连阳当日低吸 → 涨停日/首确认出局</td></tr></tbody></table>
+<p class="note">核心难点：「有辨识度、带动性、板块影响力」无法用日线 OHLCV 完整量化——这里用近20日涨停次数/最高连板数做代理。野哥方法论的隐藏前提是板块情绪接力周期 3~5 天，样本内已证伪（点火一日游）。</p>
+
+<h2>二、主矩阵（全量 vs 龙头过滤）</h2>
+<table><thead><tr><th>变体/过滤</th><th>样本</th><th>胜率%</th><th>平均%</th><th>中位%</th><th>盈亏比</th><th>大亏</th><th>赚30%+</th><th>总营收(元)</th></tr></thead><tbody><tr><td style='text-align:left'>V1黄金坑 全量</td><td>510</td><td>17.3</td><td>-3.55</td><td>-5.18</td><td>1.35</td><td>36</td><td>5</td><td class='neg'>-181,110</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥2)</td><td>155</td><td>14.2</td><td>-4.42</td><td>-5.53</td><td>0.93</td><td>12</td><td>1</td><td class='neg'>-68,583</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥3)</td><td>72</td><td>16.7</td><td>-4.64</td><td>-6.12</td><td>0.97</td><td>7</td><td>1</td><td class='neg'>-33,378</td></tr><tr><td style='text-align:left'>V2突破回踩 全量</td><td>740</td><td>15.3</td><td>-4.08</td><td>-5.96</td><td>1.9</td><td>145</td><td>17</td><td class='neg'>-301,666</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥2)</td><td>318</td><td>15.1</td><td>-3.49</td><td>-6.16</td><td>2.55</td><td>67</td><td>14</td><td class='neg'>-110,832</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥3)</td><td>121</td><td>15.7</td><td>-3.38</td><td>-6.14</td><td>2.59</td><td>31</td><td>7</td><td class='neg'>-40,871</td></tr><tr><td style='text-align:left'>V3假阴真阳 全量</td><td>36</td><td>5.6</td><td>-11.21</td><td>-12.43</td><td>1.07</td><td>23</td><td>0</td><td class='neg'>-40,348</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥2)</td><td>36</td><td>5.6</td><td>-11.21</td><td>-12.43</td><td>1.07</td><td>23</td><td>0</td><td class='neg'>-40,348</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥3)</td><td>19</td><td>5.3</td><td>-14.11</td><td>-14.52</td><td>0.22</td><td>15</td><td>0</td><td class='neg'>-26,812</td></tr><tr><td style='text-align:left'>V4龙头首阴 全量</td><td>167</td><td>40.7</td><td>-1.13</td><td>-1.07</td><td>0.93</td><td>5</td><td>0</td><td class='neg'>-18,914</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥2)</td><td>167</td><td>40.7</td><td>-1.13</td><td>-1.07</td><td>0.93</td><td>5</td><td>0</td><td class='neg'>-18,914</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥3)</td><td>167</td><td>40.7</td><td>-1.13</td><td>-1.07</td><td>0.93</td><td>5</td><td>0</td><td class='neg'>-18,914</td></tr><tr><td style='text-align:left'>V5二波低吸 全量</td><td>101</td><td>38.6</td><td>-0.91</td><td>-4.05</td><td>1.33</td><td>24</td><td>3</td><td class='neg'>-9,164</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥2)</td><td>101</td><td>38.6</td><td>-0.91</td><td>-4.05</td><td>1.33</td><td>24</td><td>3</td><td class='neg'>-9,164</td></tr><tr><td style='text-align:left'>　└ 龙头(涨停≥3)</td><td>101</td><td>38.6</td><td>-0.91</td><td>-4.05</td><td>1.33</td><td>24</td><td>3</td><td class='neg'>-9,164</td></tr></tbody></table>
+
+<h2>三、环境拆分（龙头≥2 口径，n≥8 才展示）</h2>
+<table><thead><tr><th>变体 · 环境（龙头≥2口径）</th><th>样本</th><th>胜率%</th><th>平均%</th><th>中位%</th><th>盈亏比</th><th>大亏</th><th>赚30%+</th><th>总营收(元)</th></tr></thead><tbody><tr><td style='text-align:left'>V1黄金坑 · 点火日</td><td>23</td><td>21.7</td><td>-3.25</td><td>-5.03</td><td>1.06</td><td>1</td><td>0</td><td class='neg'>-7,473</td></tr><tr><td style='text-align:left'>V1黄金坑 · 非点火日</td><td>132</td><td>12.9</td><td>-4.63</td><td>-5.58</td><td>0.9</td><td>11</td><td>1</td><td class='neg'>-61,110</td></tr><tr><td style='text-align:left'>V1黄金坑 · 强市</td><td>51</td><td>15.7</td><td>-4.20</td><td>-5.53</td><td>0.91</td><td>2</td><td>0</td><td class='neg'>-21,435</td></tr><tr><td style='text-align:left'>V1黄金坑 · 弱市</td><td>104</td><td>13.5</td><td>-4.53</td><td>-5.56</td><td>0.94</td><td>10</td><td>1</td><td class='neg'>-47,148</td></tr><tr><td style='text-align:left'>V2突破回踩 · 点火日</td><td>51</td><td>21.6</td><td>+0.07</td><td>-5.45</td><td>3.68</td><td>9</td><td>5</td><td class='good'>+332</td></tr><tr><td style='text-align:left'>V2突破回踩 · 非点火日</td><td>267</td><td>13.9</td><td>-4.16</td><td>-6.41</td><td>2.28</td><td>58</td><td>9</td><td class='neg'>-111,164</td></tr><tr><td style='text-align:left'>V2突破回踩 · 强市</td><td>60</td><td>13.3</td><td>-3.40</td><td>-6.42</td><td>3.14</td><td>9</td><td>4</td><td class='neg'>-20,375</td></tr><tr><td style='text-align:left'>V2突破回踩 · 弱市</td><td>258</td><td>15.5</td><td>-3.51</td><td>-6.10</td><td>2.43</td><td>58</td><td>10</td><td class='neg'>-90,457</td></tr><tr><td style='text-align:left'>V3假阴真阳 · 非点火日</td><td>31</td><td>3.2</td><td>-11.90</td><td>-12.41</td><td>0.26</td><td>20</td><td>0</td><td class='neg'>-36,895</td></tr><tr><td style='text-align:left'>V3假阴真阳 · 强市</td><td>10</td><td>10.0</td><td>-8.67</td><td>-10.25</td><td>0.33</td><td>6</td><td>0</td><td class='neg'>-8,671</td></tr><tr><td style='text-align:left'>V3假阴真阳 · 弱市</td><td>26</td><td>3.8</td><td>-12.18</td><td>-12.89</td><td>1.74</td><td>17</td><td>0</td><td class='neg'>-31,677</td></tr><tr><td style='text-align:left'>V4龙头首阴 · 点火日</td><td>15</td><td>40.0</td><td>-0.85</td><td>-0.59</td><td>1.07</td><td>0</td><td>0</td><td class='neg'>-1,269</td></tr><tr><td style='text-align:left'>V4龙头首阴 · 非点火日</td><td>152</td><td>40.8</td><td>-1.16</td><td>-1.21</td><td>0.91</td><td>5</td><td>0</td><td class='neg'>-17,645</td></tr><tr><td style='text-align:left'>V4龙头首阴 · 强市</td><td>57</td><td>36.8</td><td>-2.48</td><td>-3.45</td><td>0.73</td><td>3</td><td>0</td><td class='neg'>-14,116</td></tr><tr><td style='text-align:left'>V4龙头首阴 · 弱市</td><td>110</td><td>42.7</td><td>-0.44</td><td>-0.60</td><td>1.11</td><td>2</td><td>0</td><td class='neg'>-4,798</td></tr><tr><td style='text-align:left'>V5二波低吸 · 点火日</td><td>15</td><td>33.3</td><td>-3.87</td><td>-5.31</td><td>0.85</td><td>4</td><td>0</td><td class='neg'>-5,809</td></tr><tr><td style='text-align:left'>V5二波低吸 · 非点火日</td><td>86</td><td>39.5</td><td>-0.39</td><td>-3.88</td><td>1.42</td><td>20</td><td>3</td><td class='neg'>-3,355</td></tr><tr><td style='text-align:left'>V5二波低吸 · 强市</td><td>41</td><td>41.5</td><td>-1.84</td><td>-4.06</td><td>0.97</td><td>13</td><td>0</td><td class='neg'>-7,559</td></tr><tr><td style='text-align:left'>V5二波低吸 · 弱市</td><td>60</td><td>36.7</td><td>-0.27</td><td>-3.97</td><td>1.64</td><td>11</td><td>3</td><td class='neg'>-1,605</td></tr></tbody></table>
+
+<h2>四、解读</h2>
+<ul>
+<li><b>假阴真阳是最大坑：</b>胜率 5.6%、中位 -12.4%，连板≥3 的高位股出现阴线形态，样本内是资金出逃而非「换手分歧再上车」。该形态需要盘口级数据（分时承接/主力对倒）才能分辨，日线 OHLCV 分辨不了。</li>
+<li><b>黄金坑/突破回踩死于胜率：</b>盈亏比尚可（1.35~2.59）但胜率 15~17%——「坑底」「回踩支撑」在这个市场是下跌中继的概率远大于企稳反转。突破回踩叠加点火日是唯一接近打平的组合（+0.07%，n=51，样本太小不足为据）。</li>
+<li><b>首阴套利/二波低吸接近但仍是负：</b>V4 次日套利 40.7%/-1.14%（规则清晰、次日无条件跑，符合「套利」定义，但期望 -1.1%）；V5 38.6%/-0.91%（涨停日兑现机制工作了 41 笔）。若未来市场结构切换（涨停股 5 日中位转正），这两招值得重测。</li>
+<li><b>与既有研究互洽：</b>点火日普遍好于非点火日、强市日反而差——与动量研究、涨停生态回测结论一致：当前市场接力周期&lt;1天，所有「等回调再上车」的低吸在 hostile 月份都是下跌中继。</li>
+</ul>
+
+<h2>五、整合建议</h2>
+<ul>
+<li><b>不建议把五招作为买入战法加入系统</b>（与动量研究同结论：负期望 + 辨识度无法量化）。当前「洗盘反包+点火闸门」是唯一正期望组合，维持不变。</li>
+<li><b>若未来要实验</b>：优先顺序为 V4 首阴次日套利（规则最清晰、亏损最小）→ V5 二波低吸 → V2 突破回踩点火日版；做成独立开关默认关闭、只在「近10日涨停股5日中位>0」时放行——按当前数据该条件从未满足，等于自动休眠。</li>
+<li><b>野哥方法论里最有价值且已融入系统的部分</b>：盈亏比优先（卖出三通道+冷却期）、只做有辨识度的票（点火闸门+涨停池过滤）、坑底不代表必涨（严格止损）——这些纪律原则当前系统都在执行。</li>
+</ul>
+<p class="note">生成 2026-11-22 · 数据：腾讯前复权日线（至 11/20）· 每变体每日随机抽 10 笔（seed=42）· 卖出引擎真实回放 · 非交易建议</p>
+</body></html>

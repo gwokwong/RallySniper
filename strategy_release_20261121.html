@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RallySniper · 强势续攻落地 & 卖出方案决策</title>
+<style>
+  :root{--red:#c62828;--green:#2e7d32;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;--bg:#f7f8fa;--card:#fff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7;padding:28px 20px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+  h2{font-size:19px;margin:30px 0 12px;padding-left:10px;border-left:4px solid var(--red)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:8px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .kpi span{display:block;font-size:12px;color:var(--muted)}
+  .kpi b{display:block;font-size:24px;margin:4px 0;color:var(--red)}
+  .kpi small{font-size:11px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f3f4f6;font-weight:600}
+  code{background:#f3f4f6;padding:1px 5px;border-radius:4px;font-size:12px;color:#b91c1c}
+  .up{color:var(--red);font-weight:600}.down{color:var(--green);font-weight:600}
+  .tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .tag-done{background:#e8f5e9;color:#2e7d32}.tag-opt{background:#fff3e0;color:#e65100}
+  .note{font-size:12px;color:var(--muted);background:#f9fafb;border-left:3px solid #d1d5db;padding:8px 12px;margin-top:10px}
+  ul{margin:6px 0 6px 20px;padding:0}li{margin:4px 0}
+  .disc{font-size:11px;color:#9ca3af;margin-top:28px;border-top:1px solid var(--line);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>RallySniper · 强势续攻落地 & 卖出方案决策</h1>
+  <div class="sub">更新于 2026-11-21 · 数据交易日 2026-11-20（休市取最近交易日）· 本报告只汇总与决策，卖出代码未改</div>
+
+  <div class="kpis">
+    <div class="kpi"><span>强势续攻分支</span><b>已上线</b><small>新战法 + 开关 + 阈值 + 全市场扫描 + 站内/邮件通知</small></div>
+    <div class="kpi"><span>回测验证 · 会稽山</span><b>09-07</b><small>缩量转折命中，收 23.70，量比 2.0</small></div>
+    <div class="kpi"><span>回测验证 · 万向德农</span><b>09-02</b><small>放量加速命中，收 14.42，量比 4.0（6连板）</small></div>
+    <div class="kpi"><span>全市场实测</span><b>2 条</b><small>560 候选 → 强势续攻放量启动 2 条</small></div>
+  </div>
+
+  <h2>一、强势续攻分支：已落地（按你的口径「回调 = 缩量」）</h2>
+  <div class="card">
+    <p>你澄清的关键口径——<b>涨停后的「回调」本质是缩量整理，价格不必跌破涨停收盘价</b>——已按此实现。原「涨停回调」战法因把「收盘价 &lt; 涨停收盘价」写成硬条件，导致会稽山、万向德农全程漏报。新分支不要求价格下跌，守住生命线即可。</p>
+    <table>
+      <tr><th>启动形态</th><th>判定条件</th><th>去重</th></tr>
+      <tr><td>① 缩量转折</td><td>涨停后 1~10 日内，昨日量比 ≤ 1.0（缩量）、今日量比 ≥ 1.4（放量），守住涨停日最低价并站上 10 日线</td><td rowspan="2">只在启动转折当日命中一次；连续放量次日因「昨日不缩量」自动去重，不会刷屏</td></tr>
+      <tr><td>② 放量加速</td><td>涨停后 1~2 日量比 ≥ 2.0 且收盘创近 20 日新高（连续板不回头），守住生命线与 10 日线</td></tr>
+    </table>
+    <div class="note">生命线（收盘不破涨停日最低价）在所有形态中保留——它正确剔除了会稽山 9/29、万向德农 9/15 的破位段。默认阈值：观察 10 日 / 转折放量 1.4 倍 / 转折前一日量比≤1.0 / 加速 2.0 倍，均可在设置页调整。开关「强势续攻」默认开启。</div>
+  </div>
+
+  <h2>二、通知链路：已打通</h2>
+  <div class="card">
+    <ul>
+      <li>全市场扫描现同时跑「涨停回调 / 强势续攻」，两开关独立控制，命中信号合并。</li>
+      <li>14:00 / 14:40 定时推送：站内通知标题改为「全市场主升浪…强势续攻 N / 涨停回调 M」；邮件正文同步分战法统计。</li>
+      <li>机会页新增「战法」列（强势续攻=绿标 / 涨停回调=蓝标），设置页新增 4 个强势续攻阈值输入项。</li>
+      <li>实测全市场扫描：560 候选 → 强势续攻放量启动 2 条（京蓝科技、常山北明）、涨停回调观察中 2 条。</li>
+    </ul>
+  </div>
+
+  <h2>三、卖出方案：四种口径回测对比（待你决策）</h2>
+  <div class="card">
+    <p>当前规则两个卡点：① 天量阈值 5 倍偏高——两只票破位段盘中最高量比仅 4.71 / 4.83，差一点触发；② MA20 确认要求「五日斜率 ≤ -0.5%」太严——会稽山 10/14 破位时斜率仍 +11.58%，永远不确认。下表按收盘价口径回测首次确认日：</p>
+    <table>
+      <tr><th>方案</th><th>会稽山 601579</th><th>万向德农 600371</th><th>评价</th></tr>
+      <tr><td>当前：连破1% + 斜率≤-0.5%</td><td class="down">0 天（不确认）</td><td>10-14 确认（13.40）</td><td>会稽山漏确认；万向德农确认太晚，距高点已回撤 22%</td></tr>
+      <tr><td>A：斜率放宽到 ≤0</td><td class="down">0 天</td><td>10-13 确认（14.06）</td><td>几乎无效，斜率转负滞后于价格破位</td></tr>
+      <tr><td>B：连破1% + 当日跌幅&gt;3%</td><td class="down">0 天</td><td>09-29 确认（12.84）</td><td>万向德农提前到跌停当天；会稽山因单日跌幅不够仍漏</td></tr>
+      <tr><td>C：单日有效破 MA20 &gt;2% + 阴线</td><td class="up">10-14 确认（31.63）</td><td class="up">09-28 确认（14.27）</td><td>两只都能确认且最早；风险是震荡市假破位误报</td></tr>
+    </table>
+    <div class="note">量比对比：破位段日线量比最高仅 2.0（会稽山）/ 1.8（万向德农），远达不到天量 5 倍；盘中量比因含集合竞价冲高到 4.7~4.8，才接近阈值。若要把天量破位作为可用信号，阈值需从 5 倍下调到 4.5 倍左右（盘中口径）。</div>
+  </div>
+
+  <h2>四、我的卖出建议（组合方案，待你拍板）</h2>
+  <div class="card">
+    <p><span class="tag tag-opt">建议 D+</span> <b>「盘中天量预警降阈值 + 尾盘快速破位确认」双通道</b>，兼顾不误报与不漏报：</p>
+    <ul>
+      <li><b>通道1 · 天量破位（盘中预警）</b>：<code>volume_surge_ratio</code> 从 5.0 降到 <b>4.5</b>。依据：两只票 09:35 量比 4.71 / 4.83，降阈值后可及时发盘中预警，提醒减仓观察；盘中预警本就只需「预警」，容忍度可高。</li>
+      <li><b>通道2 · 快速破位确认（尾盘 14:50）</b>：在现有「连破 + 斜率≤-0.5%」之外，新增一条快速通道——<b>单日收盘有效跌破 MA20 超 2% 且收阴线，即确认</b>（方案 C）。依据：会稽山靠这条可在 10/14 当天确认（原规则永不确认），万向德农从 10/14 提前到 09-28。</li>
+      <li><b>保留严格通道</b>：原「连续 2 日破 + 斜率转负」继续保留，两者取并集，命中任一即确认。低斜率趋势股走严格通道，急跌股走快速通道。</li>
+      <li><b>可选加严防误报</b>：快速通道要求「跌破时成交额 ≥ 近 5 日均量」或「次日不收回 MA20 上方再确认」，可进一步降低假破位。是否需要由你定。</li>
+    </ul>
+    <div class="note">两个实盘前提仍需你操作：① <code>scan.enabled=false</code>，标的池后台盯盘未开启；② <code>holdings</code> 为空，卖出模块即使命中也不发信。需先在页面开启盯盘并标记持有。若采纳卖出方案，我会改 <code>config.py</code> 默认值 + <code>sellwatch.py</code> 快速通道 + 设置页阈值，并重启验证。</div>
+  </div>
+
+  <h2>五、本次改动文件一览</h2>
+  <div class="card">
+    <table>
+      <tr><th>文件</th><th>改动</th><th>状态</th></tr>
+      <tr><td>backend/app/mainwave.py</td><td>新增 <code>_strategy_strong_continue</code> + 量比辅助；注册战法、详情文案</td><td class="up">已完成</td></tr>
+      <tr><td>backend/app/config.py</td><td>新增「强势续攻」开关 + 4 个 strong_* 阈值</td><td class="up">已完成</td></tr>
+      <tr><td>backend/app/market_scan.py</td><td>双战法扫描合并、按开关控制、<code>strong_count</code> 字段</td><td class="up">已完成</td></tr>
+      <tr><td>backend/app/notifications.py / scheduler.py</td><td>站内标题 + 邮件正文按战法分组统计</td><td class="up">已完成</td></tr>
+      <tr><td>frontend 设置页 / 机会页</td><td>强势续攻开关与阈值输入、战法列、文案同步</td><td class="up">已完成</td></tr>
+      <tr><td>backend/app/sellwatch.py / config.py（卖出）</td><td>降天量阈值 + 快速破位确认通道</td><td class="down">待你决策后改</td></tr>
+    </table>
+  </div>
+
+  <p class="disc">免责声明：以上内容基于公开数据和量化回测，仅供参考，不构成投资建议。市场有风险，投资需谨慎。任何投资决策应结合个人风险承受能力、资金状况和投资目标独立判断，必要时咨询持牌专业机构。过往表现不预示未来收益。</p>
+</div>
+</body>
+</html>

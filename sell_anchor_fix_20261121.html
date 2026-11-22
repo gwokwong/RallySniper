@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卖出信号延迟修正报告 · RallySniper</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  :root{--up:#e64545;--down:#2ea121;--ink:#1f2937;--sub:#6b7280;--line:#e5e7eb;--bg:#f7f8fa;--card:#fff;--accent:#2563eb;--warn:#f59e0b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.65;padding:32px 20px}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:26px;font-weight:700;margin-bottom:6px}
+  .meta{color:var(--sub);font-size:13px;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  h2{font-size:18px;font-weight:650;margin-bottom:14px;padding-left:11px;border-left:4px solid var(--accent)}
+  h3{font-size:15px;font-weight:600;margin:16px 0 8px;color:#374151}
+  p{font-size:14px;margin:8px 0;color:#374151}
+  .lead{background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:14px 16px;font-size:14px;color:#78350f;margin-bottom:18px}
+  .lead b{color:#92400e}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:center}
+  th{background:#f3f4f6;font-weight:600;color:#374151}
+  td.l,th.l{text-align:left}
+  .up{color:var(--up);font-weight:600}.down{color:var(--down);font-weight:600}
+  .hit{background:#fee2e2;color:#991b1b;font-weight:600;border-radius:4px;padding:1px 6px}
+  .miss{color:#9ca3af}
+  .tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:12px;margin:2px 4px 2px 0}
+  .tag-red{background:#fee2e2;color:#991b1b}.tag-blue{background:#dbeafe;color:#1e40af}.tag-gray{background:#f3f4f6;color:#4b5563}
+  .chart{width:100%;height:300px;margin-top:6px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  ul{margin:6px 0 6px 20px;font-size:14px;color:#374151}li{margin:4px 0}
+  .foot{font-size:12px;color:var(--sub);margin-top:22px;padding-top:14px;border-top:1px solid var(--line)}
+  .kpi{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+  .kpi div{flex:1;min-width:150px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .kpi .num{font-size:20px;font-weight:700;color:var(--accent)}
+  .kpi .lbl{font-size:12px;color:var(--sub);margin-top:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>卖出信号延迟 · 根因核查与修正报告</h1>
+  <div class="meta">RallySniper · 生成于 2026-11-21 · 数据源 AKShare（前复权） · 回测区间 2026-08-15 ~ 10-14</div>
+
+  <div class="lead">
+    <b>你的质疑成立。</b>经核查：回测数据本身没错，<b>错在卖出锚点设置</b>——原规则把 <b>MA20（20日均线）</b>当作唯一确认线，而连板股急跌时 MA20 远在股价下方，等收盘跌破它已滞后 2~3 个交易日，亏损自然扩大。你指定的金健米业 9/28、会稽山 10/12 都是<b>跌停日</b>，当日收盘离 MA20 还有 6%~13%，用 MA20 永远发不出来。
+  </div>
+
+  <div class="card">
+    <h2>一、根因：MA20 对急跌天然滞后</h2>
+    <table>
+      <tr><th class="l">股票 / 日期</th><th>收盘</th><th>当日涨幅</th><th>MA5</th><th>MA10</th><th>MA20</th><th>相对MA20</th><th>原规则？</th></tr>
+      <tr><td class="l">金健米业 <b>9/28</b>（你要求）</td><td>14.84</td><td class="down">-10.01%</td><td>16.06</td><td>14.64</td><td>13.96</td><td class="up">高于 6.3%</td><td class="miss">不发</td></tr>
+      <tr><td class="l">金健米业 9/29（原规则发）</td><td>13.36</td><td class="down">-9.97%</td><td>15.58</td><td>14.56</td><td>14.03</td><td>跌破</td><td>发</td></tr>
+      <tr><td class="l">会稽山 <b>10/12</b>（你要求）</td><td>36.25</td><td class="down">-10.00%</td><td>38.22</td><td>38.13</td><td>32.07</td><td class="up">高于 13.1%</td><td class="miss">不发</td></tr>
+      <tr><td class="l">会稽山 10/14（原规则发）</td><td>31.63</td><td class="down">-7.92%</td><td>36.42</td><td>37.37</td><td>33.03</td><td>跌破</td><td>发</td></tr>
+    </table>
+    <p>MA20 是过去20日收盘均价，急跌初期它还在低位，股价要连跌数日才会下穿。<b>万向德农 9/28 之所以对上，纯属巧合</b>——它低位启动、MA20 贴近股价。</p>
+  </div>
+
+  <div class="card">
+    <h2>二、修正：急跌双通道（你选的方案）</h2>
+    <div class="kpi">
+      <div><div class="num">≥8%</div><div class="lbl">盘中急跌 → 立即预警</div></div>
+      <div><div class="num">≥8%</div><div class="lbl">尾盘急跌收阴 → 确认</div></div>
+      <div><div class="num">破MA10+≥5%</div><div class="lbl">尾盘补充确认通道</div></div>
+    </div>
+    <ul>
+      <li><b>盘中通道</b>：当日跌幅 ≥ 8% 立即预警，完全不等均线破位——这是解决"延迟"的关键。</li>
+      <li><b>尾盘通道①（急跌确认）</b>：当日跌幅 ≥ 8% 且收阴即确认。急跌本身就是风险信号，即使收盘守住了 MA10（如金健 9/28）也照发。</li>
+      <li><b>尾盘通道②（破MA10确认）</b>：收盘跌破 MA10 且当日跌幅 ≥ 5% 收阴。捕捉跌幅 5%~8%、未达急跌阈值但已破短均的情况（如会稽山 10/14）。</li>
+      <li>三条通道与原 MA20 严格/快速通道<b>取并集</b>，任一命中即发。单日盘中 1 次 + 尾盘 1 次 + 追加提醒 ≥2 次 = 单日多次通知。</li>
+    </ul>
+    <p style="font-size:13px;color:#6b7280">可调参数（设置页「持仓卖出风控」）：盘中急跌阈值默认 8%、破MA10确认跌幅默认 5%、双通道开关独立可控。</p>
+  </div>
+
+  <div class="card">
+    <h2>三、修正后四日期验证（真实策略函数回测）</h2>
+    <table>
+      <tr><th class="l">股票 / 日期</th><th>当日涨幅</th><th>盘中预警</th><th>尾盘确认</th><th>判定依据</th><th>结果</th></tr>
+      <tr><td class="l"><b>金健米业 9/28</b></td><td class="down">-10.01%</td><td>✓ 急跌预警</td><td>✓ 急跌确认</td><td class="l">跌停收阴；守住MA10但急跌本身即信号</td><td><span class="hit">当日发出</span></td></tr>
+      <tr><td class="l"><b>会稽山 10/12</b></td><td class="down">-10.00%</td><td>✓ 急跌预警</td><td>✓ 破MA10确认</td><td class="l">跌停收阴；收盘36.25破MA10(38.13)</td><td><span class="hit">当日发出</span></td></tr>
+      <tr><td class="l">万向德农 9/28</td><td class="down">-9.97%</td><td>✓ 急跌预警</td><td>✓ 破MA10确认</td><td class="l">跌停收阴；收盘破MA10</td><td><span class="hit">当日发出</span></td></tr>
+      <tr><td class="l">会稽山 10/14</td><td class="down">-7.92%</td><td class="miss">—（未达8%）</td><td>✓ 破MA10确认</td><td class="l">跌幅5%~8%区间，收盘破MA10补充捕捉</td><td><span class="hit">尾盘确认</span></td></tr>
+    </table>
+    <p>每个急跌日的盘中预警 + 尾盘确认 = <b>至少 2 次通知</b>；尾盘确认后再按 <code>notify_times=2</code> 追加 2 次（mock 实测：2 条站内 + 2 封邮件）。</p>
+  </div>
+
+  <div class="card">
+    <h2>四、K 线与急跌信号位置</h2>
+    <div class="grid2">
+      <div><h3>金健米业 600127</h3><div id="c600127" class="chart"></div></div>
+      <div><h3>会稽山 601579</h3><div id="c601579" class="chart"></div></div>
+    </div>
+    <div class="grid2" style="margin-top:12px">
+      <div><h3>万向德农 600371</h3><div id="c600371" class="chart"></div></div>
+      <div>
+        <h3>读数说明</h3>
+        <p style="font-size:13px">红点 = 当日跌幅 ≥8% 的急跌日（新规则盘中即预警）。可直观看到：新信号落在跌停当天，而非等 MA20 下穿的数日后。</p>
+        <p style="font-size:13px"><span class="tag tag-red">红涨</span><span class="tag tag-blue">绿跌</span>遵循 A 股习惯；K 线为前复权。</p>
+        <h3 style="margin-top:16px">已知取舍</h3>
+        <p style="font-size:13px">金健米业 <b>9/15 也跌停</b>，新规则同样会在 9/15 发信号（事后看是洗盘，之后创新高）。事前无法区分洗盘与见顶，按"宁可早发不漏"处理——这是双通道方案的既定取舍。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>五、改动清单与实盘前提</h2>
+    <ul>
+      <li><code>backend/app/config.py</code>：SellConfig 新增 rapid_drop_enabled / rapid_drop_pct(0.08) / ma10_break_enabled / ma10_break_drop_pct(0.05)。</li>
+      <li><code>backend/app/sellwatch.py</code>：新增 MA10 计算；_evaluate 增加盘中急跌预警 + 尾盘急跌确认 + 破MA10确认，与原有通道取并集。</li>
+      <li><code>backend/data/config.json</code>：持久化新字段；盯盘 scan.enabled 保持默认开启。</li>
+      <li><code>frontend/src/views/monitor/settings/index.vue</code>：卖出风控卡片新增急跌双通道配置区。</li>
+      <li>dist 已重建、后端已重启验证（health 200，配置 API 新字段全部生效）。</li>
+    </ul>
+    <div class="lead" style="background:#eff6ff;border-color:#93c5fd;color:#1e3a8a">
+      <b>实盘提醒：</b>卖出信号只对「已标记持有」的股票生效。当前 <code>holdings</code> 仍为空——需在标的池页把金健米业等标记为持有，破位信号才会真正推送到站内与邮件。
+    </div>
+  </div>
+
+  <div class="foot">
+    免责声明：本报告基于公开数据与量化回测，仅供参考，不构成投资建议。急跌/跌停信号属高风险追涨杀跌场景，假信号与洗盘均可能造成误判，需结合仓位管理与个人风险承受能力独立决策。市场有风险，投资需谨慎。过往表现不预示未来收益。
+  </div>
+</div>
+<script>
+const DATA={"600127": {"name": "金健米业", "dates": ["08-17", "08-18", "08-19", "08-20", "08-21", "08-24", "08-25", "08-26", "08-27", "08-28", "08-31", "09-01", "09-02", "09-03", "09-04", "09-07", "09-08", "09-09", "09-10", "09-11", "09-14", "09-15", "09-16", "09-17", "09-18", "09-21", "09-22", "09-23", "09-24", "09-28", "09-29", "09-30", "10-08", "10-09", "10-12", "10-13", "10-14"], "ohlc": [[6.32, 6.46, 6.32, 6.46], [6.85, 7.11, 6.75, 7.11], [7.82, 7.82, 7.82, 7.82], [8.14, 8.6, 8.1, 8.6], [9.39, 8.2, 8.0, 9.45], [8.35, 8.46, 7.77, 8.9], [8.46, 9.31, 8.46, 9.31], [9.16, 9.8, 9.02, 10.01], [10.3, 10.78, 9.91, 10.78], [10.93, 11.77, 10.7, 11.79], [11.79, 12.04, 11.65, 12.58], [12.05, 13.24, 12.05, 13.24], [13.2, 12.4, 12.28, 13.88], [12.47, 12.67, 11.53, 12.98], [11.83, 12.3, 11.4, 13.02], [13.23, 13.53, 12.8, 13.53], [14.07, 14.79, 14.01, 14.88], [14.5, 14.33, 14.05, 15.07], [14.36, 14.0, 13.78, 14.69], [13.72, 13.55, 13.17, 14.42], [13.12, 14.17, 12.67, 14.36], [14.12, 12.75, 12.75, 14.15], [11.48, 11.84, 11.48, 12.29], [12.0, 13.02, 11.51, 13.02], [12.9, 14.32, 12.6, 14.32], [14.5, 15.75, 14.24, 15.75], [16.05, 16.47, 15.51, 16.55], [16.41, 16.75, 16.11, 16.88], [16.74, 16.49, 15.29, 17.05], [16.15, 14.84, 14.84, 16.2], [13.6, 13.36, 13.36, 14.08], [12.8, 13.14, 12.68, 13.63], [13.36, 13.8, 13.0, 14.45], [13.8, 15.18, 13.4, 15.18], [16.42, 13.9, 13.82, 16.7], [12.51, 14.55, 12.51, 14.6], [14.66, 14.76, 13.88, 15.4]], "drops": [{"date": "09-15", "pct": -10.02}, {"date": "09-28", "pct": -10.01}, {"date": "09-29", "pct": -9.97}, {"date": "10-12", "pct": -8.43}]}, "601579": {"name": "会稽山", "dates": ["08-17", "08-18", "08-19", "08-20", "08-21", "08-24", "08-25", "08-26", "08-27", "08-28", "08-31", "09-01", "09-02", "09-03", "09-04", "09-07", "09-08", "09-09", "09-10", "09-11", "09-14", "09-15", "09-16", "09-17", "09-18", "09-21", "09-22", "09-23", "09-24", "09-28", "09-29", "09-30", "10-08", "10-09", "10-12", "10-13", "10-14"], "ohlc": [[18.49, 18.56, 17.88, 18.7], [18.69, 18.76, 17.94, 19.26], [18.74, 18.47, 18.46, 20.1], [18.91, 18.65, 18.04, 19.04], [18.36, 18.66, 18.27, 19.08], [18.88, 20.21, 18.53, 20.44], [20.22, 19.7, 19.61, 20.64], [19.73, 20.44, 19.73, 21.28], [20.31, 20.09, 19.97, 20.89], [20.09, 19.33, 19.32, 20.19], [19.5, 19.35, 19.2, 19.9], [19.35, 20.7, 19.3, 20.99], [20.9, 20.9, 20.8, 22.26], [20.92, 21.88, 20.69, 22.6], [22.5, 24.07, 22.5, 24.07], [24.49, 23.7, 23.2, 25.68], [23.99, 23.0, 22.6, 24.66], [23.47, 25.3, 23.01, 25.3], [26.26, 24.24, 24.08, 26.98], [24.2, 23.6, 23.4, 24.51], [23.81, 23.41, 23.0, 23.97], [23.88, 25.75, 23.68, 25.75], [25.91, 28.33, 25.17, 28.33], [28.36, 29.85, 27.67, 30.74], [30.11, 32.84, 30.11, 32.84], [33.5, 36.12, 32.26, 36.12], [36.51, 37.46, 36.1, 39.33], [37.83, 36.75, 35.56, 41.21], [37.64, 38.04, 37.3, 39.5], [40.46, 41.84, 40.19, 41.84], [41.43, 37.66, 37.66, 41.43], [37.66, 37.3, 37.3, 40.2], [36.0, 39.6, 36.0, 41.03], [40.35, 40.28, 37.35, 40.8], [40.32, 36.25, 36.25, 41.0], [34.44, 34.35, 33.3, 35.46], [34.35, 31.63, 31.17, 34.6]], "drops": [{"date": "09-29", "pct": -9.99}, {"date": "10-12", "pct": -10.0}]}, "600371": {"name": "万向德农", "dates": ["08-17", "08-18", "08-19", "08-20", "08-21", "08-24", "08-25", "08-26", "08-27", "08-28", "08-31", "09-01", "09-02", "09-03", "09-04", "09-07", "09-08", "09-09", "09-10", "09-11", "09-14", "09-15", "09-16", "09-17", "09-18", "09-21", "09-22", "09-23", "09-24", "09-28", "09-29", "09-30", "10-08", "10-09", "10-12", "10-13", "10-14"], "ohlc": [[7.14, 7.4, 7.14, 7.45], [7.35, 8.14, 7.35, 8.14], [8.42, 8.95, 8.32, 8.95], [8.06, 8.6, 8.06, 9.53], [8.11, 7.74, 7.74, 8.14], [7.5, 7.88, 7.5, 8.2], [7.72, 8.67, 7.72, 8.67], [9.0, 9.54, 8.79, 9.54], [10.45, 10.49, 10.2, 10.49], [11.54, 11.54, 11.54, 11.54], [12.69, 12.69, 12.69, 12.69], [13.61, 13.96, 13.2, 13.96], [14.2, 14.42, 13.33, 14.97], [13.75, 13.08, 12.98, 14.2], [12.65, 13.7, 12.05, 13.93], [14.23, 15.07, 14.04, 15.07], [15.37, 15.83, 15.37, 16.58], [14.61, 15.4, 14.61, 16.1], [15.3, 14.15, 14.09, 15.35], [14.01, 14.78, 13.51, 15.57], [14.54, 14.21, 13.3, 14.98], [14.21, 12.93, 12.8, 15.21], [12.9, 14.22, 12.53, 14.22], [14.73, 15.64, 13.01, 15.64], [14.3, 15.4, 14.3, 16.73], [15.4, 16.39, 14.86, 16.82], [16.11, 15.71, 15.12, 16.8], [15.39, 17.28, 14.7, 17.28], [18.08, 15.85, 15.56, 18.5], [15.02, 14.27, 14.27, 15.84], [13.19, 12.84, 12.84, 13.42], [12.6, 13.51, 12.57, 13.94], [13.51, 13.61, 13.35, 14.45], [13.73, 14.97, 13.32, 14.97], [15.6, 14.03, 13.78, 16.47], [12.64, 14.06, 12.64, 14.2], [13.9, 13.4, 13.37, 14.2]], "drops": [{"date": "08-21", "pct": -10.0}, {"date": "09-03", "pct": -9.29}, {"date": "09-10", "pct": -8.12}, {"date": "09-15", "pct": -9.01}, {"date": "09-24", "pct": -8.28}, {"date": "09-28", "pct": -9.97}, {"date": "09-29", "pct": -10.02}]}};
+const UP='#e64545',DOWN='#2ea121';
+for(const code of Object.keys(DATA)){
+  const o=DATA[code];
+  const el=document.getElementById('c'+code);
+  if(!el) continue;
+  const ch=echarts.init(el);
+  const dropMap={}; o.drops.forEach(d=>dropMap[d.date]={pct:d.pct});
+  ch.setOption({
+    animation:false,
+    grid:{left:46,right:14,top:14,bottom:52},
+    tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+    xAxis:{type:'category',data:o.dates,axisLabel:{fontSize:9,interval:5,rotate:30},axisLine:{lineStyle:{color:'#d1d5db'}}},
+    yAxis:{scale:true,splitLine:{lineStyle:{color:'#f0f1f3'}},axisLabel:{fontSize:10}},
+    series:[{
+      type:'candlestick',data:o.ohlc,
+      itemStyle:{color:UP,color0:DOWN,borderColor:UP,borderColor0:DOWN},
+      markPoint:{
+        symbol:'circle',symbolSize:11,
+        data:o.drops.map(d=>({coord:[d.date,o.ohlc[o.dates.indexOf(d.date)][2]],
+          itemStyle:{color:'#7c3aed'},label:{show:false}})),
+      },
+    }],
+  });
+}
+</script>
+</body>
+</html>

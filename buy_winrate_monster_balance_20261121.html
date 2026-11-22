@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>买入胜率与妖股平衡研究</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:1100px;margin:0 auto;padding:28px;color:#222;background:#fafafa;line-height:1.6}
+h1{font-size:24px;border-bottom:3px solid #1565c0;padding-bottom:10px}
+h2{font-size:18px;margin-top:32px;border-left:4px solid #1565c0;padding-left:10px}
+h3{font-size:15px;margin-top:20px}
+table{border-collapse:collapse;width:100%;background:#fff;margin:12px 0;font-size:13px}
+th,td{border:1px solid #ddd;padding:7px 9px;text-align:center}
+th{background:#eef4fb;font-weight:600}
+td:first-child{text-align:left}
+.hero{background:#fff;border-left:5px solid #c62828;padding:16px 20px;margin:18px 0;border-radius:4px}
+.good{background:#fff;border-left:5px solid #2e7d32;padding:16px 20px;margin:18px 0;border-radius:4px}
+.info{background:#fff;border-left:5px solid #1565c0;padding:16px 20px;margin:18px 0;border-radius:4px}
+.warn{background:#fff3e0;border-left:5px solid #ef6c00;padding:16px 20px;margin:18px 0;border-radius:4px}
+.small{font-size:12px;color:#777}
+</style></head><body>
+<h1>买入胜率与妖股平衡研究：亏损画像 · 多轮回测 · 破局点</h1>
+<p class="small">研究日期 2026-11-21 ｜ 样本：10月全市场273个买点（妖股模式放行）+ 8月390个买点独立验证 ｜ 无未来函数逐日回放，腾讯前复权日线，收盘价成交</p>
+
+<div class="hero"><b>一句话结论</b>：提高买入胜率与抓住妖股<b>确实是矛盾的</b>——7轮回测证明，任何显著提升胜率的过滤器都会同时砍掉妖股（妖股与亏损票在买入特征上高度重叠）。
+但真正的问题不在买入端：35只妖股机会，买入端几乎没漏，<b>24只（69%）是被卖出端的洗盘规则提前洗掉的</b>，只有7只真正吃到。
+破局点＝<b>买入端只做温和提纯、把容忍度留给卖出端</b>。</div>
+
+<h2>一、买入即亏损的股票长什么样</h2>
+<p>把10月273笔按实际卖出收益分组，对比各组在买入那一刻的特征中位数。AUC 是区分"盈利 vs 亏损"的能力：越偏离0.5越强（&lt;0.5 表示该特征越大越容易亏）。</p>
+<table><tr><th>买入时刻特征</th><th>盈利组中位<br>(39只)</th><th>亏损组中位<br>(234只)</th><th>大亏组中位<br>(92只)</th><th>妖股组中位<br>(35只)</th><th>AUC</th></tr>
+<tr><td>近5日累计涨幅</td><td color:#c62828>8.91%</td><td color:#c62828>12.08%</td><td color:#c62828>18.69%</td><td color:#c62828>13.58%</td><td><b>0.419</b></td></tr><tr><td>近20日累计涨幅</td><td color:#c62828>6.99%</td><td color:#c62828>11.64%</td><td color:#c62828>17.59%</td><td color:#c62828>15.23%</td><td><b>0.444</b></td></tr><tr><td>距60日高点</td><td color:#2e7d32>-10.9%</td><td color:#2e7d32>-7.12%</td><td color:#2e7d32>-5.52%</td><td color:#2e7d32>-8.7%</td><td><b>0.364</b></td></tr><tr><td>5日量比</td><td color:#c62828>1.76</td><td color:#c62828>2.24</td><td color:#c62828>2.67</td><td color:#c62828>2.09</td><td><b>0.407</b></td></tr><tr><td>上影线占比</td><td >0.0</td><td color:#c62828>0.21</td><td color:#c62828>0.28</td><td color:#c62828>0.11</td><td><b>0.411</b></td></tr><tr><td>收盘位置(0低1高)</td><td color:#c62828>1.0</td><td color:#c62828>0.71</td><td color:#c62828>0.69</td><td color:#c62828>0.88</td><td><b>0.576</b></td></tr><tr><td>距上次涨停天数</td><td >0天</td><td color:#c62828>1.0天</td><td color:#c62828>1.0天</td><td color:#c62828>1天</td><td><b>0.366</b></td></tr><tr><td>换手率(用户已知)</td><td color:#c62828>10.87%</td><td color:#c62828>11.89%</td><td color:#c62828>15.37%</td><td color:#c62828>11.17%</td><td><b>0.457</b></td></tr><tr><td>股价</td><td color:#c62828>24.62元</td><td color:#c62828>16.48元</td><td color:#c62828>20.62元</td><td color:#c62828>16.9元</td><td><b>0.631</b></td></tr></table>
+<p class="small">红涨绿跌。注意妖股组的数值大多<b>介于盈利组与大亏组之间</b>——这正是"提纯必误杀妖股"的数据根源。</p>
+
+<h3>大亏票的三个共同点（扣除你已知的换手率/量比）</h3>
+<div class="info">
+<b>1. 追高太久</b>：大亏组买入前5日已累计上涨 <b>18.97%</b>、20日 <b>17.87%</b>，而盈利组只有 8.91% / 6.99%。买在短线上涨末端，是头号亏损特征。<br>
+<b>2. 贴着阶段高点买</b>：大亏组距60日高点仅 <b>-5.46%</b>，盈利组是 -10.9%。离高点太近＝没有安全垫，一回调就破位。<br>
+<b>3. 上影线抛压 + 收盘走弱</b>：大亏组上影线占比 0.28（盈利组 0），收盘位置 0.70（盈利组 1.0，收在最高）。盘中冲高回落、尾盘承接不足＝当天抛压已经出现。<br>
+此外：距上次涨停 1 天（次日追涨，盈利组是涨停当天 0 天）、量比 2.67（盈利组 1.76）。
+</div>
+
+<h2>二、除了换手率/量比/资金流，还有哪些更强的信号</h2>
+<p>你提到的三个维度里，换手率(AUC 0.457)和量比(0.407)区分度其实<b>偏弱</b>。真正的强因子集中在"位置"和"K线形态"上。下表按区分度排序（资金流数据历史回测不可得，见口径说明）：</p>
+<table><tr><th>特征</th><th>来源</th><th>AUC</th><th>方向</th><th>盈利中位</th><th>亏损中位</th><th>妖股AUC</th></tr>
+<tr><td>from_high60</td><td><b style='color:#1565c0'>新</b></td><td>0.364</td><td>越大越易亏</td><td>-10.9</td><td>-7.12</td><td>0.488</td></tr><tr><td>days_since_lu</td><td><b style='color:#1565c0'>新</b></td><td>0.366</td><td>越大越易亏</td><td>0</td><td>1.0</td><td>0.438</td></tr><tr><td>price</td><td><b style='color:#1565c0'>新</b></td><td>0.631</td><td>越大越易赚</td><td>24.62</td><td>16.48</td><td>0.483</td></tr><tr><td>amp_mean10</td><td><b style='color:#1565c0'>新</b></td><td>0.618</td><td>越大越易赚</td><td>7.65</td><td>6.59</td><td>0.660</td></tr><tr><td>lu_streak</td><td><b style='color:#1565c0'>新</b></td><td>0.611</td><td>越大越易赚</td><td>1</td><td>0.0</td><td>0.561</td></tr><tr><td>atr14_pct</td><td><b style='color:#1565c0'>新</b></td><td>0.610</td><td>越大越易赚</td><td>6.64</td><td>5.75</td><td>0.617</td></tr><tr><td>from_high10</td><td><b style='color:#1565c0'>新</b></td><td>0.397</td><td>越大越易亏</td><td>-5.92</td><td>-4.79</td><td>0.450</td></tr><tr><td>body_ratio</td><td><b style='color:#1565c0'>新</b></td><td>0.598</td><td>越大越易赚</td><td>0.77</td><td>0.56</td><td>0.533</td></tr><tr><td>std10</td><td><b style='color:#1565c0'>新</b></td><td>0.595</td><td>越大越易赚</td><td>5.67</td><td>5.09</td><td>0.597</td></tr><tr><td>vol_ratio5</td><td>已知</td><td>0.407</td><td>越大越易亏</td><td>1.76</td><td>2.24</td><td>0.447</td></tr><tr><td>from_high20</td><td><b style='color:#1565c0'>新</b></td><td>0.407</td><td>越大越易亏</td><td>-6.66</td><td>-5.52</td><td>0.474</td></tr><tr><td>amplitude</td><td><b style='color:#1565c0'>新</b></td><td>0.590</td><td>越大越易赚</td><td>11.94</td><td>10.71</td><td>0.636</td></tr><tr><td>upper_shadow_ratio</td><td><b style='color:#1565c0'>新</b></td><td>0.411</td><td>越大越易亏</td><td>0.0</td><td>0.21</td><td>0.452</td></tr><tr><td>vol_up_days</td><td><b style='color:#1565c0'>新</b></td><td>0.412</td><td>越大越易亏</td><td>1</td><td>1.0</td><td>0.417</td></tr><tr><td>ret5</td><td><b style='color:#1565c0'>新</b></td><td>0.419</td><td>越大越易亏</td><td>8.91</td><td>12.08</td><td>0.537</td></tr><tr><td>mkt_slope</td><td><b style='color:#1565c0'>新</b></td><td>0.423</td><td>越大越易亏</td><td>-1.19</td><td>-1.18</td><td>0.529</td></tr><tr><td>pct_change</td><td><b style='color:#1565c0'>新</b></td><td>0.576</td><td>越大越易赚</td><td>9.96</td><td>5.19</td><td>0.566</td></tr><tr><td>close_pos</td><td><b style='color:#1565c0'>新</b></td><td>0.576</td><td>越大越易赚</td><td>1.0</td><td>0.71</td><td>0.569</td></tr><tr><td>dist_ma60</td><td><b style='color:#1565c0'>新</b></td><td>0.426</td><td>越大越易亏</td><td>11.51</td><td>13.06</td><td>0.566</td></tr><tr><td>vol_ratio10</td><td>已知</td><td>0.429</td><td>越大越易亏</td><td>2.07</td><td>2.68</td><td>0.446</td></tr></table>
+<div class="warn"><b>最有用的新发现</b>：距60日高点(from_high60, AUC 0.364)和距上次涨停天数(days_since_lu, 0.366)都比换手率、量比更能预见亏损；
+另外<b>股价本身</b>(price, 0.631)——高价股(中位24.6元)反而比低价股(16.5元)更容易盈利，这是常被忽略的筛选维度。</div>
+
+<h2>三、8月独立交叉验证（结论是否只是10月特例）</h2>
+<p>用完全相同的战法和特征逻辑，扫描8/10-8/30的390个买点（其中78只妖股），重算每个因子的 AUC。12个核心因子里 <b>12/12 方向一致</b>：</p>
+<table><tr><th>特征</th><th>10月AUC</th><th>8月AUC</th><th>方向</th></tr>
+<tr><td>距60日高点</td><td>0.364</td><td>0.429</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>距上次涨停天数</td><td>0.366</td><td>0.497</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>近5日累计涨幅</td><td>0.419</td><td>0.426</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>近20日累计涨幅</td><td>0.444</td><td>0.464</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>上影线占比</td><td>0.411</td><td>0.450</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>5日量比</td><td>0.407</td><td>0.453</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>vol_ratio10</td><td>0.429</td><td>0.429</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>换手率(用户已知)</td><td>0.457</td><td>0.417</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>收盘位置(0低1高)</td><td>0.576</td><td>0.549</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>股价</td><td>0.631</td><td>0.527</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>atr14_pct</td><td>0.610</td><td>0.539</td><td style='color:#c62828'>一致 ✓</td></tr><tr><td>amplitude</td><td>0.590</td><td>0.503</td><td style='color:#c62828'>一致 ✓</td></tr></table>
+<p class="small">8月区分度普遍比10月弱（10月是极端弱市、特征更极端），但方向几乎全部复核通过，说明结论稳健、不是单月巧合。唯一不一致的是距10日高点，属于短周期噪声，不纳入结论。</p>
+
+<h2>四、多轮回测：能否既提纯又不漏妖股</h2>
+<h3>第1-2轮：单因子与组合过滤</h3>
+<table><tr><th>方案</th><th>剩余笔数</th><th>胜率</th><th>平均收益</th><th>大亏笔数</th><th>妖股保留</th></tr>
+<tr><td>第0轮 基线(全部信号)</td><td>273</td><td color:#c62828>14.3%</td><td color:#2e7d32>-6.45%</td><td>92</td><td>35/35 (100.0%)</td></tr><tr><td>ret5<20</td><td>207</td><td color:#c62828>14.5%</td><td color:#2e7d32>-6.01%</td><td>50</td><td>24/35 (68.6%)</td></tr><tr><td>量比<3.0</td><td>189</td><td color:#c62828>16.9%</td><td color:#2e7d32>-5.24%</td><td>52</td><td>30/35 (85.7%)</td></tr><tr><td>上影<0.25</td><td>150</td><td color:#c62828>18.0%</td><td color:#2e7d32>-5.19%</td><td>41</td><td>24/35 (68.6%)</td></tr><tr><td>收盘位>0.85</td><td>111</td><td color:#c62828>18.9%</td><td color:#2e7d32>-4.5%</td><td>31</td><td>18/35 (51.4%)</td></tr><tr><td>距60高<-8</td><td>130</td><td color:#c62828>20.8%</td><td color:#2e7d32>-4.77%</td><td>27</td><td>18/35 (51.4%)</td></tr><tr><td>振幅>8</td><td>220</td><td color:#c62828>16.4%</td><td color:#2e7d32>-6.24%</td><td>82</td><td>34/35 (97.1%)</td></tr><tr><td>换手<15</td><td>180</td><td color:#c62828>15.6%</td><td color:#2e7d32>-6.18%</td><td>45</td><td>23/35 (65.7%)</td></tr><tr><td>A激进提纯 ret5<15&上影<0.25&收盘位>0.7</td><td>93</td><td color:#c62828>18.3%</td><td color:#2e7d32>-4.75%</td><td>16</td><td>14/35 (40.0%)</td></tr><tr><td>B温和 ret5<20&量比<3</td><td>156</td><td color:#c62828>16.0%</td><td color:#2e7d32>-5.37%</td><td>32</td><td>21/35 (60.0%)</td></tr><tr><td>C保妖股 ret5<25&上影<0.35</td><td>162</td><td color:#c62828>15.4%</td><td color:#2e7d32>-6.0%</td><td>44</td><td>21/35 (60.0%)</td></tr><tr><td>D反追高+承接 ret5<18&收盘位>0.7&距60高<-4</td><td>91</td><td color:#c62828>20.9%</td><td color:#2e7d32>-4.29%</td><td>14</td><td>14/35 (40.0%)</td></tr><tr><td>E高波动 振幅>10&ATR>5.5</td><td>108</td><td color:#c62828>16.7%</td><td color:#2e7d32>-6.86%</td><td>39</td><td>17/35 (48.6%)</td></tr><tr><td>F只要不追高 ret5<15</td><td>171</td><td color:#c62828>14.6%</td><td color:#2e7d32>-5.5%</td><td>33</td><td>19/35 (54.3%)</td></tr><tr><td>G只砍极端 ret5<25</td><td>233</td><td color:#c62828>15.0%</td><td color:#2e7d32>-5.97%</td><td>64</td><td>30/35 (85.7%)</td></tr></table>
+<p>规律非常清晰：<b>过滤越狠，胜率越高，妖股保留越少</b>。例如"距60高&lt;-8%"把胜率从14.3%提到20.8%，但妖股只剩51%。"收盘位&gt;0.85"胜率18.9%，妖股只剩51%。</p>
+
+<h3>第3轮：网格搜索——保住90%妖股的前提下能否提纯</h3>
+<div class="hero">遍历 6×5×3 = 90 组(追高×上影线×收盘位)阈值组合，<b>没有任何一组</b>能在保留≥90%妖股的同时显著提升胜率。
+这不是参数没调好，而是结构性矛盾：妖股的 ret5 中位 13.6%、量比 2.09，与大亏票(19.0% / 2.67)在同一区间，任何切分都会误伤。</div>
+
+<h3>第4轮：交互项——能否区分"放量承接"和"放量出货"</h3>
+<p>假设高量比里藏着两种：收盘位高＝主力承接(好)，收盘位低＝出货(坏)。实测<b>不成立</b>——高量比≥2.5 且收盘位≥0.7 的一组胜率仅 2.9%、平均 -9.6%，比出货组还差。A股追涨语境下，放量本身就是风险，没有"好放量"。</p>
+
+<h3>第5轮：分战法差异化——目前最优解</h3>
+<p>强势续攻是大亏重灾区（大亏率39.9%、妖股率10.9%），洗盘反包质量高（大亏率21.6%、妖股率17.0%）。对两者用不同严格度：</p>
+<table><tr><th>方案</th><th>剩余笔数</th><th>胜率</th><th>平均收益</th><th>大亏笔数</th><th>妖股保留</th></tr>
+<tr><td>强势续攻:量比<3 + 洗盘反包:全放行</td><td>190</td><td color:#c62828>16.8%</td><td color:#2e7d32>-5.26%</td><td>52</td><td>30/35 (85.7%)</td></tr><tr><td>强势续攻:ret5<20 + 洗盘反包:全放行</td><td>218</td><td color:#c62828>15.1%</td><td color:#2e7d32>-5.74%</td><td>58</td><td>28/35 (80.0%)</td></tr><tr><td>强势续攻:量比<3&上影<0.35 + 洗盘:全放行</td><td>142</td><td color:#c62828>17.6%</td><td color:#2e7d32>-5.1%</td><td>39</td><td>22/35 (62.9%)</td></tr><tr><td>强势续攻:量比<2.5 + 洗盘:全放行</td><td>164</td><td color:#c62828>18.3%</td><td color:#2e7d32>-4.52%</td><td>39</td><td>25/35 (71.4%)</td></tr></table>
+<div class="good"><b>最优平衡</b>：强势续攻用量比&lt;3 过滤、洗盘反包全放行 → 胜率 16.8%（基线14.3%，+2.5pp）、大亏从92降到52（-43%）、妖股仍保留 30/35（85.7%）。这是唯一"提纯了但基本没误杀妖股"的方案，也是可以落地的一条规则。</div>
+
+<h2>五、真正的瓶颈：妖股是被卖出端洗掉的</h2>
+<p>35只妖股机会（买入后最高涨≥30%），按实际卖出收益分布：大赚(&gt;20%)只有7只，<b>24只实际卖出&lt;10%（卖飞）</b>，中位数收益仅0.8%。典型的卖飞案例：</p>
+<table><tr><th>代码</th><th>名称</th><th>买点战法</th><th>买入日</th><th>最高涨幅</th><th>实际卖出</th></tr>
+<tr><td>600715</td><td>文投控股</td><td>强势续攻</td><td>2026-10-12</td><td style='color:#c62828'>+103.26%</td><td color:#2e7d32>-4.35%</td></tr><tr><td>603366</td><td>日出东方</td><td>强势续攻</td><td>2026-10-21</td><td style='color:#c62828'>+80.56%</td><td color:#2e7d32>-8.01%</td></tr><tr><td>002578</td><td>闽发铝业</td><td>洗盘反包</td><td>2026-10-26</td><td style='color:#c62828'>+76.67%</td><td color:#2e7d32>-3.06%</td></tr><tr><td>600838</td><td>上海九百</td><td>强势续攻</td><td>2026-10-09</td><td style='color:#c62828'>+71.15%</td><td color:#2e7d32>-7.13%</td></tr><tr><td>601595</td><td>上海电影</td><td>强势续攻</td><td>2026-10-13</td><td style='color:#c62828'>+69.92%</td><td color:#2e7d32>-4.28%</td></tr><tr><td>300413</td><td>芒果超媒</td><td>洗盘反包</td><td>2026-10-09</td><td style='color:#c62828'>+69.04%</td><td color:#c62828>1.3%</td></tr><tr><td>000530</td><td>冰山冷热</td><td>强势续攻</td><td>2026-10-19</td><td style='color:#c62828'>+65.77%</td><td color:#2e7d32>-4.1%</td></tr><tr><td>002088</td><td>鲁阳节能</td><td>洗盘反包</td><td>2026-10-30</td><td style='color:#c62828'>+57.49%</td><td color:#2e7d32>-2.2%</td></tr><tr><td>301052</td><td>果麦文化</td><td>强势续攻</td><td>2026-10-14</td><td style='color:#c62828'>+51.2%</td><td color:#2e7d32>-13.98%</td></tr></table>
+<div class="hero">文投控股最高 +103% 却卖在 -4.3%，日出东方 +80.6% 卖在 -8.0%。这些票买入特征完全符合妖股模式，问题出在<b>买入后洗盘时触发了 MA20 破位/急跌止损</b>，被规则赶下车，随后主升浪启动。</div>
+
+<h3>一个反直觉的发现</h3>
+<div class="info">真正吃到的7只妖股，买入时反而<b>涨得更多</b>（ret20 26.4% vs 卖飞组8.1%）、<b>量比更低</b>（1.51 vs 2.11）、<b>上影线更短</b>（0.05 vs 0.12）。
+说明真妖股启动时就已经很强且抛压小；而靠"低位补涨+放量"启动的票更容易中途夭折。这给出一条<b>识别真妖</b>的线索：宁可买"已经很强且干净"的，不买"低位放量博弈"的。</div>
+
+<h2>六、可落地的建议</h2>
+<div class="good">
+<b>买入端（提纯，小改动）</b><br>
+1. 首选<b>分战法过滤</b>：强势续攻要求量比&lt;3，洗盘反包全放行 —— 收益/妖股平衡最好。<br>
+2. 通用温和线：剔除近5日累计涨幅&gt;25% 或 量比&gt;3 的极端追高票 —— 妖股保留85%以上，胜率略升、大亏明显减少。<br>
+3. 若愿意牺牲部分妖股换高胜率：距60日高点&lt;-8% 或 收盘位&gt;0.85，胜率可上到19-21%。<br><br>
+<b>卖出端（真正的杠杆，重点）</b><br>
+4. 妖股模式的核心不该是买入放宽，而是<b>卖出端给足洗盘容忍度</b>：对浮盈票或强势票放宽 MA20 破位止损、避免在一次洗盘中就出局。<br>
+5. 当前"抓妖股模式"已关闭 MA10 移动止盈，但 MA20 破位仍会过早触发——建议下一步针对<b>妖股持仓单独的卖出规则</b>做专项回测（这是本报告发现的最高价值方向）。<br><br>
+<b>仓位纪律</b><br>
+6. 妖股机会只占约13%（35/273），本质是右尾博弈：提纯后的信号用小仓位、按笔分散，靠少数翻倍票覆盖多数小亏。
+</div>
+
+<h2>七、口径与局限</h2>
+<p class="small">
+· 样本期：10/8-10/30（273买点，全程弱市）+ 8/10-8/31（390买点独立验证）。10月卖出以实际 sellwatch 确认配对，8月因持有期不同用统一20日收益做因子方向验证。<br>
+· 妖股定义：买入后最高价收益≥30%（机会）；真正吃到：实际卖出收益≥20%。<br>
+· 资金流向：akshare 历史个股资金流接口在回测区间不可稳定获取，故未纳入；用户已关注的换手率、量比已包含，且新增了更强的位置/形态因子。<br>
+· 收盘价成交、未计交易费用与滑点。胜率＝卖出收益&gt;0 的笔数占比。<br>
+· 单因子 AUC 用 Mann-Whitney 秩和计算；分组中位数为抗异常值口径。
+</p>
+</body></html>
