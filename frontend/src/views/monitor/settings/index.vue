@@ -384,6 +384,23 @@
             <p class="text-xs text-gray-400 m-0">
               末次推送（默认 14:40）无信号也会发「系统自检·推送正常」邮件，扫描异常会发异常告警——每天必有邮件，便于发现服务中断。
             </p>
+            <ElDivider style="margin:12px 0" />
+            <ElFormItem label="K线缓存（历史回放数据源）">
+              <div class="flex items-center gap-2 flex-wrap">
+                <ElButton size="small" :loading="cacheRefreshing" @click="refreshKlineCache">
+                  {{ cacheRefreshing ? '刷新中…' : '立即刷新缓存' }}
+                </ElButton>
+                <span class="text-xs text-gray-400">
+                  {{ cacheInfo.codes || 0 }} 只 · 覆盖至 {{ cacheInfo.end_date || '--' }}
+                  <span v-if="cacheRefreshing && cacheInfo.refresh">
+                    （{{ cacheInfo.refresh.done }}/{{ cacheInfo.refresh.total }}）
+                  </span>
+                </span>
+              </div>
+              <div class="text-xs text-gray-400">
+                每日 {{ config.scan.kline_refresh_time }} 自动刷新，也可在此手动触发；仅历史回放使用，实时扫描不依赖。git 部署后首次需刷一次。
+              </div>
+            </ElFormItem>
           </ElForm>
         </ElCard>
       </ElCol>
@@ -605,7 +622,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Delete } from '@element-plus/icons-vue'
@@ -660,6 +677,46 @@ const config = reactive<any>({
 })
 const strategyState = reactive<Record<string, boolean>>({})
 const pushTimesText = ref('14:00,14:40')
+const cacheInfo = ref<any>({})
+const cacheRefreshing = ref(false)
+let cacheTimer: ReturnType<typeof setInterval> | null = null
+
+async function loadCacheStatus() {
+  try {
+    const res = await monitorApi.marketReplayDates()
+    cacheInfo.value = res?.cache || {}
+    const rp = cacheInfo.value.refresh || {}
+    if (cacheRefreshing.value && rp.finished) {
+      stopCachePoll()
+      cacheRefreshing.value = false
+      ElMessage.success(`K线缓存刷新完成：成功 ${rp.ok} 只、失败 ${rp.fail} 只`)
+      loadConfig()
+    }
+  } catch { /* 静默轮询 */ }
+}
+
+function stopCachePoll() {
+  if (cacheTimer) { clearInterval(cacheTimer); cacheTimer = null }
+}
+
+async function refreshKlineCache() {
+  try {
+    const res = await monitorApi.marketReplayRefresh()
+    if (res?.success === false) {
+      ElMessage.warning(res?.message || '刷新已在进行中')
+      return
+    }
+    cacheRefreshing.value = true
+    ElMessage.info('K线缓存刷新已启动（后台约 4 分钟）')
+    stopCachePoll()
+    cacheTimer = setInterval(loadCacheStatus, 2000)
+    loadCacheStatus()
+  } catch (e: any) {
+    ElMessage.error('刷新启动失败：' + (e?.message || e))
+  }
+}
+
+onUnmounted(stopCachePoll)
 const mailConfig = reactive<any>({
   id: 'email', type: 'email', name: '邮件通知', enabled: false,
   smtp_host: '', smtp_port: 465, smtp_user: '', smtp_password: '',
@@ -767,7 +824,7 @@ async function testMail() {
   }
 }
 
-onMounted(loadConfig)
+onMounted(() => { loadConfig(); loadCacheStatus() })
 </script>
 
 <style scoped>

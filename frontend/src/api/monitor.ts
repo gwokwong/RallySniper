@@ -200,6 +200,8 @@ export const monitorApi = {
     request.get<any>({ url: `/api/market/replay?date=${date}` }),
   marketReplayDates: () =>
     request.get<any>({ url: '/api/market/replay/dates' }),
+  marketReplayRefresh: () =>
+    request.post<any>({ url: '/api/market/replay/refresh' }),
   marketPushNow: () => request.post<any>({ url: '/api/market/push-now' }),
 
   /** 昨日涨停跟进 */
