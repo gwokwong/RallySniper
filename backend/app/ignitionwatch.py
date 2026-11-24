@@ -36,6 +36,8 @@ class IgnitionState:
         self.collapsed: bool = False            # 当日已提醒退潮
         self.collapsed_time: str | None = None
         self.streak: int = 0                    # 连续达标次数（数据失败即清零）
+        self.today_zt: int | None = None        # 确认时当日实时涨停家数（广度档位）
+        self.tier: str | None = None            # 档位：全仓档/试错档
         self.last_check: str | None = None
         self.last_median: float | None = None
         self.last_n: int | None = None
@@ -50,6 +52,8 @@ class IgnitionState:
         self.collapsed = False
         self.collapsed_time = None
         self.streak = 0
+        self.today_zt = None
+        self.tier = None
         self.last_check = None
         self.last_median = None
         self.last_n = None
@@ -64,6 +68,8 @@ class IgnitionState:
                 "collapsed": self.collapsed,
                 "collapsed_time": self.collapsed_time,
                 "streak": self.streak,
+                "today_zt": self.today_zt,
+                "tier": self.tier,
                 "last_check": self.last_check,
                 "last_median": self.last_median,
                 "last_n": self.last_n,
@@ -159,13 +165,33 @@ def check() -> dict[str, Any]:
                 state.confirmed = True
                 state.confirmed_time = now_hm
                 state.confirmed_median = median
+                # 广度档位判定：今日实时涨停家数（全仓日/试错日是最关键的决策信息）
+                tier_th = float(cfg.market_regime.ignition_tier_breadth)
+                today_zt = None
+                try:
+                    detail = ds.limit_up_pool_detail(today, ttl=120)
+                    today_zt = len(detail) if detail else 0
+                except Exception:  # noqa: BLE001
+                    today_zt = None
+                state.today_zt = today_zt
+                if today_zt is None:
+                    tier = "档位未知"
+                    tier_note = "实时涨停家数获取失败，按试错档谨慎处理"
+                elif today_zt >= tier_th:
+                    tier = "全仓档"
+                    tier_note = f"普涨高潮（≥{tier_th:g}家），此类信号胜率回测 67%~82%"
+                else:
+                    tier = "试错档"
+                    tier_note = f"广度不足（<{tier_th:g}家），此类信号胜率回测 10%~23%，建议 1/4 仓或观望"
+                state.tier = tier
                 fired = True
                 mins = need * int(reg.ignition_watch_minutes)
-                title = f"【情绪点火确认】中位溢价 {median:+.2f}% ≥ {threshold:g}%"
+                title = f"【情绪点火确认·{tier}】中位溢价 {median:+.2f}% ≥ {threshold:g}%"
                 body = (
                     f"确认时间：{now_hm}（连续 {need} 次检查达标，约 {mins} 分钟）\n"
                     f"样本：{ign.get('prev_date', '')} 涨停池 {n} 只，当前中位溢价 {median:+.2f}%\n"
-                    f"纪律提醒：点火日可按战法开仓（洗盘反包为主），推送时点会自动推信号；\n"
+                    f"广度：今日实时涨停 {today_zt if today_zt is not None else '?'} 家 → {tier_note}\n"
+                    f"纪律提醒：点火日可按战法开仓（洗盘反包为主），14:00/14:40 推送信号；\n"
                     f"若后续跌破 0 会再发「点火退潮」提醒，届时停止追高。"
                 )
                 _notify(title, body)
