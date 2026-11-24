@@ -170,6 +170,10 @@ class ScanConfig(BaseModel):
                                     description="新高突破的量比门槛")
     pattern_max_alerts: int = Field(default=20, ge=1, le=100,
                                     description="每日形态提醒总量上限（防刷屏）")
+    pattern_board_alert: bool = Field(default=True,
+                                      description="板块异动提醒：行业聚合涨跌达到阈值时提醒拉涨/砸盘（每板块每日各一次）")
+    pattern_board_anomaly_pct: float = Field(default=3.0, ge=1.0, le=10,
+                                             description="板块异动阈值(%)：行业聚合涨跌中位达到±此值判定异动")
 
 
 class SellConfig(BaseModel):
@@ -231,6 +235,12 @@ class FundamentalFilterConfig(BaseModel):
     enabled: bool = Field(default=True, description="是否启用基本面筛选（营收增速）")
     min_rev_yoy: float = Field(default=10.0, ge=-100, le=1000,
                                description="最低营收同比增长(%)：低于此值的信号被过滤；业绩缺失的保留并标注")
+    pick_max_float_cap: float = Field(default=150.0, ge=0, le=10000,
+                                      description="精选候选流通市值上限(亿元)，0=不限。资金有限优选中小盘")
+    pick_per_industry: int = Field(default=2, ge=1, le=10,
+                                   description="精选名单每行业最多几只（龙头+龙二）")
+
+
 
 
 class MarketRegimeConfig(BaseModel):

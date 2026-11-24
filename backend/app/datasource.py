@@ -249,6 +249,9 @@ def spot_quote_map(codes: list[str] | set[str] | None = None,
             "amount": val(row, "成交额"),
             "volume_ratio": val(row, "量比"),
             "turnover": val(row, "换手率"),
+            "float_cap": val(row, "流通市值"),
+            "total_cap": val(row, "总市值"),
+            "pe_dynamic": val(row, "市盈率-动态"),
         }
     # 新浪源没有量比/换手率：用日K近5日均量补算（小批量标的，缓存后开销可控）
     eff = effective_trading_date()

@@ -11,9 +11,12 @@
 from __future__ import annotations
 
 import threading
+from collections import defaultdict
 from bisect import bisect_left
 from datetime import datetime
 from typing import Any
+
+import numpy as np
 
 from . import datasource as ds, notifications, notifier, replay
 from .config import load_config
@@ -27,6 +30,8 @@ class PatternState:
         self.high_base: dict[str, float] = {}  # 突破基准：代码→前N日最高
         self.wzt_base: dict[str, dict] = {}    # 涨停缩量突破：代码→{low, ph, ldate}
         self.names: dict[str, str] = {}        # 代码→名称
+        self.industry_map: dict[str, str] = {}  # 代码→行业
+        self.board_alerted: set[str] = set()   # 已提醒的板块异动（ind:方向）
         self.alerted: set[str] = set()         # 已提醒 code:pattern
         self.day_alerts: int = 0
         self.last_poll: str | None = None
@@ -39,6 +44,9 @@ class PatternState:
         self.rev_candidates = set()
         self.high_base = {}
         self.wzt_base = {}
+        self.names = {}
+        self.industry_map = {}
+        self.board_alerted = set()
         self.alerted = set()
         self.day_alerts = 0
         self.last_poll = None
@@ -58,7 +66,8 @@ def _prev_day_row(code: str, prev_day: str) -> int | None:
     return None
 
 
-def _prepare_day(prev_day: str, names: dict[str, str] | None = None) -> None:
+def _prepare_day(prev_day: str, names: dict[str, str] | None = None,
+                 industry_map: dict[str, str] | None = None) -> None:
     """开盘前一次性预计算：反包候选 + 突破基准（全部基于前一日及更早，无未来函数）。"""
     cfg = load_config()
     rules = cfg.strategy_rules
@@ -115,6 +124,7 @@ def _prepare_day(prev_day: str, names: dict[str, str] | None = None) -> None:
         state.high_base = high_base
         state.wzt_base = wzt_base
         state.names = dict(names or {})
+        state.industry_map = dict(industry_map or {})
         state.prepared = True
 
 
@@ -155,6 +165,46 @@ def poll() -> dict[str, Any]:
     with state._lock:
         alerted = state.alerted
         day_alerts = state.day_alerts
+        industry_map = dict(state.industry_map)
+
+    # 板块异动检测（个股聚合中位口径）：拉涨≥阈值 / 砸盘≤-阈值，每板块每日各一次
+    board_th = float(cfg.scan.pattern_board_anomaly_pct)
+    ind_pcts = defaultdict(list)
+    for code, q in quotes.items():
+        ind = industry_map.get(code)
+        pct = q.get("change_pct")
+        if ind and pct is not None:
+            ind_pcts[ind].append(float(pct))
+    board_now = {ind: float(np.median(vals)) for ind, vals in ind_pcts.items() if len(vals) >= 3}
+    import sys as _s
+    print(f"[debug] board段: quotes={len(quotes)} industry_map={len(industry_map)} ind_pcts={dict(ind_pcts)}", file=_s.stderr)
+    for ind, bp in sorted(board_now.items(), key=lambda kv: -kv[1]):
+        if bp >= board_th and f"{ind}:拉涨" not in state.board_alerted:
+            state.board_alerted.add(f"{ind}:拉涨")
+            new.append({"code": "--", "name": f"板块·{ind}", "pattern": "板块异动·拉涨",
+                        "price": None, "pct": round(bp, 2), "vr": None,
+                        "detail": f"行业聚合涨跌中位 {bp:+.1f}%（板块内 {len(ind_pcts) and ''}{sum(1 for c, ic in industry_map.items() if ic == ind)} 只成分），"
+                                  f"该板块候选优先关注"})
+            if state.day_alerts < cap:
+                state.day_alerts += 1
+                title = f"【板块异动·拉涨】{ind} {bp:+.1f}%"
+                body = (f"{now_hm} 行业聚合涨跌中位 {bp:+.1f}%（成分 {sum(1 for c, ic in industry_map.items() if ic == ind)} 只）\n"
+                        f"该板块反包候选将优先进入主推精选；追高注意兑现节奏。")
+                notifications.add(title, body, [], kind="pattern")
+                if cfg.notification:
+                    notifier.broadcast(cfg.notification, title, body, [])
+        elif bp <= -board_th and f"{ind}:砸盘" not in state.board_alerted:
+            state.board_alerted.add(f"{ind}:砸盘")
+            new.append({"code": "--", "name": f"板块·{ind}", "pattern": "板块异动·砸盘",
+                        "price": None, "pct": round(bp, 2), "vr": None,
+                        "detail": f"行业聚合涨跌中位 {bp:+.1f}%，该板块持仓注意风险，候选暂停追入"})
+            if state.day_alerts < cap:
+                state.day_alerts += 1
+                title = f"【板块异动·砸盘】{ind} {bp:+.1f}%"
+                body = f"{now_hm} 行业聚合涨跌中位 {bp:+.1f}%（成分 {sum(1 for c, ic in industry_map.items() if ic == ind)} 只）——该板块候选暂停追入，持仓注意风险。"
+                notifications.add(title, body, [], kind="pattern")
+                if cfg.notification:
+                    notifier.broadcast(cfg.notification, title, body, [])
 
     for code, q in quotes.items():
         if day_alerts >= cap:
@@ -270,16 +320,27 @@ def ignition_picks(top_n: int = 4) -> dict[str, Any]:
             names = ds.stock_code_names()
         except Exception:  # noqa: BLE001
             names = {}
-        _prepare_day(dates[pos[-1]], names)
+        industry_map = {}
+        try:
+            ydf = ds.cache.get_or_fetch(
+                "yjbb_picks_ind", 43200,
+                lambda: __import__("akshare").stock_yjbb_em(date="20260930")) or None
+            if ydf is not None:
+                for _, rr in ydf.iterrows():
+                    industry_map[str(rr.get("股票代码", "")).strip().zfill(6)] = str(rr.get("所处行业", ""))
+        except Exception:  # noqa: BLE001
+            pass
+        _prepare_day(dates[pos[-1]], names, industry_map)
     codes = sorted(state.rev_candidates)
     if not codes:
         return {"picks": [], "reason": "今日反包候选为空"}
 
+    mm = int(today[4:6])
+    report = "20260930" if mm >= 10 else "20260630"
+
     def _fund_map():
         def fetch():
             import akshare as _ak
-            mm = int(today[4:6])
-            report = "20260930" if mm >= 10 else "20260630"
             df = _ak.stock_yjbb_em(date=report)
             out = {}
             for _, r in df.iterrows():
@@ -297,6 +358,8 @@ def ignition_picks(top_n: int = 4) -> dict[str, Any]:
         return ds.cache.get_or_fetch(f"yjbb_picks_{report}", 43200, fetch) or {}
 
     fmap = _fund_map()
+    cap_yi = float(cfg.fundamental_filter.pick_max_float_cap)
+    per_ind = max(1, int(cfg.fundamental_filter.pick_per_industry))
     quotes = ds.spot_quote_map(codes)
 
     cands = []
@@ -305,20 +368,27 @@ def ignition_picks(top_n: int = 4) -> dict[str, Any]:
         f = fmap.get(code, {})
         rev = f.get("rev_yoy")
         prof = f.get("profit")
+        fc = q.get("float_cap")   # 流通市值（元）
+        cap_ok = fc is None or fc <= cap_yi * 1e8
+        if not cap_ok:
+            continue
         cands.append({"code": code, "name": str(q.get("name") or state.names.get(code, code)),
                       "price": q.get("price"), "pct": q.get("change_pct"),
+                      "float_cap": round(fc / 1e8, 1) if fc is not None else None,
                       "rev_yoy": rev, "profit_pos": (prof is not None and prof > 0) or None,
                       "industry": f.get("industry", "")})
-    picks, seen = [], set()
-    for s in sorted(cands, key=lambda x: (not x["profit_pos"], -(x["rev_yoy"] if x["rev_yoy"] is not None else -999))):
+    picks, seen_cnt = [], {}
+    for s in sorted(cands, key=lambda x: (not x["profit_pos"], -(x["rev_yoy"] if x["rev_yoy"] is not None else -999),
+                                          -(x["pct"] if x["pct"] is not None else -999))):
         ind = s["industry"] or s["code"]
-        if ind in seen:
+        if seen_cnt.get(ind, 0) >= per_ind:
             continue
-        seen.add(ind)
+        seen_cnt[ind] = seen_cnt.get(ind, 0) + 1
         picks.append(s)
         if len(picks) >= top_n:
             break
-    return {"picks": picks, "total_candidates": len(cands)}
+    return {"picks": picks, "total_candidates": len(cands),
+            "filtered_by_cap": len(cands) < len(codes)}
 
 
 def status() -> dict[str, Any]:
