@@ -7,6 +7,17 @@ from __future__ import annotations
 import math
 import threading
 from contextlib import asynccontextmanager
+import sys
+
+# 服务器 locale 常为 POSIX/ASCII：中文 print（含异常消息）会触发 UnicodeEncodeError
+# 直接把进程搞崩（2026-11-23 部署实测）。启动时强制 stdout/stderr 走 UTF-8。
+for _stream in (sys.stdout, sys.stderr):
+    if _stream is not None and hasattr(_stream, "reconfigure"):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:  # noqa: BLE001
+            pass
+
 from pathlib import Path
 from datetime import datetime
 from typing import Any

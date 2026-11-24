@@ -7,6 +7,11 @@
 #   日志: logs/backend.log  logs/frontend.log
 # ============================================================
 set -uo pipefail
+# 服务器 locale 若为 POSIX/ASCII，中文输出会触发 UnicodeEncodeError 使进程崩溃——
+# 强制子进程走 UTF-8（与 main.py 内的 reconfigure 双保险）
+export PYTHONIOENCODING=utf-8
+export LANG="${LANG:-en_US.UTF-8}"
+export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
