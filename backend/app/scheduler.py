@@ -170,6 +170,31 @@ def run_market_push(push_time: str | None = None) -> dict[str, Any]:
                 f"\n【广度档位】今日涨停 {ign['today_zt']} 家（阈值 {ign.get('tier_th', 100)}）→ {tier_label}；"
                 f"试错档请按纪律控制仓位。"
             )
+        # 主推精选（结构化分散参考，非alpha承诺）：盈利优先→行业分散→取前3只。
+        # 数据背景：点火日内按任何单一维度精选（低价/营收增速/强度）均不优于等权，
+        # 此段只为资金有限时提供 2-4 只的分散结构；档位（全仓/试错）才是已验证的分层。
+        trig_all = [s for s in signals if s.get("stage") == "trigger"]
+        if trig_all:
+            picks, seen_ind = [], set()
+            for s in sorted(trig_all, key=lambda x: (
+                    not x.get("profit_pos"), -(x.get("rev_yoy") if x.get("rev_yoy") is not None else -999),
+                    -x.get("strength", 0))):
+                ind = s.get("industry") or s.get("code", "")
+                if ind in seen_ind:
+                    continue
+                seen_ind.add(ind)
+                picks.append(s)
+                if len(picks) >= 3:
+                    break
+            if picks:
+                content += "\n【主推精选·结构化分散参考】（盈利优先+行业分散；非买入承诺，生命线=涨停日最低价）"
+                for s in picks:
+                    ry = s.get("rev_yoy")
+                    fund = f"营收{'--' if ry is None else format(ry, '+.0f') + '%'}"
+                    pp = "盈利" if s.get("profit_pos") else ("未知" if s.get("profit_pos") is None else "亏损")
+                    content += (f"\n- ★ {s.get('name', '')}({s.get('code', '')}) 现价{s.get('price', '')}"
+                                f"｜{fund}｜{pp}｜{s.get('industry', '--')}")
+
         # 逐票命中原因（战法+指标级理由+基本面），让邮件正文自带"为什么买"
         trig = [s for s in signals if s.get("stage") == "trigger"][:10]
         if trig:
