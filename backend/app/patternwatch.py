@@ -26,6 +26,7 @@ class PatternState:
         self.rev_candidates: set[str] = set()  # 反包候选（昨日收盘判定）
         self.high_base: dict[str, float] = {}  # 突破基准：代码→前N日最高
         self.wzt_base: dict[str, dict] = {}    # 涨停缩量突破：代码→{low, ph, ldate}
+        self.names: dict[str, str] = {}        # 代码→名称
         self.alerted: set[str] = set()         # 已提醒 code:pattern
         self.day_alerts: int = 0
         self.last_poll: str | None = None
@@ -57,7 +58,7 @@ def _prev_day_row(code: str, prev_day: str) -> int | None:
     return None
 
 
-def _prepare_day(prev_day: str) -> None:
+def _prepare_day(prev_day: str, names: dict[str, str] | None = None) -> None:
     """开盘前一次性预计算：反包候选 + 突破基准（全部基于前一日及更早，无未来函数）。"""
     cfg = load_config()
     rules = cfg.strategy_rules
@@ -113,6 +114,7 @@ def _prepare_day(prev_day: str) -> None:
         state.rev_candidates = rev
         state.high_base = high_base
         state.wzt_base = wzt_base
+        state.names = dict(names or {})
         state.prepared = True
 
 
@@ -246,6 +248,77 @@ def poll() -> dict[str, Any]:
             notifier.broadcast(cfg.notification, title, body, [])
 
     return {"checked": True, "new": new, "day_alerts": state.day_alerts}
+
+
+def ignition_picks(top_n: int = 4) -> dict[str, Any]:
+    """点火日精选候选：反包候选池按「盈利优先→营收增速→行业分散」取 Top N。
+
+    回测证明点火日内按任何单一维度精选都不优于等权——本名单是资金有限时的
+    结构化分散参考（非 alpha 承诺），配合实时「反包·进行中」提醒与生命线止损使用。
+    """
+    cfg = load_config()
+    eff = ds.effective_trading_date()
+    today = eff["date"]
+    with state._lock:
+        need_prep = state.date != today or not state.prepared
+    if need_prep:
+        dates = replay.trading_dates()
+        pos = [k for k, d in enumerate(dates) if d < today]
+        if not pos:
+            return {"picks": [], "reason": "无前置交易日"}
+        try:
+            names = ds.stock_code_names()
+        except Exception:  # noqa: BLE001
+            names = {}
+        _prepare_day(dates[pos[-1]], names)
+    codes = sorted(state.rev_candidates)
+    if not codes:
+        return {"picks": [], "reason": "今日反包候选为空"}
+
+    def _fund_map():
+        def fetch():
+            import akshare as _ak
+            mm = int(today[4:6])
+            report = "20260930" if mm >= 10 else "20260630"
+            df = _ak.stock_yjbb_em(date=report)
+            out = {}
+            for _, r in df.iterrows():
+                code = str(r.get("股票代码", "")).strip().zfill(6)
+                try:
+                    rev = float(r.get("营业总收入-同比增长"))
+                except (TypeError, ValueError):
+                    rev = None
+                try:
+                    np_ = float(r.get("净利润-净利润"))
+                except (TypeError, ValueError):
+                    np_ = None
+                out[code] = {"rev_yoy": rev, "profit": np_, "industry": str(r.get("所处行业", ""))}
+            return out or None
+        return ds.cache.get_or_fetch(f"yjbb_picks_{report}", 43200, fetch) or {}
+
+    fmap = _fund_map()
+    quotes = ds.spot_quote_map(codes)
+
+    cands = []
+    for code in codes:
+        q = quotes.get(code) or {}
+        f = fmap.get(code, {})
+        rev = f.get("rev_yoy")
+        prof = f.get("profit")
+        cands.append({"code": code, "name": str(q.get("name") or state.names.get(code, code)),
+                      "price": q.get("price"), "pct": q.get("change_pct"),
+                      "rev_yoy": rev, "profit_pos": (prof is not None and prof > 0) or None,
+                      "industry": f.get("industry", "")})
+    picks, seen = [], set()
+    for s in sorted(cands, key=lambda x: (not x["profit_pos"], -(x["rev_yoy"] if x["rev_yoy"] is not None else -999))):
+        ind = s["industry"] or s["code"]
+        if ind in seen:
+            continue
+        seen.add(ind)
+        picks.append(s)
+        if len(picks) >= top_n:
+            break
+    return {"picks": picks, "total_candidates": len(cands)}
 
 
 def status() -> dict[str, Any]:

@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import datasource as ds, notifications, notifier
+from . import datasource as ds, notifications, notifier, patternwatch
 from .config import effective_config, load_config
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -187,12 +187,29 @@ def check() -> dict[str, Any]:
                 fired = True
                 mins = need * int(reg.ignition_watch_minutes)
                 title = f"【情绪点火确认·{tier}】中位溢价 {median:+.2f}% ≥ {threshold:g}%"
+                picks_note = ""
+                try:
+                    pk = patternwatch.ignition_picks(4)
+                    picks = pk.get("picks", [])
+                    if picks:
+                        lines = []
+                        for s in picks:
+                            ry = s.get("rev_yoy")
+                            pp = s.get("profit_pos")
+                            fund = f"营收{'--' if ry is None else format(ry, '+.0f') + '%'}｜{'盈利' if pp else ('亏损' if pp is False else '未知')}"
+                            px = f"现价{s['price']}" if s.get('price') else '未开盘'
+                            lines.append(f"- ★ {s['name']}({s['code']}) {px}｜{fund}｜{s['industry']}")
+                        picks_note = "\n".join(lines)
+                except Exception as _exc:  # noqa: BLE001
+                    picks_note = f"（精选名单生成失败：{str(_exc)[:60]}）"
                 body = (
                     f"确认时间：{now_hm}（连续 {need} 次检查达标，约 {mins} 分钟）\n"
                     f"样本：{ign.get('prev_date', '')} 涨停池 {n} 只，当前中位溢价 {median:+.2f}%\n"
                     f"广度：今日实时涨停 {today_zt if today_zt is not None else '?'} 家 → {tier_note}\n"
                     f"纪律提醒：点火日可按战法开仓（洗盘反包为主），14:00/14:40 推送信号；\n"
-                    f"若后续跌破 0 会再发「点火退潮」提醒，届时停止追高。"
+                    f"若后续跌破 0 会再发「点火退潮」提醒，届时停止追高。\n"
+                    f"\n【今日精选候选·结构化分散参考】（盈利优先+行业分散，非买入承诺；"
+                    f"生命线以触发后推送为准）\n{picks_note}"
                 )
                 _notify(title, body)
         elif not state.collapsed and median < 0:
