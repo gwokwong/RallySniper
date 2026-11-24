@@ -177,7 +177,6 @@ def poll() -> dict[str, Any]:
             ind_pcts[ind].append(float(pct))
     board_now = {ind: float(np.median(vals)) for ind, vals in ind_pcts.items() if len(vals) >= 3}
     import sys as _s
-    print(f"[debug] board段: quotes={len(quotes)} industry_map={len(industry_map)} ind_pcts={dict(ind_pcts)}", file=_s.stderr)
     for ind, bp in sorted(board_now.items(), key=lambda kv: -kv[1]):
         if bp >= board_th and f"{ind}:拉涨" not in state.board_alerted:
             state.board_alerted.add(f"{ind}:拉涨")
