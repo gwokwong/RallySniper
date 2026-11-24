@@ -12,7 +12,7 @@ from typing import Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, replay
+from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, replay, wzqwatch
 from . import sellwatch, yesterday
 import json
 
@@ -96,6 +96,17 @@ def _daily_check_job() -> None:
         run_daily_check()
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] 每日自检失败: {exc}")
+
+
+def _wzq_job() -> None:
+    """弱转强观察池：收盘后筛巨量炸板名单并推送（休市日跳过）。"""
+    try:
+        if ds.market_status()["status"] not in ("trading", "after_hours"):
+            return
+        r = wzqwatch.run_watch(push=True)
+        print(f"[scheduler] 弱转强观察池: {r.get('total', '?')} 只")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 弱转强观察池失败: {exc}")
 
 
 def _cache_refresh_job() -> None:
@@ -361,6 +372,12 @@ def start() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(dc_h), minute=int(dc_m), timezone="Asia/Shanghai"),
             id="daily_check", max_instances=1, coalesce=True,
         )
+        wz_h, wz_m = cfg.scan.wzq_watch_time.split(":")
+        _scheduler.add_job(
+            _wzq_job,
+            trigger=CronTrigger(hour=int(wz_h), minute=int(wz_m), timezone="Asia/Shanghai"),
+            id="wzq_watch", max_instances=1, coalesce=True,
+        )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -422,6 +439,14 @@ def refresh() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(dc_h), minute=int(dc_m), timezone="Asia/Shanghai"),
             id="daily_check", max_instances=1, coalesce=True,
         )
+        if _scheduler.get_job("wzq_watch"):
+            _scheduler.remove_job("wzq_watch")
+        wz_h, wz_m = cfg.scan.wzq_watch_time.split(":")
+        _scheduler.add_job(
+            _wzq_job,
+            trigger=CronTrigger(hour=int(wz_h), minute=int(wz_m), timezone="Asia/Shanghai"),
+            id="wzq_watch", max_instances=1, coalesce=True,
+        )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}
 
@@ -462,4 +487,5 @@ def status() -> dict[str, Any]:
             "yesterday": yesterday.latest_snapshot(),
             "sell": sellwatch.status(),
             "ignition": ignitionwatch.status(),
+            "wzq": wzqwatch.status(),
         }

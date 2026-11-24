@@ -381,6 +381,22 @@
                 </ElFormItem>
               </ElCol>
             </ElRow>
+            <ElRow :gutter="12">
+              <ElCol :span="8">
+                <ElFormItem label="弱转强观察池">
+                  <ElSwitch v-model="config.scan.wzq_watch_enabled" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="16">
+                <ElFormItem label="观察池推送时点">
+                  <ElInput v-model="config.scan.wzq_watch_time" placeholder="15:20" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+            </ElRow>
+            <p class="text-xs text-gray-400 m-0">
+              弱转强观察池：收盘后筛当日「巨量炸板」（触板未封+收盘离板≥1.5%+量比≥2.5）名单，邮件附竞价三问清单，
+              供次日竞价人工判断——纯观察提醒，不构成买卖信号。
+            </p>
             <p class="text-xs text-gray-400 m-0">
               末次推送（默认 14:40）无信号也会发「系统自检·推送正常」邮件，扫描异常会发异常告警——每天必有邮件，便于发现服务中断。
             </p>
@@ -671,7 +687,8 @@ const config = reactive<any>({
     tier_enabled: false, tier_profit_pct: 0.30, tier_rapid_pct: 0.12,
     tier_shrink_drop: 0.115, tier_ma10_trail: true,
     intraday_interval_minutes: 5, confirm_time: '14:50', notify_times: 2,
-    kline_refresh_time: '15:10', daily_check_time: '09:20'
+    kline_refresh_time: '15:10', daily_check_time: '09:20',
+    wzq_watch_enabled: true, wzq_watch_time: '15:20'
   },
   notification: []
 })

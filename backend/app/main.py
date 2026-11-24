@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import (
-    analyzer, datasource as ds, ignitionwatch, mainwave, monitor, market_scan, replay,
+    analyzer, datasource as ds, ignitionwatch, mainwave, monitor, market_scan, replay, wzqwatch,
     notifications, notifier as notifier_mod, scheduler, sellwatch, yesterday,
 )
 from .config import AppConfig, load_config, save_config, update_config
@@ -772,6 +772,18 @@ def market_replay(date: str) -> dict[str, Any]:
 def market_replay_refresh() -> dict[str, Any]:
     """增量刷新全市场K线缓存（后台执行）。"""
     return ok(replay.refresh())
+
+
+@app.get("/api/wzq/watch")
+def wzq_watch() -> dict[str, Any]:
+    """弱转强观察池：最近一次巨量炸板扫描结果。"""
+    return ok({"status": wzqwatch.status(), "rows": wzqwatch.latest()})
+
+
+@app.post("/api/wzq/scan")
+def wzq_scan(push: bool = False) -> dict[str, Any]:
+    """手动扫描弱转强观察池（push=True 时同时推送）。"""
+    return ok(wzqwatch.run_watch(push=push))
 
 
 @app.post("/api/system/check")

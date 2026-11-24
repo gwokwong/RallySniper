@@ -149,6 +149,15 @@ class ScanConfig(BaseModel):
         default="09:20",
         description="每日系统自检邮件时点(HH:MM)：检查数据源/K线缓存/调度任务/邮件渠道/持仓并邮件汇报",
     )
+    wzq_watch_enabled: bool = Field(
+        default=True,
+        description="弱转强观察池：收盘后筛当日巨量炸板（触板未封+收盘离板≥1.5%+量比≥2.5），"
+                    "纯观察提醒供次日竞价人工判断，不构成买卖信号",
+    )
+    wzq_watch_time: str = Field(
+        default="15:20",
+        description="弱转强观察池扫描推送时点(HH:MM，收盘后行情快照口径；休市日跳过)",
+    )
 
 
 class SellConfig(BaseModel):
