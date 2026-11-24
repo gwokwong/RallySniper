@@ -158,6 +158,18 @@ class ScanConfig(BaseModel):
         default="15:20",
         description="弱转强观察池扫描推送时点(HH:MM，收盘后行情快照口径；休市日跳过)",
     )
+    pattern_watch_enabled: bool = Field(
+        default=True,
+        description="盘中形态监控：全市场「洗盘反包·进行中」与「N日新高突破」实时提醒（每票每日每形态一次）",
+    )
+    pattern_poll_minutes: int = Field(default=3, ge=1, le=15,
+                                      description="形态监控轮询间隔(分钟，仅盘中)")
+    pattern_break_high_days: int = Field(default=20, ge=5, le=120,
+                                         description="新高突破的N日窗口")
+    pattern_break_vr: float = Field(default=1.5, ge=1.0, le=10,
+                                    description="新高突破的量比门槛")
+    pattern_max_alerts: int = Field(default=20, ge=1, le=100,
+                                    description="每日形态提醒总量上限（防刷屏）")
 
 
 class SellConfig(BaseModel):

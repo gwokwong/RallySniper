@@ -1,0 +1,229 @@
+"""盘中形态监控：全市场「洗盘反包·进行中」与「N日新高突破」实时提醒。
+
+- 反包·进行中：近 wash_lookback 日有洗盘大跌（≥wash_drop_pct），今日价格已收复
+  洗盘日收盘且涨幅≥5% 或盘中触板——冠军战法的实时前置版（不等封板确认）。
+- N日新高突破：现价 > 前 pattern_break_high_days 日最高×1.002 且量比≥1.5
+  （形态突破；注意：历史回测中突破形态的隔夜持有期望为负，本提醒仅作盘中观察/决策参考）。
+
+防刷屏：每票每日每形态一次、每日总量上限 pattern_max_alerts、同轮多票合并一封邮件。
+数据：前一日基准来自 kline_cache（replay._load_bars 瘦身索引），盘中用实时行情快照判定。
+"""
+from __future__ import annotations
+
+import threading
+from bisect import bisect_left
+from datetime import datetime
+from typing import Any
+
+from . import datasource as ds, notifications, notifier, replay
+from .config import load_config
+
+
+class PatternState:
+    def __init__(self) -> None:
+        self.date: str | None = None
+        self.prepared: bool = False            # 当日候选/基准是否已就绪
+        self.rev_candidates: set[str] = set()  # 反包候选（昨日收盘判定）
+        self.high_base: dict[str, float] = {}  # 突破基准：代码→前N日最高
+        self.alerted: set[str] = set()         # 已提醒 code:pattern
+        self.day_alerts: int = 0
+        self.last_poll: str | None = None
+        self.last_new: list[dict[str, Any]] = []
+        self._lock = threading.RLock()
+
+    def reset_for(self, date: str) -> None:
+        self.date = date
+        self.prepared = False
+        self.rev_candidates = set()
+        self.high_base = {}
+        self.alerted = set()
+        self.day_alerts = 0
+        self.last_poll = None
+        self.last_new = []
+
+
+state = PatternState()
+
+
+def _prev_day_row(code: str, prev_day: str) -> int | None:
+    dl = replay._dlists.get(code)
+    if not dl:
+        return None
+    i = bisect_left(dl, prev_day)
+    if i < len(dl) and dl[i] == prev_day:
+        return i
+    return None
+
+
+def _prepare_day(prev_day: str) -> None:
+    """开盘前一次性预计算：反包候选 + 突破基准（全部基于前一日及更早，无未来函数）。"""
+    cfg = load_config()
+    rules = cfg.strategy_rules
+    lookback = int(rules.wash_lookback)
+    drop = float(rules.wash_drop_pct)
+    bars = replay._load_bars()
+    rev: set[str] = set()
+    high_base: dict[str, float] = {}
+    mfilter = cfg.market_filter
+    for code, df in bars.items():
+        if not code.startswith(("60", "00", "68", "30")):
+            continue
+        if mfilter.main_board is False and code.startswith(("60", "00")):
+            continue
+        if mfilter.kcb is False and code.startswith(("688", "689")):
+            continue
+        if mfilter.cyb is False and code.startswith(("300", "301")):
+            continue
+        k = _prev_day_row(code, prev_day)
+        if k is None:
+            continue
+        pc = df["pct_change"].iloc[max(0, k - lookback + 1): k + 1]
+        # 反包候选：近 N 日有洗盘大跌，且昨日未封板（封板属连板场景，非反包前置）
+        if bool((pc <= -drop).any()):
+            th = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+            if not (float(df["pct_change"].iloc[k]) >= th - 0.4
+                    and float(df["close"].iloc[k]) >= float(df["high"].iloc[k]) * 0.995):
+                rev.add(code)
+        # 突破基准：前 N 日最高（不含当日）
+        lo = max(0, k - int(cfg.scan.pattern_break_high_days) + 1)
+        high_base[code] = float(df["high"].iloc[lo:k + 1].max())
+    with state._lock:
+        state.rev_candidates = rev
+        state.high_base = high_base
+        state.prepared = True
+
+
+def poll() -> dict[str, Any]:
+    """盘中执行一次形态监控（调度器每 N 分钟调用）。返回本轮新增触发。"""
+    cfg = load_config()
+    if not cfg.scan.pattern_watch_enabled:
+        return {"checked": False, "reason": "未启用"}
+    status = ds.market_status()["status"]
+    if status not in ("trading",):
+        return {"checked": False, "reason": f"非盘中({status})"}
+
+    eff = ds.effective_trading_date()
+    today = eff["date"]
+    now_hm = datetime.now().strftime("%H:%M")
+    with state._lock:
+        if state.date != today:
+            state.reset_for(today)
+        state.last_poll = now_hm
+
+    if not state.prepared:
+        dates = replay.trading_dates()
+        pos = [k for k, d in enumerate(dates) if d < today]
+        if not pos:
+            return {"checked": False, "reason": "无前置交易日"}
+        _prepare_day(dates[pos[-1]])
+
+    quotes = ds.spot_quote_map()
+    if not quotes:
+        with state._lock:
+            state.alerted.clear()
+        return {"checked": True, "reason": "行情快照不可用，跳过本轮"}
+
+    mfilter = cfg.market_filter
+    vr_min = float(cfg.scan.pattern_break_vr)
+    cap = int(cfg.scan.pattern_max_alerts)
+    new: list[dict[str, Any]] = []
+    with state._lock:
+        alerted = state.alerted
+        day_alerts = state.day_alerts
+
+    for code, q in quotes.items():
+        if day_alerts >= cap:
+            break
+        nm = str(q.get("name") or code)
+        if "ST" in nm.upper() or "退" in nm:
+            continue
+        if not code.startswith(("60", "00", "68", "30")):
+            continue
+        if mfilter.main_board is False and code.startswith(("60", "00")):
+            continue
+        if mfilter.kcb is False and code.startswith(("688", "689")):
+            continue
+        if mfilter.cyb is False and code.startswith(("300", "301")):
+            continue
+        price = q.get("price")
+        pct = q.get("change_pct")
+        vr = q.get("volume_ratio")
+        pre = q.get("pre_close")
+        if price is None or pct is None or not pre:
+            continue
+        if mfilter.max_price and price > mfilter.max_price:
+            continue
+        if mfilter.min_price and price < mfilter.min_price:
+            continue
+        th = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+        high = q.get("high") or 0
+
+        # 形态1：洗盘反包·进行中（候选 + 涨幅≥5%或触板 + 价格守在洗盘日收盘上方）
+        if code in state.rev_candidates and f"{code}:rev" not in alerted:
+            near_board = pct >= min(5.0, th - 0.5) or (high and high >= pre * (1 + th / 100) * 0.999)
+            if near_board:
+                # 守住洗盘日收盘：近 lookback 日最近一个洗盘日的收盘
+                df = replay._bars.get(code)
+                wash_close = None
+                if df is not None:
+                    drop = float(cfg.strategy_rules.wash_drop_pct)
+                    lb = int(cfg.strategy_rules.wash_lookback)
+                    di = _prev_day_row(code, today)
+                    start = max(0, (di if di is not None else len(df)) - lb)
+                    seg = df.iloc[start:(di if di is not None else len(df))]
+                    if not seg.empty:
+                        wash_idx = seg["pct_change"].idxmin()
+                        wash_close = float(df["close"].iloc[wash_idx])
+                if wash_close is not None and price >= wash_close:
+                    alerted.add(f"{code}:rev")
+                    day_alerts += 1
+                    new.append({"code": code, "name": nm, "pattern": "洗盘反包·进行中",
+                                "price": round(price, 2), "pct": round(pct, 2),
+                                "vr": round(vr, 2) if vr is not None else None,
+                                "detail": f"今日涨幅{pct:+.1f}%、守在洗盘日收盘{wash_close:.2f}上方"})
+
+        # 形态2：N日新高突破（首次越线 + 量比≥阈值）
+        if f"{code}:brk" not in alerted:
+            base = state.high_base.get(code)
+            if base and base > 0 and price > base * 1.002 and vr is not None and vr >= vr_min:
+                alerted.add(f"{code}:brk")
+                day_alerts += 1
+                new.append({"code": code, "name": nm, "pattern": f"新高突破",
+                            "price": round(price, 2), "pct": round(pct, 2),
+                            "vr": round(vr, 2),
+                            "detail": f"突破前{cfg.scan.pattern_break_high_days}日最高{base:.2f}，量比{vr:.1f}"})
+
+    with state._lock:
+        state.last_new = new
+        state.day_alerts = day_alerts
+
+    if new:
+        title = f"【形态突破】{now_hm} 新增 {len(new)} 条（今日累计 {state.day_alerts}）"
+        lines = "\n".join(
+            f"- {x['name']}({x['code']})【{x['pattern']}】现价{x['price']} {x['pct']:+.1f}%"
+            f"（量比{x['vr'] if x['vr'] is not None else '--'}）：{x['detail']}"
+            for x in new[:20])
+        body = f"触发时间：{now_hm}\n{lines}\n\n提醒：盘中形态信息，仅供观察与决策参考，不构成买卖信号。"
+        notifications.add(title, body, [], kind="pattern")
+        if cfg.notification:
+            notifier.broadcast(cfg.notification, title, body, [])
+
+    return {"checked": True, "new": new, "day_alerts": state.day_alerts}
+
+
+def status() -> dict[str, Any]:
+    cfg = load_config()
+    with state._lock:
+        return {
+            "enabled": bool(cfg.scan.pattern_watch_enabled),
+            "minutes": int(cfg.scan.pattern_poll_minutes),
+            "high_days": int(cfg.scan.pattern_break_high_days),
+            "vr_min": float(cfg.scan.pattern_break_vr),
+            "cap": int(cfg.scan.pattern_max_alerts),
+            "date": state.date,
+            "prepared": state.prepared,
+            "rev_candidates": len(state.rev_candidates),
+            "day_alerts": state.day_alerts,
+            "last_poll": state.last_poll,
+            "last_new": state.last_new,
+        }

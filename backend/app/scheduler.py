@@ -12,7 +12,7 @@ from typing import Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, replay, wzqwatch
+from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, patternwatch, replay, wzqwatch
 from . import sellwatch, yesterday
 import json
 
@@ -96,6 +96,16 @@ def _daily_check_job() -> None:
         run_daily_check()
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] 每日自检失败: {exc}")
+
+
+def _pattern_job() -> None:
+    """盘中形态监控：反包进行中/N日新高突破，触发即提醒。"""
+    try:
+        r = patternwatch.poll()
+        if r.get("new"):
+            print(f"[scheduler] 形态监控: 新增{len(r['new'])}条")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 形态监控失败: {exc}")
 
 
 def _wzq_job() -> None:
@@ -378,6 +388,12 @@ def start() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(wz_h), minute=int(wz_m), timezone="Asia/Shanghai"),
             id="wzq_watch", max_instances=1, coalesce=True,
         )
+        _scheduler.add_job(
+            _pattern_job,
+            trigger=CronTrigger(hour="9-14", minute=f"*/{max(1, int(cfg.scan.pattern_poll_minutes))}",
+                                timezone="Asia/Shanghai"),
+            id="pattern_watch", max_instances=1, coalesce=True,
+        )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -447,6 +463,14 @@ def refresh() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(wz_h), minute=int(wz_m), timezone="Asia/Shanghai"),
             id="wzq_watch", max_instances=1, coalesce=True,
         )
+        if _scheduler.get_job("pattern_watch"):
+            _scheduler.remove_job("pattern_watch")
+        _scheduler.add_job(
+            _pattern_job,
+            trigger=CronTrigger(hour="9-14", minute=f"*/{max(1, int(cfg.scan.pattern_poll_minutes))}",
+                                timezone="Asia/Shanghai"),
+            id="pattern_watch", max_instances=1, coalesce=True,
+        )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}
 
@@ -488,4 +512,5 @@ def status() -> dict[str, Any]:
             "sell": sellwatch.status(),
             "ignition": ignitionwatch.status(),
             "wzq": wzqwatch.status(),
+            "pattern": patternwatch.status(),
         }

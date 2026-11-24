@@ -397,6 +397,38 @@
               弱转强观察池：收盘后筛当日「巨量炸板」（触板未封+收盘离板≥1.5%+量比≥2.5）名单，邮件附竞价三问清单，
               供次日竞价人工判断——纯观察提醒，不构成买卖信号。
             </p>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">盘中形态监控（全市场反包进行中/N日新高突破，触发即提醒，每票每日一次）</span>
+              <ElSwitch v-model="config.scan.pattern_watch_enabled" size="small" />
+            </div>
+            <ElRow v-if="config.scan.pattern_watch_enabled" :gutter="12">
+              <ElCol :span="6">
+                <ElFormItem label="轮询(分钟)">
+                  <ElInputNumber v-model="config.scan.pattern_poll_minutes" :min="1" :max="15" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="6">
+                <ElFormItem label="新高N日">
+                  <ElInputNumber v-model="config.scan.pattern_break_high_days" :min="5" :max="120" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="6">
+                <ElFormItem label="突破量比">
+                  <ElInputNumber v-model="config.scan.pattern_break_vr" :min="1" :max="10" :step="0.5" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="6">
+                <ElFormItem label="每日上限">
+                  <ElInputNumber v-model="config.scan.pattern_max_alerts" :min="1" :max="100" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+            </ElRow>
+            <p v-if="config.scan.pattern_watch_enabled" class="text-xs text-gray-400 m-0">
+              两类形态：①洗盘反包·进行中（近8日洗盘大跌，今日涨幅≥5%或触板且守在洗盘日收盘上方——比14:40推送提前半天）；
+              ②N日新高突破（现价突破前N日最高+量比放大）。防刷屏：每票每日每形态一次、总量上限、同轮合并一封。
+              提醒：突破形态的隔夜持有期望经回测为负，提醒仅作盘中观察参考。
+            </p>
             <p class="text-xs text-gray-400 m-0">
               末次推送（默认 14:40）无信号也会发「系统自检·推送正常」邮件，扫描异常会发异常告警——每天必有邮件，便于发现服务中断。
             </p>
@@ -688,7 +720,9 @@ const config = reactive<any>({
     tier_shrink_drop: 0.115, tier_ma10_trail: true,
     intraday_interval_minutes: 5, confirm_time: '14:50', notify_times: 2,
     kline_refresh_time: '15:10', daily_check_time: '09:20',
-    wzq_watch_enabled: true, wzq_watch_time: '15:20'
+    wzq_watch_enabled: true, wzq_watch_time: '15:20',
+    pattern_watch_enabled: true, pattern_poll_minutes: 3,
+    pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },
   notification: []
 })
