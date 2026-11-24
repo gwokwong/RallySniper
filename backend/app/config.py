@@ -220,6 +220,19 @@ class SellConfig(BaseModel):
                                   description="厚利档启用10日线移动止盈：跌破MA10且收阴即确认，不等急跌")
 
 
+class FundamentalFilterConfig(BaseModel):
+    """基本面筛选（2026-11-25 研究落地）：全市场信号关联业绩报表后按营收增速过滤。
+
+    7-11月回测：营收同比>10% 的信号 117 笔胜率 53.0%、平均 +2.73%、总营收 +31,905 元，
+    优于全部信号（276 笔 46.0%、+0.99%、+27,189 元）——少一半交易反而多赚钱。
+    注意：7 月曾反向（31% vs 53%），因子中等强度非铁律；业绩缺失（未披露/新股）默认保留。
+    """
+
+    enabled: bool = Field(default=True, description="是否启用基本面筛选（营收增速）")
+    min_rev_yoy: float = Field(default=10.0, ge=-100, le=1000,
+                               description="最低营收同比增长(%)：低于此值的信号被过滤；业绩缺失的保留并标注")
+
+
 class MarketRegimeConfig(BaseModel):
     """大盘环境过滤：指数在MA20下方或MA20向下时暂停/减半开新仓。
 
@@ -304,6 +317,7 @@ class AppConfig(BaseModel):
     bear_strategies: BearStrategySwitches = Field(default_factory=BearStrategySwitches)
     strategy_rules: StrategyRules = Field(default_factory=StrategyRules)
     market_filter: MarketFilterConfig = Field(default_factory=MarketFilterConfig)
+    fundamental_filter: FundamentalFilterConfig = Field(default_factory=FundamentalFilterConfig)
     market_regime: MarketRegimeConfig = Field(default_factory=MarketRegimeConfig)
     rules: AlertRules = Field(default_factory=AlertRules)
     notification: list[NotifierConfig] = Field(

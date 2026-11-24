@@ -367,6 +367,49 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
                 with state._lock:
                     state.scanned += 1
 
+        # 基本面关联与筛选（2026-11-25）：营收同比≥阈值的信号才推送（业绩缺失保留并标注）
+        if getattr(cfg, "fundamental_filter", None) and cfg.fundamental_filter.enabled:
+            def _earnings_map():
+                def _load(date):
+                    key = f"yjbb_{date}"
+                    def fetch():
+                        import akshare as _ak
+                        df = _ak.stock_yjbb_em(date=date)
+                        out = {}
+                        for _, r in df.iterrows():
+                            code = str(r.get("股票代码", "")).strip().zfill(6)
+                            try:
+                                rev = float(r.get("营业总收入-同比增长"))
+                            except (TypeError, ValueError):
+                                rev = None
+                            try:
+                                np_ = float(r.get("净利润-净利润"))
+                            except (TypeError, ValueError):
+                                np_ = None
+                            out[code] = {"rev_yoy": rev, "profit": np_,
+                                         "industry": str(r.get("所处行业", ""))}
+                        return out or None
+                    return ds.cache.get_or_fetch(key, 43200, fetch) or {}
+                # 无未来函数：按数据交易日选择最新已披露财报（11-12月→三季报，其余→中报）
+                mm = int(eff["date"][4:6])
+                report_date = "20260930" if mm >= 10 else "20260630"
+                return _load(report_date)
+            fmap = _earnings_map()
+            kept = []
+            for s in signals:
+                f = fmap.get(s["code"])
+                if f:
+                    s["rev_yoy"] = f.get("rev_yoy")
+                    s["profit_pos"] = (f.get("profit") is not None and f.get("profit") > 0) or None
+                    s["industry"] = f.get("industry") or s.get("industry")
+                    if s["rev_yoy"] is not None and s["rev_yoy"] < cfg.fundamental_filter.min_rev_yoy:
+                        continue            # 营收增速低于阈值 → 过滤
+                kept.append(s)
+            filtered_n = len(signals) - len(kept)
+            signals = kept
+            if filtered_n:
+                print(f"[market_scan] 基本面过滤: 剔除营收增速<{cfg.fundamental_filter.min_rev_yoy:g}% 信号 {filtered_n} 条")
+
         # 洗盘反包为主战法：同级信号中优先展示（主战法加权排在前面）
         primary = "洗盘反包" if cfg.market_regime.wash_primary else ""
         signals.sort(key=lambda x: (x["stage"] == "trigger",

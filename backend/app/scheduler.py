@@ -170,13 +170,22 @@ def run_market_push(push_time: str | None = None) -> dict[str, Any]:
                 f"\n【广度档位】今日涨停 {ign['today_zt']} 家（阈值 {ign.get('tier_th', 100)}）→ {tier_label}；"
                 f"试错档请按纪律控制仓位。"
             )
-        # 逐票命中原因（战法+指标级理由），让邮件正文自带"为什么买"
+        # 逐票命中原因（战法+指标级理由+基本面），让邮件正文自带"为什么买"
         trig = [s for s in signals if s.get("stage") == "trigger"][:10]
         if trig:
             content += "\n【买入理由明细】"
             for s in trig:
+                fund = ""
+                ry = s.get("rev_yoy")
+                pp = s.get("profit_pos")
+                if ry is not None:
+                    fund += f"｜营收同比{ry:+.0f}%"
+                if pp is not None:
+                    fund += f"｜{'盈利' if pp else '亏损'}"
+                if s.get("industry"):
+                    fund += f"｜{s['industry']}"
                 content += (f"\n- {s.get('name', '')}({s.get('code', '')})【{s.get('strategy', '')}·"
-                            f"{s.get('stage_label', '放量启动')}】现价{s.get('price', '')}："
+                            f"{s.get('stage_label', '放量启动')}】现价{s.get('price', '')}{fund}："
                             f"{'；'.join(s.get('reasons', []))}")
         if ds.cache.is_degraded("fund_flow_map"):
             content += "\n（资金流数据源降级中，净流入可能显示为 --）"

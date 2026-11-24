@@ -661,6 +661,18 @@
               回测提示：点火日信号会集中爆发（单日最多 71 只，单只 1 万需 71 万资金）。按资金量设 10~20 可控占用，
               超出部分随机等权抽取（强度排序已被回测证伪，高分=追高，不采用）。每日上限 20 的回测总营收约为不限的 40%，峰值资金占用从 71 万降到 20 万。
             </p>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">基本面筛选（营收增速，剔除增长乏力的信号）</span>
+              <ElSwitch v-model="config.fundamental_filter.enabled" size="small" />
+            </div>
+            <ElFormItem v-if="config.fundamental_filter.enabled" label="最低营收同比增长(%)">
+              <ElInputNumber v-model="config.fundamental_filter.min_rev_yoy" :min="-100" :max="1000" :step="5" style="width:100%" />
+            </ElFormItem>
+            <p v-if="config.fundamental_filter.enabled" class="text-xs text-gray-400 m-0">
+              7-11月回测：营收同比&gt;10% 的信号 53% 胜率 / 平均+2.73% / 总营收+3.2万，优于全部信号（46% / +0.99% / +2.7万）。
+              业绩缺失（未披露/次新）默认保留并标注；不使用净利润因子——回测显示亏损股反有困境反转溢价。
+            </p>
             <p class="text-xs text-gray-400 mt-1">
               默认排除 ST 与北交所，主板/科创/创业全开，价格不限。筛选在候选阶段生效，可显著减少扫描耗时。
             </p>
@@ -711,6 +723,7 @@ const config = reactive<any>({
     ignition_min_pool: 10, ignition_auto_scan: false
   },
   scan: {},
+  fundamental_filter: { enabled: true, min_rev_yoy: 10 },
   sell: {
     enabled: true, volume_surge_ratio: 4.5, ma20_buffer: 0.01, ma20_slope: -0.005,
     fast_break_enabled: true, fast_break_pct: 0.02,
@@ -843,6 +856,7 @@ async function saveConfig() {
       bear_strategies,
       strategy_rules: config.strategy_rules,
       market_filter: config.market_filter,
+      fundamental_filter: config.fundamental_filter,
       market_regime: config.market_regime,
       scan: config.scan,
       sell: config.sell,
