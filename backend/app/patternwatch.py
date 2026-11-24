@@ -25,6 +25,7 @@ class PatternState:
         self.prepared: bool = False            # 当日候选/基准是否已就绪
         self.rev_candidates: set[str] = set()  # 反包候选（昨日收盘判定）
         self.high_base: dict[str, float] = {}  # 突破基准：代码→前N日最高
+        self.wzt_base: dict[str, dict] = {}    # 涨停缩量突破：代码→{low, ph, ldate}
         self.alerted: set[str] = set()         # 已提醒 code:pattern
         self.day_alerts: int = 0
         self.last_poll: str | None = None
@@ -36,6 +37,7 @@ class PatternState:
         self.prepared = False
         self.rev_candidates = set()
         self.high_base = {}
+        self.wzt_base = {}
         self.alerted = set()
         self.day_alerts = 0
         self.last_poll = None
@@ -64,6 +66,7 @@ def _prepare_day(prev_day: str) -> None:
     bars = replay._load_bars()
     rev: set[str] = set()
     high_base: dict[str, float] = {}
+    wzt_base: dict[str, dict] = {}
     mfilter = cfg.market_filter
     for code, df in bars.items():
         if not code.startswith(("60", "00", "68", "30")):
@@ -87,9 +90,29 @@ def _prepare_day(prev_day: str) -> None:
         # 突破基准：前 N 日最高（不含当日）
         lo = max(0, k - int(cfg.scan.pattern_break_high_days) + 1)
         high_base[code] = float(df["high"].iloc[lo:k + 1].max())
+        # 涨停缩量突破基准（用户战法）：近10个交易日内最近一次收盘封板 L，
+        # 涨停后从次日起连续≥3日量能逐日递减（持续缩量），回调段收盘均不破 L 最低价
+        th = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+        L = None
+        for j in range(k, max(0, k - 9) - 1, -1):          # 近10个交易日（含昨日）找最近封板日
+            if float(df["pct_change"].iloc[j]) >= th and float(df["close"].iloc[j]) >= float(df["high"].iloc[j]) * 0.995:
+                L = j
+                break
+        if L is not None:
+            pull = k - L                                    # 涨停日后的回调天数
+            if pull >= 3:
+                vols = df["volume"].iloc[L:k + 1].astype(float).tolist()
+                shrink3 = vols[1] > vols[2] > vols[3]       # 涨停次日起连续3日缩量
+                low_l = float(df["low"].iloc[L])
+                holds = bool((df["close"].iloc[L + 1: k + 1] >= low_l).all())
+                if shrink3 and holds:
+                    ph = float(df["high"].iloc[L:k + 1].max())   # 区间最高（涨停日至今）
+                    wzt_base[code] = {"low": low_l, "ph": round(ph, 3),
+                                      "ldate": str(df["date"].iloc[L])[:10]}
     with state._lock:
         state.rev_candidates = rev
         state.high_base = high_base
+        state.wzt_base = wzt_base
         state.prepared = True
 
 
@@ -192,6 +215,20 @@ def poll() -> dict[str, Any]:
                             "price": round(price, 2), "pct": round(pct, 2),
                             "vr": round(vr, 2),
                             "detail": f"突破前{cfg.scan.pattern_break_high_days}日最高{base:.2f}，量比{vr:.1f}"})
+
+        # 形态3：涨停缩量突破（用户战法：近10日有涨停→缩量≥3日不破涨停日最低→放量突破区间最高）
+        if f"{code}:wzt" not in alerted:
+            wb = state.wzt_base.get(code)
+            if wb and price > wb["ph"] and vr is not None and vr >= vr_min:
+                low_today = q.get("low")
+                if low_today is None or low_today >= wb["low"] * 0.995:   # 当日也未破涨停日最低
+                    alerted.add(f"{code}:wzt")
+                    day_alerts += 1
+                    new.append({"code": code, "name": nm, "pattern": "涨停缩量突破",
+                                "price": round(price, 2), "pct": round(pct, 2),
+                                "vr": round(vr, 2),
+                                "detail": (f"突破{wb['ldate'][5:]}涨停以来区间最高{wb['ph']:.2f}"
+                                           f"（缩量≥3日不破{wb['low']:.2f}），量比{vr:.1f}")})
 
     with state._lock:
         state.last_new = new
