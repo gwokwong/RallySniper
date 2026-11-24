@@ -57,9 +57,12 @@ def _load_bars(force: bool = False) -> dict[str, pd.DataFrame]:
             return _bars
         bars: dict[str, pd.DataFrame] = {}
         dlists: dict[str, list[str]] = {}
+        # 内存优化：只读回放所需列 + float32（全列读 5200 只可达数 GB，小内存 VPS 会被 OOM 杀）
+        usecols = ["date", "open", "close", "high", "low", "volume", "pct_change"]
+        dtype = {c: "float32" for c in usecols if c != "date"}
         for p in _cache_files():
             try:
-                df = pd.read_csv(p)
+                df = pd.read_csv(p, usecols=usecols, dtype=dtype)
                 if len(df) >= 60:
                     code = p.stem
                     bars[code] = df
@@ -148,7 +151,7 @@ def refresh(end_date: str | None = None) -> dict[str, Any]:
                 except Exception:  # noqa: BLE001
                     return False
 
-            with ThreadPoolExecutor(max_workers=10) as pool:
+            with ThreadPoolExecutor(max_workers=6) as pool:
                 futs = {pool.submit(fetch_one, c): c for c in codes}
                 for fut in as_completed(futs):
                     _refresh_progress["done"] += 1

@@ -1,0 +1,19 @@
+# 主升浪捕手 systemd 常驻单元（防崩溃静默：5秒自动拉起）
+# 安装：cp deploy/gupiao.service /etc/systemd/system/gupiao.service
+#       （先把里面的 /opt/gupiao 改成实际项目路径）
+# 启动：sudo systemctl daemon-reload && sudo systemctl enable --now gupiao
+# 状态：systemctl status gupiao    日志：journalctl -u gupiao -f
+[Unit]
+Description=Gupiao market scanner (wash-reversal + ignition gate)
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/gupiao/backend
+ExecStart=/opt/gupiao/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+Environment=PYTHONIOENCODING=utf-8
+Environment=LANG=en_US.UTF-8
+
+[Install]
+WantedBy=multi-user.target
