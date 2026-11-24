@@ -49,7 +49,7 @@ server {
 
 ## 常驻（systemd，防退出）
 
-`install.sh` 用 nohup 启动，SSH 断开不影响；要开机自启/崩溃自拉用 systemd（`/etc/systemd/system/gupiao.service`）：
+`install.sh` 用 nohup 启动，SSH 断开不影响；要开机自启/崩溃自拉用 systemd（单元文件随仓库 `deploy/gupiao.service`，默认路径 `/www/wwwroot/gupiao`）。**注意先 `./stop.sh` 停掉 nohup 旧进程再启用 systemd，两者会抢 8000 端口**：
 
 ```ini
 [Unit]
@@ -57,8 +57,8 @@ Description=Gupiao market scanner
 After=network-online.target
 
 [Service]
-WorkingDirectory=/opt/gupiao/backend
-ExecStart=/opt/gupiao/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+WorkingDirectory=/www/wwwroot/gupiao/backend
+ExecStart=/www/wwwroot/gupiao/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5
 
@@ -67,6 +67,7 @@ WantedBy=multi-user.target
 ```
 
 ```bash
+sudo cp deploy/gupiao.service /etc/systemd/system/gupiao.service
 sudo systemctl daemon-reload && sudo systemctl enable --now gupiao
 ```
 
