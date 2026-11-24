@@ -89,6 +89,25 @@ sudo systemctl daemon-reload && sudo systemctl enable --now gupiao
 6. 命中信号时收到站内通知 + 邮件（正文含【广度档位】与【买入理由明细】）；`GET /api/notifications` 有记录
 7. 回放功能首次使用前刷新K线缓存：`curl -X POST http://127.0.0.1:8000/api/market/replay/refresh`（约 4 分钟后台完成）；「历史回放」选 8/4 应出 71 只、选 11/20 应显示未点火拦截
 
+## 服务"运行一段时间就停"排障（OOM/编码）
+
+症状：服务跑几小时后 8000 无响应、当天邮件缺失。两个常见死因与对策：
+
+```bash
+# ① 看是否 OOM 被系统杀掉（小内存 VPS 最常见）
+dmesg | grep -i -E "oom|killed" | tail -5
+free -h
+
+# ② 看应用日志是否 UnicodeEncodeError（POSIX locale 中文输出崩溃，代码已强制 UTF-8 修复）
+grep -c UnicodeEncodeError logs/backend.log
+```
+
+对策：
+- **强烈建议 systemd 常驻**（`deploy/gupiao.service` 已随仓库提供，Restart=always 5 秒自动拉起）——即使再崩也不会静默死亡。
+- K 线索引已做内存瘦身（只读 7 列 + float32，降约 80%）；刷新线程 12→6。
+- 9:20 自检邮件会汇报进程内存峰值，持续偏高就加 swap 或升配。
+- 每日 15:10 缓存刷新在低配机上若引发 OOM，可在设置页把「K线缓存刷新时点」留空禁用并改用回放页手动刷新（回放缓存仅影响历史回放，不影响实时扫描推送）。
+
 ## 危险操作提醒
 
 - **部署机不要执行 `git clean -fdx`**：会删掉未跟踪的 `backend/data/config.json`（邮件配置）、`kline_cache/`（回放缓存）与 `logs/`。
