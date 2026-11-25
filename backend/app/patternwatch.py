@@ -175,10 +175,12 @@ def poll() -> dict[str, Any]:
 
     # 板块异动检测：优先东财行业板块指数涨跌幅（与行情软件板块口径一致）；
     # 板块行情不可用时回退「成分股涨跌中位」口径。每板块每日每方向最多一次。
-    board_th = float(cfg.scan.pattern_board_anomaly_pct)
+    # 拉涨/砸盘阈值独立：砸盘默认更灵敏（2.3 vs 3.0）
+    up_th = float(cfg.scan.pattern_board_anomaly_pct)
+    down_th = float(cfg.scan.pattern_board_down_pct)
 
     def _board_fire(ind: str, bp: float, members: int | None) -> None:
-        direction = "拉涨" if bp >= board_th else "砸盘"
+        direction = "拉涨" if bp >= up_th else "砸盘"
         if f"{ind}:{direction}" in state.board_alerted:
             return
         state.board_alerted.add(f"{ind}:{direction}")
@@ -212,9 +214,9 @@ def poll() -> dict[str, Any]:
                 continue
             if not ind:
                 continue
-            if bp >= board_th:
+            if bp >= up_th:
                 _board_fire(ind, bp, None)
-            elif bp <= -board_th:
+            elif bp <= -down_th:
                 _board_fire(ind, bp, None)
     else:
         # 回退：成分股中位口径（industry_map 为空时自动跳过）
@@ -229,9 +231,9 @@ def poll() -> dict[str, Any]:
             members[ic] = members.get(ic, 0) + 1
         board_now = {ind: float(np.median(vals)) for ind, vals in ind_pcts.items() if len(vals) >= 3}
         for ind, bp in sorted(board_now.items(), key=lambda kv: -kv[1]):
-            if bp >= board_th:
+            if bp >= up_th:
                 _board_fire(ind, bp, members.get(ind))
-            elif bp <= -board_th:
+            elif bp <= -down_th:
                 _board_fire(ind, bp, members.get(ind))
 
     for code, q in quotes.items():
