@@ -194,7 +194,7 @@ def refresh(end_date: str | None = None) -> dict[str, Any]:
 
 def _cfg_fingerprint(cfg) -> str:
     raw = json.dumps({
-        "v": 3,  # v3: 含卖出配对 + A杀买入过滤(market_filter)
+        "v": 4,  # v4: 卖出日期改用个股自身日期（修复停牌股 dates[j] 错位）
         "strategies": cfg.strategies.model_dump(),
         "rules": cfg.strategy_rules.model_dump(),
         "sell": cfg.sell.model_dump(),
@@ -381,16 +381,18 @@ def replay(date: str) -> dict[str, Any]:
                 except Exception:  # noqa: BLE001
                     found = []
                 if found:
-                    sell_date, sell_price = dates[j], round(float(row["close"]), 2)
+                    # 用个股自身日期（行 j 属于个股序列，停牌缺口下 dates[j] 会错位）
+                    sell_date, sell_price = str(df["date"].iloc[j])[:10], round(float(row["close"]), 2)
                     break
             sw._completed_history = _orig_completed
-            s["sell_date"] = sell_date or dates[-1]
+            last_own = str(df["date"].iloc[-1])[:10]
+            s["sell_date"] = sell_date or last_own
             s["sell_price"] = sell_price if sell_price is not None else round(float(df["close"].iloc[-1]), 2)
             s["sold"] = sell_date is not None
             s["r_sell"] = round((s["sell_price"] / s["price"] - 1) * 100, 2)
             bi = bisect_left(dates, date)
             ei = bisect_left(dates, s["sell_date"])
-            s["hold_nat"] = (datetime.fromisoformat(s["sell_date"] or dates[-1])
+            s["hold_nat"] = (datetime.fromisoformat(s["sell_date"] or last_own)
                              - datetime.fromisoformat(date)).days
             s["hold_trd"] = max(0, ei - bi)
         sw._completed_history = _orig_completed
