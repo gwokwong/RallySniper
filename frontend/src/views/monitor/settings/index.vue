@@ -690,6 +690,20 @@
             </p>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">换手率×量比四象限过滤（剔除C1温和放量反包）</span>
+              <ElSwitch v-model="config.market_filter.vp_combo_filter_enabled" size="small" />
+            </div>
+            <div v-if="config.market_filter.vp_combo_filter_enabled" class="flex items-center justify-between mt-2 mb-1">
+              <span class="text-xs text-gray-500">同时剔除C4（换手&gt;10%且量比&lt;1，无量诱多）</span>
+              <ElSwitch v-model="config.market_filter.vp_combo_exclude_c4" size="small" />
+            </div>
+            <p v-if="config.market_filter.vp_combo_filter_enabled" class="text-xs text-gray-400 m-0">
+              回测结论（7-11月，419笔）：经典口径里 C1「主力介入可进场」（换手&gt;5%、量比2~3）在洗盘反包体系里恰好反向——
+              21笔胜率仅 19% / 平均-2.76%，是全样本最差入场象限（温和放量反包=弱势反包）；剔除后总收益 +4.52万 → +5.10万。
+              C4「无量诱多」入场 45.9% 偏弱可选剔除；持仓期间 C4 后再跌概率 48.2% 反低于基线 55.7%，不能当卖出信号。
+            </p>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
               <span class="text-xs text-gray-500">基本面筛选（营收增速，剔除增长乏力的信号）</span>
               <ElSwitch v-model="config.fundamental_filter.enabled" size="small" />
             </div>
@@ -800,6 +814,7 @@ const config = reactive<any>({
     touch_ma10_exit_enabled: true, touch_ma10_count: 4, touch_ma10_window: 30,
     touch_strong_reset_enabled: false, touch_strong_pct: 5.0,
     a_kill_skip_enabled: false, a_kill_days: 3, a_kill_down_days: 5, a_kill_cum_drop: 15.0,
+    vp_combo_filter_enabled: true, vp_combo_exclude_c4: false,
     pattern_watch_enabled: true, pattern_poll_minutes: 3,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },

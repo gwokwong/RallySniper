@@ -334,6 +334,11 @@ class MarketFilterConfig(BaseModel):
                                   description="A杀判定：连续下跌交易日数≥此值(默认5天连跌)")
     a_kill_cum_drop: float = Field(default=15.0, ge=5.0, le=50.0,
                                    description="A杀判定：连跌段累计跌幅≥此值(%)，从段前收盘到段底(默认15%)")
+    vp_combo_filter_enabled: bool = Field(default=True,
+                                          description="换手率×量比四象限过滤：剔除C1（换手>5%且量比2~3的温和放量反包）。"
+                                                      "7-11月回测：C1入场21笔胜率19%/均-2.76%，为全样本最差象限（经典口径反向）；剔除后总收益4.52→5.10万")
+    vp_combo_exclude_c4: bool = Field(default=False,
+                                      description="四象限过滤同时剔除C4（换手>10%且量比<1，无量诱多）：入场45.9%偏弱但合计仍+0.13万，剔除约中性，默认不剔")
 
 
 class AppConfig(BaseModel):

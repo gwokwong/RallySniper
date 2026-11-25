@@ -188,6 +188,10 @@ def _scan_one(code: str, name: str, rules: dict[str, Any],
         return []
 
     metrics = ds.enrich_market_metrics(code, hist, flows, names)
+    # 换手率×量比四象限入场过滤（C1 温和放量反包=最差象限，回测 19% 胜率）
+    if mfilter and mainwave.vp_combo_should_skip(metrics.get("turnover"),
+                                                 metrics.get("volume_ratio"), mfilter):
+        return []
     cur = d.iloc[-1]
     # 强势续攻量比上限过滤（2026-11-21 回测）：高位放量(量比过大)的强势续攻
     # 多为出货/追高，10月样本量比<3时大亏笔数-43%且妖股保留85.7%。

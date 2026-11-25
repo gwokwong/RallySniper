@@ -43,6 +43,23 @@ _dlists: dict[str, list[str]] = {}   # code -> 升序日期列表（自身K线�
 _bars_loaded = False
 _refreshing = False
 _refresh_progress: dict[str, Any] = {"done": 0, "total": 0, "started": None, "finished": None, "ok": 0, "fail": 0}
+_turnover_cache: dict[str, list[float] | None] = {}  # code -> 换手率序列（四象限过滤按需读取）
+
+
+def _turnover_at(code: str, row: int) -> float | None:
+    """按需读取该股换手率序列（内存瘦身索引不含此列，CSV 直读+缓存）。"""
+    with _lock:
+        if code not in _turnover_cache:
+            f = CACHE_DIR / f"{code}.csv"
+            try:
+                df = pd.read_csv(f, usecols=["turnover"], dtype={"turnover": "float32"})
+                _turnover_cache[code] = df["turnover"].astype(float).tolist()
+            except Exception:  # noqa: BLE001
+                _turnover_cache[code] = None
+        arr = _turnover_cache[code]
+    if arr is None or row < 0 or row >= len(arr):
+        return None
+    return arr[row]
 
 
 def _cache_files() -> list[Path]:
@@ -80,6 +97,7 @@ def invalidate() -> None:
     global _bars_loaded
     with _lock:
         _bars_loaded = False
+        _turnover_cache.clear()
 
 
 def _row_of(code: str, date: str) -> int | None:
@@ -301,6 +319,19 @@ def replay(date: str) -> dict[str, Any]:
             mf = cfg.market_filter.model_dump()
             if mf.get("a_kill_skip_enabled", True) and mw.recent_a_kill(d, mf):
                 return None
+            # 换手率×量比四象限过滤（C1 温和放量反包=回测最差象限）：bars 内存索引
+            # 无换手率列，按需读 CSV 补（带缓存，回放候选只有数百只）
+            if mf.get("vp_combo_filter_enabled", False):
+                vr_j = None
+                try:
+                    vols = df["volume"].to_numpy(dtype=float)
+                    if i >= 5 and vols[i - 5:i].mean() > 0:
+                        vr_j = float(vols[i]) / float(vols[i - 5:i].mean())
+                except Exception:  # noqa: BLE001
+                    vr_j = None
+                to_j = _turnover_at(code, i)
+                if mw.vp_combo_should_skip(to_j, vr_j, mf):
+                    return None
             best = max(hits, key=lambda x: x[1].get("strength", 0))
             return {"code": code, "name": names.get(code, code), "strategy": best[0],
                     "price": round(float(d["close"].iloc[-1]), 2),

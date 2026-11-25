@@ -482,6 +482,47 @@ def _strategy_strong_continue(d: pd.DataFrame, r: dict[str, Any]) -> dict[str, A
     return {"hit": True, "stage": "trigger", "reasons": reasons, "strength": round(strength, 1)}
 
 
+def vp_combo_class(turnover: float | None, vr: float | None) -> str:
+    """换手率×量比经典四象限分类（入场日口径）。
+
+    C1 主力介入: 换手>5%  且 量比 2~3
+    C2 行情加速: 换手 5~10% 且 量比 3~5
+    C3 放量分歧: 换手>10% 且 量比>5（低位吸筹/高位离场，需位置信息另判）
+    C4 无量诱多: 换手>10% 且 量比<1
+    其余返回 ""。
+    """
+    if turnover is None or vr is None:
+        return ""
+    try:
+        to, v = float(turnover), float(vr)
+    except (TypeError, ValueError):
+        return ""
+    if to > 10 and v > 5:
+        return "C3"
+    if to > 10 and v < 1:
+        return "C4"
+    if to > 5 and 2 <= v < 3:
+        return "C1"
+    if 5 <= to <= 10 and 3 <= v <= 5:
+        return "C2"
+    return ""
+
+
+def vp_combo_should_skip(turnover: float | None, vr: float | None,
+                         mf: dict[str, Any]) -> bool:
+    """四象限入场过滤：7-11月回测，C1（温和放量反包）21笔胜率19%/均-2.76%，
+    是全样本最差入场象限——「主力介入」经典口径在洗盘反包体系里恰好反向；
+    C4（无量诱多）入场45.9%偏弱可选剔除。C2/C3入场样本过少不动。"""
+    if not mf.get("vp_combo_filter_enabled", False):
+        return False
+    cls_ = vp_combo_class(turnover, vr)
+    if cls_ == "C1":
+        return True
+    if cls_ == "C4" and mf.get("vp_combo_exclude_c4", False):
+        return True
+    return False
+
+
 def recent_a_kill(d: pd.DataFrame, r: dict[str, Any]) -> bool:
     """买入过滤：刚经历「多日连跌A杀」触底后的 N 个交易日内 → 不碰。
 
