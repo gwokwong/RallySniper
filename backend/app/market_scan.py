@@ -129,7 +129,9 @@ CONF_LABEL = {"high": "高置信(建议3x)", "normal": "普通(建议1x)", "prob
 CONF_ORDER = {"high": 0, "normal": 1, "probe": 2}
 
 
-def recommend_allocation(signals: list[dict[str, Any]], capital: float) -> dict[str, Any]:
+def recommend_allocation(signals: list[dict[str, Any]], capital: float,
+                         max_count: int = 0, commission_rate: float = 0.00025,
+                         commission_min: float = 5.0) -> dict[str, Any]:
     """按可用资金给出具体组合建议（A股100股/手，置信档位+盈利+行业分散优选）。
 
     资金自管：系统只做"这一笔钱怎么开局"的参考，不预留、不跟踪仓位。
@@ -140,7 +142,9 @@ def recommend_allocation(signals: list[dict[str, Any]], capital: float) -> dict[
                               not s.get("profit_pos"),
                               -(s.get("rev_yoy") if s.get("rev_yoy") is not None else -999),
                               -s.get("strength", 0)))
-    n_target = 1 if capital < 3000 else 2 if capital < 6000 else 3 if capital < 10000 else 4
+    n_auto = 1 if capital < 3000 else 2 if capital < 6000 else 3 if capital < 10000 else 4
+    n_target = min(max_count, n_auto) if max_count and max_count > 0 else n_auto
+    n_target = max(1, n_target)
     alloc: list[dict[str, Any]] = []
     used = 0.0
     seen_ind: set[str] = set()
@@ -163,12 +167,17 @@ def recommend_allocation(signals: list[dict[str, Any]], capital: float) -> dict[
     residual = round(capital - used, 2)
     fee_est = 0.0
     for a in alloc:
-        fee_est += max(5.0, a["amount"] * 0.00025) * 2  # 买卖双边，万2.5、最低5元/笔（常见券商水平）
+        fee_est += max(commission_min, a["amount"] * commission_rate) * 2  # 买卖双边
     fee_est = round(fee_est, 2)
+    # 成本占比提示：双边佣金/投入 > 0.3% 时提醒（免5低佣一般不会触发）
+    fee_pct = (fee_est / used * 100) if used > 0 else 0
+    note = ""
+    if alloc and fee_pct > 0.3:
+        note = (f"双边佣金约 {fee_pct:.2f}%（按佣金率 {commission_rate * 10000:g}‰、"
+                f"单笔最低 {commission_min:g} 元估算）：小资金拆分成本偏高，宁少一只也别摊太薄。")
     return {"capital": capital, "n_target": n_target, "alloc": alloc,
             "invested": round(used, 2), "residual": residual, "fee_est": fee_est,
-            "note": ("佣金按万2.5、单笔最低5元估算；小资金单笔<2000元时成本占比偏高，"
-                     "宁少一只也别摊太薄。") if capital < 6000 and alloc else ""}
+            "fee_pct": round(fee_pct, 2), "note": note}
 
 
 def attach_confidence(signals: list[dict[str, Any]],

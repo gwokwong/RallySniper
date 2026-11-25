@@ -706,8 +706,25 @@
             <ElFormItem label="可用资金(元)，0=不推荐">
               <ElInputNumber v-model="config.available_capital" :min="0" :max="10000000" :step="1000" style="width:100%" />
             </ElFormItem>
+            <ElRow :gutter="12">
+              <ElCol :span="8">
+                <ElFormItem label="最大只数(0=自动)">
+                  <ElInputNumber v-model="config.alloc_max_count" :min="0" :max="10" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="8">
+                <ElFormItem label="佣金率(万一=0.0001)">
+                  <ElInputNumber v-model="config.commission_rate" :min="0.00001" :max="0.01" :step="0.0001" :precision="5" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="8">
+                <ElFormItem label="单笔最低佣金(元)">
+                  <ElInputNumber v-model="config.commission_min" :min="0" :max="20" :step="1" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+            </ElRow>
             <p class="text-xs text-gray-400 m-0">
-              按 100 股/手折算，高置信优先+盈利+行业分散优选；买不起的自动跳过；附留存现金与佣金预估。资金自管，系统不预留不跟踪。
+              按 100 股/手折算，高置信优先+盈利+行业分散优选；买不起的自动跳过；附留存现金与佣金预估（双边按你的佣金参数估算）。资金自管，系统不预留不跟踪。
             </p>
             <p class="text-xs text-gray-400">
               回测提示：点火日信号会集中爆发（单日最多 71 只，单只 1 万需 71 万资金）。按资金量设 10~20 可控占用，
@@ -877,6 +894,7 @@ const config = reactive<any>({
     vp_combo_filter_enabled: true, vp_combo_exclude_c4: false,
     pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25',
     pattern_board_alert: true, pattern_board_anomaly_pct: 1.9, pattern_board_down_pct: 2.3,
+    available_capital: 8000, alloc_max_count: 2, commission_rate: 0.0001, commission_min: 0,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },
   notification: []

@@ -245,7 +245,11 @@ def run_market_push(push_time: str | None = None, source: str = "系统定时") 
             cap_amt = float(getattr(cfg, "available_capital", 0) or 0)
             if cap_amt > 0:
                 try:
-                    al = market_scan.recommend_allocation(signals, cap_amt)
+                    al = market_scan.recommend_allocation(
+                        signals, cap_amt,
+                        max_count=int(getattr(cfg, "alloc_max_count", 0) or 0),
+                        commission_rate=float(getattr(cfg, "commission_rate", 0.00025) or 0.00025),
+                        commission_min=float(getattr(cfg, "commission_min", 5.0) or 0))
                     if al.get("alloc"):
                         content += (f"\n【资金分配建议】可用 {al['capital']:g} 元 → 建议 {len(al['alloc'])} 只"
                                     f"（目标每只约 {al['capital'] / max(1, al['n_target']):g} 元，行业分散）")
@@ -255,7 +259,7 @@ def run_market_push(push_time: str | None = None, source: str = "系统定时") 
                                         f"｜{a['lots']}手={a['shares']}股≈{a['amount']:g}元"
                                         + (f"｜{conf}" if conf else ""))
                         content += (f"\n合计投入约 {al['invested']:g} 元，留存现金约 {al['residual']:g} 元，"
-                                    f"双边佣金约 {al['fee_est']:g} 元。"
+                                    f"双边佣金约 {al['fee_est']:g} 元（按你的佣金参数估算）。"
                                     + (f"（{al['note']}）" if al.get("note") else "") +
                                     "\n仅为按最小交易单位的参考开局，仓位由你自行控制。")
                     else:

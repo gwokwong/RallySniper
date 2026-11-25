@@ -364,6 +364,12 @@ class AppConfig(BaseModel):
                                      description="可用资金(元)，0=不做资金分配建议。设置后点火推送自动给出"
                                                  "具体组合：几只、每只几手、金额、留存现金与佣金预估（按置信档位+"
                                                  "盈利+行业分散优选，100股/手最小单位折算）。资金自管，系统不预留")
+    alloc_max_count: int = Field(default=0, ge=0, le=10,
+                                 description="资金分配最大只数，0=按资金自动分档（<3000=1只/<6000=2只/<10000=3只/其余4只）")
+    commission_rate: float = Field(default=0.00025, gt=0, le=0.01,
+                                   description="佣金率（小数）：默认0.00025=万2.5；万一填0.0001")
+    commission_min: float = Field(default=5.0, ge=0,
+                                  description="单笔最低佣金(元)：免5填0。影响小资金拆分成本，免5后多拆几只无额外负担")
     holdings: list[str] = Field(default_factory=list, description="已标记为持有的股票代码")
     holding_costs: dict[str, float] = Field(default_factory=dict,
                                             description="持仓成本价 {code: 买入价}，用于浮盈分档止损")
