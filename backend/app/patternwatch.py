@@ -175,9 +175,11 @@ def poll() -> dict[str, Any]:
 
     # 板块异动检测：优先东财行业板块指数涨跌幅（与行情软件板块口径一致）；
     # 板块行情不可用时回退「成分股涨跌中位」口径。每板块每日每方向最多一次。
-    # 拉涨/砸盘阈值独立：砸盘默认更灵敏（2.3 vs 3.0）
+    # 拉涨/砸盘阈值独立：砸盘默认更灵敏（2.3 vs 3.0）。
+    # 大跌日可能同轮触发十几二十个板块——每轮合并为一封邮件，不按板块逐封刷额度。
     up_th = float(cfg.scan.pattern_board_anomaly_pct)
     down_th = float(cfg.scan.pattern_board_down_pct)
+    board_round: list[dict[str, Any]] = []   # 本轮新触发的板块（拉涨/砸盘混合）
 
     def _board_fire(ind: str, bp: float, members: int | None) -> None:
         direction = "拉涨" if bp >= up_th else "砸盘"
@@ -191,15 +193,8 @@ def poll() -> dict[str, Any]:
         if state.day_alerts >= cap:
             return
         state.day_alerts += 1
-        if direction == "拉涨":
-            title = f"【板块异动·拉涨】{ind} {bp:+.1f}%"
-            body = f"{now_hm} {label}\n该板块反包候选将优先进入主推精选；追高注意兑现节奏。"
-        else:
-            title = f"【板块异动·砸盘】{ind} {bp:+.1f}%"
-            body = f"{now_hm} {label}——该板块候选暂停追入，持仓注意风险。"
-        notifications.add(title, body, [], kind="pattern")
-        if cfg.notification:
-            notifier.broadcast(cfg.notification, title, body, [])
+        board_round.append({"ind": ind, "direction": direction, "pct": round(bp, 2),
+                            "label": label})
 
     try:
         bdf = ds.industry_boards()
@@ -235,6 +230,27 @@ def poll() -> dict[str, Any]:
                 _board_fire(ind, bp, members.get(ind))
             elif bp <= -down_th:
                 _board_fire(ind, bp, members.get(ind))
+
+    # 本轮板块异动合并为一封邮件（大跌日防刷屏+省额度；每板块每日每方向仍只记一次）
+    if board_round:
+        ups = sorted([b for b in board_round if b["direction"] == "拉涨"], key=lambda x: -x["pct"])
+        downs = sorted([b for b in board_round if b["direction"] == "砸盘"], key=lambda x: x["pct"])
+        if downs:
+            title = f"【板块异动·砸盘】{now_hm} {len(downs)} 个板块集体跳水（阈值 -{down_th:g}%）"
+            body = ("触发时间：" + now_hm + "\n" +
+                    "\n".join(f"- {b['ind']} {b['pct']:+.1f}%（{b['label']}）" for b in downs) +
+                    "\n纪律：上述板块候选暂停追入，持仓注意风险；跳空低开日先看市场高度与炸板率。")
+            notifications.add(title, body, [], kind="pattern")
+            if cfg.notification:
+                notifier.broadcast(cfg.notification, title, body, [])
+        if ups:
+            title = f"【板块异动·拉涨】{now_hm} {len(ups)} 个板块异动（阈值 +{up_th:g}%）"
+            body = ("触发时间：" + now_hm + "\n" +
+                    "\n".join(f"- {b['ind']} {b['pct']:+.1f}%（{b['label']}）" for b in ups) +
+                    "\n该板块反包候选将优先进入主推精选；追高注意兑现节奏。")
+            notifications.add(title, body, [], kind="pattern")
+            if cfg.notification:
+                notifier.broadcast(cfg.notification, title, body, [])
 
     for code, q in quotes.items():
         if day_alerts >= cap:
