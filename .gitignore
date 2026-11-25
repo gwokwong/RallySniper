@@ -10,3 +10,8 @@ backend/data/ignition_state.json
 # 前端构建产物体积大但部署需要 dist —— 保留跟踪
 backend/data/config.json
 backend/data/notifications.json
+
+# 运行时数据：上次扫描快照 + 跨进程锁（系统自动生成，不入库）
+backend/data/last_scan.json
+backend/data/last_yesterday.json
+backend/data/locks/
