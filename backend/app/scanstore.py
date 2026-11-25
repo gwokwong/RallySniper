@@ -53,12 +53,20 @@ def claim_once(key: str, stale_seconds: int = 900) -> bool:
 
     key 形如 yesterday_2026-11-25_10:30，按 数据交易日+任务+时点 唯一。
     锁文件 mtime 超过 stale_seconds 视为上次执行崩溃残留，自动接管重发。
+    顺带清理超过 2 天的历史锁文件（避免目录无限累积）。
     """
     LOCK_DIR.mkdir(parents=True, exist_ok=True)
     f = LOCK_DIR / f"{key}.lock"
     now = time.time()
     with _lock:
         try:
+            # 历史锁清理：>2 天的锁文件已无意义（同键不会再现）
+            for old in LOCK_DIR.glob("*.lock"):
+                try:
+                    if now - old.stat().st_mtime > 2 * 86400:
+                        old.unlink(missing_ok=True)
+                except OSError:
+                    pass
             if f.exists():
                 if now - f.stat().st_mtime > stale_seconds:
                     f.unlink(missing_ok=True)  # 残留锁：接管
