@@ -446,6 +446,8 @@ def market_sentiment() -> dict[str, dict[str, float]]:
     sealed_n: dict[str, int] = {}
     max_streak: dict[str, int] = {}
     for code, df in bars.items():
+        if code.startswith(("4", "8", "92")):
+            continue  # 北交所（30cm 涨跌幅会虚增触板口径），与候选池 usable() 同口径剔除
         c = df["close"].to_numpy(dtype=float)
         h = df["high"].to_numpy(dtype=float)
         p = df["pct_change"].to_numpy(dtype=float)

@@ -126,6 +126,17 @@ def _cache_refresh_job() -> None:
             return
         r = replay.refresh()
         print(f"[scheduler] K线缓存刷新: {r.get('message')}")
+        # 预热市场情绪统计（炸板率/最高板）：次日 14:00 推送的炸板闸门首查
+        # 不用现场加载全市场K线（进程重启后冷启动可达分钟级）。refresh 为异步
+        # 线程，有界轮询等它跑完再预热（最多 15 分钟，超时则放弃由首查自算）。
+        import time as _time
+        for _ in range(180):
+            prog = getattr(replay, "_refresh_progress", {}) or {}
+            if prog.get("finished"):
+                break
+            _time.sleep(5)
+        st = replay.market_sentiment()
+        print(f"[scheduler] 情绪统计预热: {len(st)} 个交易日")
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] K线缓存刷新失败: {exc}")
 

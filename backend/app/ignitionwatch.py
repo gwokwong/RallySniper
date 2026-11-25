@@ -202,13 +202,24 @@ def check() -> dict[str, Any]:
                         picks_note = "\n".join(lines)
                 except Exception as _exc:  # noqa: BLE001
                     picks_note = f"（精选名单生成失败：{str(_exc)[:60]}）"
+                bomb_note = ""
+                try:
+                    from . import replay as _rp
+                    _br = (_rp.market_sentiment().get(ign.get("prev_date", ""), {}) or {}).get("bomb_rate")
+                    _br_max = float(reg.ignition_bomb_rate_max)
+                    if _br is not None and _br > _br_max:
+                        bomb_note = (f"\n⚠️ 昨日市场炸板率 {_br:.1f}% > {_br_max:g}%（资金分歧极大）："
+                                     f"今日开仓闸门仍会拦截，本提醒仅供观察、不开新仓。")
+                except Exception:  # noqa: BLE001
+                    pass
                 body = (
                     f"确认时间：{now_hm}（连续 {need} 次检查达标，约 {mins} 分钟）\n"
                     f"样本：{ign.get('prev_date', '')} 涨停池 {n} 只，当前中位溢价 {median:+.2f}%\n"
                     f"广度：今日实时涨停 {today_zt if today_zt is not None else '?'} 家 → {tier_note}\n"
                     f"纪律提醒：点火日可按战法开仓（洗盘反包为主），14:00/14:40 推送信号；\n"
-                    f"若后续跌破 0 会再发「点火退潮」提醒，届时停止追高。\n"
-                    f"\n【今日精选候选·结构化分散参考】（盈利优先+行业分散，非买入承诺；"
+                    f"若后续跌破 0 会再发「点火退潮」提醒，届时停止追高。"
+                    + bomb_note +
+                    f"\n\n【今日精选候选·结构化分散参考】（盈利优先+行业分散，非买入承诺；"
                     f"生命线以触发后推送为准）\n{picks_note}"
                 )
                 _notify(title, body)
