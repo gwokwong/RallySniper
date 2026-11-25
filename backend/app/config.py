@@ -212,6 +212,10 @@ class SellConfig(BaseModel):
                                   description="回踩MA10次数阈值：达到此次数即预警卖出")
     touch_ma10_window: int = Field(default=30, ge=10, le=60,
                                    description="首板回看窗口(交易日)：从最近30日内首个涨停日起算")
+    touch_strong_reset_enabled: bool = Field(default=False,
+                                             description="第5通道回踩计数从最近一次强势日(大阳线)起算：洗盘反包的入场日即反包大阳，等价于从买入日起算，避免入场前洗盘段的回踩把计数用满")
+    touch_strong_pct: float = Field(default=5.0, ge=3.0, le=15.0,
+                                    description="强势日判定：当日涨幅≥此值(%)视为强势确认日，回踩计数从其次日重新开始")
     cooldown_enabled: bool = Field(default=True, description="是否启用确认冷却期(同一波下跌不重复发确认邮件)")
     cooldown_reset_pct: float = Field(default=0.03, ge=0.005, le=0.2,
                                       description="冷却重置：股价较上次确认价上涨超此比例视为创新高，允许新一轮确认")
@@ -320,6 +324,16 @@ class MarketFilterConfig(BaseModel):
                                   description="每次扫描最多推送的信号数(0=不限)。回测:点火日信号可多达71只集中爆发"
                                               "(单只1万需71万资金)，按资金量设10~20可控制占用；随机等权抽签，"
                                               "强度排序已被回测证伪(高分=追高)不采用")
+    a_kill_skip_enabled: bool = Field(default=False,
+                                      description="A杀过滤：近N个交易日内出现冲高跳水长上影(A杀)的股票不产生买入信号。"
+                                                  "7-11月回测证伪：被过滤的111笔反而盈利(胜率54.1%/+1.93万，优于保留集49.0%)——"
+                                                  "A杀日往往就是洗盘反包的洗盘日，过滤会把核心形态剔除；默认关闭，供实盘对照")
+    a_kill_days: int = Field(default=3, ge=0, le=10,
+                             description="A杀过滤回看交易日数：A杀日及随后N-1个交易日内不碰(默认3)")
+    a_kill_high_pct: float = Field(default=5.0, ge=1.0, le=19.0,
+                                   description="A杀判定：盘中冲高幅度≥此值(%)，相对昨收")
+    a_kill_fall_pct: float = Field(default=6.0, ge=1.0, le=19.0,
+                                   description="A杀判定：收盘较盘中高点回落≥此值(%)，相对昨收")
 
 
 class AppConfig(BaseModel):

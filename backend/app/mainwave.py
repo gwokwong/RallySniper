@@ -482,6 +482,28 @@ def _strategy_strong_continue(d: pd.DataFrame, r: dict[str, Any]) -> dict[str, A
     return {"hit": True, "stage": "trigger", "reasons": reasons, "strength": round(strength, 1)}
 
 
+def recent_a_kill(d: pd.DataFrame, r: dict[str, Any]) -> bool:
+    """买入过滤：近 N 个交易日内（含今日）出现过「A杀」→ 不碰。
+
+    A杀定义（冲高-跳水长上影）：当日盘中冲高 ≥ a_kill_high_pct%（默认5%），
+    且收盘较盘中高点回落 ≥ a_kill_fall_pct%（默认6%）——两者都相对昨收。
+    两条件同时成立意味着收盘涨幅 ≤ -1%，即冲高后大幅跳水。
+    检查窗口 = a_kill_days（默认3）个交易日内（含今日）出现过 A杀日。
+    """
+    days = max(0, int(r.get("a_kill_days", 3) or 0))
+    hp_th = float(r.get("a_kill_high_pct", 5.0) or 5.0)
+    fp_th = float(r.get("a_kill_fall_pct", 6.0) or 6.0)
+    if days <= 0 or len(d) < 2:
+        return False
+    tail = min(len(d), days + 3)  # 多取2行保证 shift(1) 的昨收可用
+    sub = d.iloc[-tail:]
+    pc = sub["close"].shift(1)
+    hp = (sub["high"] / pc - 1) * 100        # 盘中冲高幅度
+    fall = (sub["high"] - sub["close"]) / pc * 100  # 收盘距高点回落幅度
+    kill = (hp >= hp_th) & (fall >= fp_th)
+    return bool(kill.iloc[-(days + 1):].fillna(False).any())
+
+
 def _strategy_wash_reversal(d: pd.DataFrame, r: dict[str, Any]) -> dict[str, Any]:
     """战法8：洗盘反包 —— 大跌/跌停洗盘后首板反包，抓连板股启动初期。
 

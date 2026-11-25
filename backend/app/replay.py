@@ -175,10 +175,11 @@ def refresh(end_date: str | None = None) -> dict[str, Any]:
 
 def _cfg_fingerprint(cfg) -> str:
     raw = json.dumps({
-        "v": 2,  # v2: 含卖出配对
+        "v": 3,  # v3: 含卖出配对 + A杀买入过滤(market_filter)
         "strategies": cfg.strategies.model_dump(),
         "rules": cfg.strategy_rules.model_dump(),
         "sell": cfg.sell.model_dump(),
+        "mfilter": cfg.market_filter.model_dump(),
         "ignition_threshold": cfg.market_regime.ignition_threshold,
         "tier": cfg.market_regime.ignition_tier_breadth,
         "breadth": cfg.market_regime.ignition_min_breadth,
@@ -295,6 +296,10 @@ def replay(date: str) -> dict[str, Any]:
                 if res.get("hit") and res.get("stage") == "trigger":
                     hits.append((sname, res))
             if not hits:
+                return None
+            # A杀过滤：与实盘 scan_market 同口径（近N交易日冲高跳水长上影不碰）
+            mf = cfg.market_filter.model_dump()
+            if mf.get("a_kill_skip_enabled", True) and mw.recent_a_kill(d, mf):
                 return None
             best = max(hits, key=lambda x: x[1].get("strength", 0))
             return {"code": code, "name": names.get(code, code), "strategy": best[0],

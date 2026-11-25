@@ -280,13 +280,24 @@ def _evaluate(code: str, name: str, quote: dict[str, Any],
                 L = j
                 break
         if L is not None and len(closes) - L >= 4:
-            # 统计从 L+1 到当前（含今日）的回踩事件次数：
+            # 统计回踩事件次数：
             # 单日回踩 = 收盘价 ≤ MA10×1.02（触及或跌破）且当日涨跌幅 < +3%（非大阳线突破）
-            # 连续符合条件的天数合并为一次回踩事件
+            # 连续符合条件的天数合并为一次回踩事件。
+            # 可选：计数起点从最近一次强势日（涨幅≥touch_strong_pct）的次日起算——
+            # 洗盘反包的入场日即反包大阳，等价于"从买入日起算"，入场前洗盘段的
+            # 回踩不再占用计数；强势日之后第4次回踩才是真正的护盘极限。
             pc_series = pct_series  # 已在上面定义
+            start = L + 1
+            if bool(rules.get("touch_strong_reset_enabled", False)):
+                strong_th = float(rules.get("touch_strong_pct", 5.0) or 5.0)
+                for s0 in range(len(closes) - 2, L, -1):
+                    v = pc_series[s0]
+                    if v is not None and v >= strong_th:
+                        start = max(start, s0 + 1)
+                        break
             touch_cnt = 0
             prev_touch = False
-            for j in range(L + 1, len(closes)):
+            for j in range(start, len(closes)):
                 ma10_j = float(pd.Series(closes[:j + 1]).rolling(10).mean().iloc[-1]) if j >= 9 else None
                 is_touch = (ma10_j is not None and closes[j] <= ma10_j * 1.02
                             and pc_series[j] < 3.0)

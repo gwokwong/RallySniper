@@ -663,6 +663,30 @@
             </p>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">A杀过滤（冲高跳水长上影后N个交易日内不碰）</span>
+              <ElSwitch v-model="config.market_filter.a_kill_skip_enabled" size="small" />
+            </div>
+            <ElFormItem v-if="config.market_filter.a_kill_skip_enabled" label="回看交易日数">
+              <ElInputNumber v-model="config.market_filter.a_kill_days" :min="0" :max="10" style="width:100%" />
+            </ElFormItem>
+            <ElRow v-if="config.market_filter.a_kill_skip_enabled" :gutter="12">
+              <ElCol :span="12">
+                <ElFormItem label="盘中冲高幅度≥(%)">
+                  <ElInputNumber v-model="config.market_filter.a_kill_high_pct" :min="1" :max="19" :step="0.5" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="12">
+                <ElFormItem label="高点回落幅度≥(%)">
+                  <ElInputNumber v-model="config.market_filter.a_kill_fall_pct" :min="1" :max="19" :step="0.5" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+            </ElRow>
+            <p v-if="config.market_filter.a_kill_skip_enabled" class="text-xs text-gray-400 m-0">
+              ⚠️ 回测证伪提示（7-11月）：被此过滤剔除的 111 笔信号反而盈利（胜率 54.1% / +1.93万，优于保留集 49.0%）——
+              A杀日往往就是洗盘反包的「洗盘日」，过滤会把核心形态剔除。默认关闭，仅供实盘对照验证。
+            </p>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
               <span class="text-xs text-gray-500">基本面筛选（营收增速，剔除增长乏力的信号）</span>
               <ElSwitch v-model="config.fundamental_filter.enabled" size="small" />
             </div>
@@ -694,6 +718,17 @@
             </ElFormItem>
             <p v-if="config.sell.touch_ma10_exit_enabled" class="text-xs text-gray-400 m-0">
               回踩 = 收盘触及/跌破 MA10×1.02 且未大阳线脱离（涨跌幅&lt;+3%）；连续多天贴线只算一次回踩，反弹离开后再贴近才是新的一次。
+            </p>
+            <div v-if="config.sell.touch_ma10_exit_enabled" class="flex items-center justify-between mt-2 mb-1">
+              <span class="text-xs text-gray-500">回踩计数从强势日起算（等价于买入日起算）</span>
+              <ElSwitch v-model="config.sell.touch_strong_reset_enabled" size="small" />
+            </div>
+            <ElFormItem v-if="config.sell.touch_ma10_exit_enabled && config.sell.touch_strong_reset_enabled" label="强势日涨幅≥(%)">
+              <ElInputNumber v-model="config.sell.touch_strong_pct" :min="3" :max="15" :step="0.5" style="width:100%" />
+            </ElFormItem>
+            <p v-if="config.sell.touch_ma10_exit_enabled && config.sell.touch_strong_reset_enabled" class="text-xs text-gray-400 m-0">
+              ⚠️ 回测证伪提示（7-11月）：此模式总收益 +3.08万 vs 首板起算 +4.52万——入场前的洗盘回踩被清零后，
+              第5通道的快速止损闸门失效，收益回落到接近关闭状态。仅作实验开关保留，建议保持关闭。
             </p>
             <p class="text-xs text-gray-400 mt-1">
               默认排除 ST 与北交所，主板/科创/创业全开，价格不限。筛选在候选阶段生效，可显著减少扫描耗时。
@@ -760,6 +795,8 @@ const config = reactive<any>({
     wzq_watch_enabled: true, wzq_watch_time: '15:20',
     ma10_consec_enabled: true, ma10_consec_days: 2,
     touch_ma10_exit_enabled: true, touch_ma10_count: 4, touch_ma10_window: 30,
+    touch_strong_reset_enabled: false, touch_strong_pct: 5.0,
+    a_kill_skip_enabled: false, a_kill_days: 3, a_kill_high_pct: 5.0, a_kill_fall_pct: 6.0,
     pattern_watch_enabled: true, pattern_poll_minutes: 3,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },

@@ -127,7 +127,8 @@ def pass_filter(code: str, name: str, price: float | None,
 def _scan_one(code: str, name: str, rules: dict[str, Any],
               flows: dict[str, dict[str, float | str]],
               names: dict[str, str],
-              enabled: dict[str, bool]) -> list[dict[str, Any]]:
+              enabled: dict[str, bool],
+              mfilter: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """对单只候选股跑涨停回调 / 强势续攻战法，命中则补齐展示指标。
 
     受 enabled 开关控制（对应配置页「涨停回调」「强势续攻」），同一只票
@@ -157,6 +158,11 @@ def _scan_one(code: str, name: str, rules: dict[str, Any],
         if res.get("hit"):
             hits.append((sname, res))
     if not hits:
+        return []
+
+    # A杀过滤：近N个交易日内出现冲高跳水长上影的股票不碰
+    if mfilter and mfilter.get("a_kill_skip_enabled", True) \
+            and mainwave.recent_a_kill(d, mfilter):
         return []
 
     metrics = ds.enrich_market_metrics(code, hist, flows, names)
@@ -354,7 +360,7 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
         signals: list[dict[str, Any]] = []
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {
-                pool.submit(_scan_one, code, pool_names.get(code, code), rules, flows, names, enabled): code
+                pool.submit(_scan_one, code, pool_names.get(code, code), rules, flows, names, enabled, mfilter): code
                 for code in codes
             }
             for fut in as_completed(futures):
