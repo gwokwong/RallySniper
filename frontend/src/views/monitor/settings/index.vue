@@ -419,8 +419,13 @@
             </div>
             <ElRow v-if="config.scan.pattern_watch_enabled" :gutter="12">
               <ElCol :span="6">
-                <ElFormItem label="轮询(分钟)">
+                <ElFormItem label="慢轮询(分钟)">
                   <ElInputNumber v-model="config.scan.pattern_poll_minutes" :min="1" :max="15" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="6">
+                <ElFormItem label="快车道(秒)">
+                  <ElInputNumber v-model="config.scan.pattern_fast_seconds" :min="0" :max="300" :step="15" style="width:100%" />
                 </ElFormItem>
               </ElCol>
               <ElCol :span="6">
@@ -440,6 +445,7 @@
               </ElCol>
             </ElRow>
             <p v-if="config.scan.pattern_watch_enabled" class="text-xs text-gray-400 m-0">
+              快车道只盯反包候选池（45秒级，候选爆发即刻提醒）；慢轮询管全市场形态+板块异动。
               三类形态：①洗盘反包·进行中（近8日洗盘大跌，今日涨幅≥5%或触板且守在洗盘日收盘上方——比14:40推送提前半天）；
               ②N日新高突破（现价突破前N日最高+量比放大）；
               ③涨停缩量突破（近10日有涨停→涨停后连续缩量≥3日不破涨停日最低→今日放量突破区间最高，触发即提醒追入时机，生命线=涨停日最低价）。
@@ -752,6 +758,13 @@
             </p>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">盘前作战地图（9:25左右发送：反包候选名单+生命线+昨日情绪背景）</span>
+            </div>
+            <ElFormItem label="发送时点">
+              <ElInput v-model="config.scan.war_map_time" placeholder="09:25" style="width:100%" />
+            </ElFormItem>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
               <span class="text-xs text-gray-500">MA10 连续破位卖出（连续N天收盘跌破MA10即确认，第4通道）</span>
               <ElSwitch v-model="config.sell.ma10_consec_enabled" size="small" />
             </div>
@@ -852,7 +865,7 @@ const config = reactive<any>({
     touch_strong_reset_enabled: false, touch_strong_pct: 5.0,
     a_kill_skip_enabled: false, a_kill_days: 3, a_kill_down_days: 5, a_kill_cum_drop: 15.0,
     vp_combo_filter_enabled: true, vp_combo_exclude_c4: false,
-    pattern_watch_enabled: true, pattern_poll_minutes: 3,
+    pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25',
     pattern_board_alert: true, pattern_board_anomaly_pct: 1.9, pattern_board_down_pct: 2.3,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },

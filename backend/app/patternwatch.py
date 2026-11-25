@@ -128,6 +128,138 @@ def _prepare_day(prev_day: str, names: dict[str, str] | None = None,
         state.prepared = True
 
 
+def poll_fast() -> dict[str, Any]:
+    """候选股快车道：只盯反包候选池（几十只），45秒级轮询。
+
+    与全市场 poll() 共用 state.alerted 去重（每票每日一次）。只查候选股行情
+    （量小、频率高），全市场扫描/板块异动仍走慢车道 poll()。
+    """
+    cfg = load_config()
+    if not cfg.scan.pattern_watch_enabled or int(cfg.scan.pattern_fast_seconds or 0) <= 0:
+        return {"checked": False, "reason": "快车道未启用"}
+    if ds.market_status()["status"] not in ("trading",):
+        return {"checked": False, "reason": "非盘中"}
+    eff = ds.effective_trading_date()
+    today = eff["date"]
+    now_hm = datetime.now().strftime("%H:%M")
+    with state._lock:
+        if state.date != today:
+            state.reset_for(today)
+        if not state.prepared:
+            return {"checked": False, "reason": "候选池未就绪（等待慢车道首次预计算）"}
+        rev = set(state.rev_candidates)
+        alerted = state.alerted
+        day_alerts = state.day_alerts
+        cap = int(cfg.scan.pattern_max_alerts)
+    if not rev:
+        return {"checked": True, "new": []}
+    quotes = ds.spot_quote_map(sorted(rev))
+    if not quotes:
+        return {"checked": True, "new": []}
+    new: list[dict[str, Any]] = []
+    for code, q in quotes.items():
+        if f"{code}:rev" in alerted or day_alerts >= cap:
+            continue
+        price = q.get("price")
+        pct = q.get("change_pct")
+        pre = q.get("pre_close")
+        high = q.get("high")
+        if price is None or pct is None or not pre:
+            continue
+        th = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+        near_board = pct >= min(5.0, th - 0.5) or (high and high >= pre * (1 + th / 100) * 0.999)
+        if not near_board:
+            continue
+        df = replay._bars.get(code)
+        wash_close = None
+        if df is not None:
+            drop = float(cfg.strategy_rules.wash_drop_pct)
+            lb = int(cfg.strategy_rules.wash_lookback)
+            di = _prev_day_row(code, today)
+            start = max(0, (di if di is not None else len(df)) - lb)
+            seg = df.iloc[start:(di if di is not None else len(df))]
+            if not seg.empty:
+                wash_idx = seg["pct_change"].idxmin()
+                wash_close = float(df["close"].iloc[wash_idx])
+        if wash_close is None or price < wash_close:
+            continue
+        alerted.add(f"{code}:rev")
+        day_alerts += 1
+        new.append({"code": code, "name": str(q.get("name") or code),
+                    "pattern": "洗盘反包·进行中", "price": round(price, 2),
+                    "pct": round(pct, 2),
+                    "vr": round(float(q["volume_ratio"]), 2) if q.get("volume_ratio") else None,
+                    "detail": (f"今日涨幅{pct:+.1f}%、守在洗盘日收盘{wash_close:.2f}上方"
+                               f"（生命线={wash_close:.2f}，跌破即形态失败）")})
+    with state._lock:
+        state.day_alerts = max(day_alerts, state.day_alerts)
+        if new:
+            cur = list(state.last_new or [])
+            state.last_new = (cur + new)[-50:]
+    if new:
+        title = f"【反包候选异动】{now_hm} {len(new)} 只（快车道）"
+        body = ("触发时间：" + now_hm + "\n" +
+                "\n".join(f"- {x['name']}({x['code']}) 现价{x['price']} {x['pct']:+.1f}%：{x['detail']}"
+                          for x in new[:15]) +
+                "\n提醒：候选进行中≠买入确认；确认信号以点火确认+尾盘推送为准，生命线跌破即放弃。")
+        notifications.add(title, body, [], kind="pattern")
+        if cfg.notification:
+            notifier.broadcast(cfg.notification, title, body, [])
+    return {"checked": True, "new": new}
+
+
+def war_map(top_n: int = 15) -> dict[str, Any]:
+    """盘前作战地图：今日反包候选名单 + 生命线 + 昨日情绪背景（9:25 发送）。"""
+    cfg = load_config()
+    dates = replay.trading_dates()
+    eff = ds.effective_trading_date()
+    today = eff["date"]
+    pos = [k for k, d in enumerate(dates) if d < today]
+    if not pos:
+        return {"success": False, "error": "无前置交易日"}
+    prev_day = dates[pos[-1]]
+    try:
+        _prepare_day(prev_day, names=ds.stock_code_names(), industry_map=ds.industry_map_full())
+    except Exception as exc:  # noqa: BLE001
+        return {"success": False, "error": f"候选池预计算失败: {str(exc)[:80]}"}
+    with state._lock:
+        rev = sorted(state.rev_candidates)
+        state.date = today
+    names = ds.stock_code_names()
+    imap = ds.industry_map_full()
+    lb = int(cfg.strategy_rules.wash_lookback)
+    rows: list[dict[str, Any]] = []
+    for code in rev:
+        nm = str(names.get(code, ""))
+        if "ST" in nm.upper() or "退" in nm or code.startswith(("4", "8", "92")):
+            continue
+        df = replay._bars.get(code)
+        k = _prev_day_row(code, prev_day)
+        if df is None or k is None:
+            continue
+        seg = df.iloc[max(0, k - lb):k]
+        if seg.empty:
+            continue
+        wash_idx = seg["pct_change"].idxmin()
+        wash_close = round(float(df["close"].iloc[wash_idx]), 2)
+        prev_close = round(float(df["close"].iloc[k]), 2)
+        if prev_close < wash_close:
+            continue  # 已跌破生命线=形态失败，不进名单
+        rows.append({"code": code, "name": nm or code,
+                     "industry": (imap.get(code) or "--"),
+                     "prev_close": prev_close, "life_line": wash_close,
+                     "wash_date": str(df["date"].iloc[wash_idx])[:10]})
+    # 排序：洗盘越近越活跃优先
+    rows.sort(key=lambda r: r["wash_date"], reverse=True)
+    sent = replay.market_sentiment().get(prev_day, {})
+    return {"success": True, "prev_date": prev_day, "n_candidates": len(rows),
+            "candidates": rows[:top_n], "total_rows": len(rows),
+            "sentiment": {"bomb_rate": sent.get("bomb_rate"),
+                          "max_streak": sent.get("max_streak"),
+                          "bomb_max": float(cfg.market_regime.ignition_bomb_rate_max)},
+            "market_label": eff.get("market_label")}
+
+
 def poll() -> dict[str, Any]:
     """盘中执行一次形态监控（调度器每 N 分钟调用）。返回本轮新增触发。"""
     cfg = load_config()

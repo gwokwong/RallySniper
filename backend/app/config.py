@@ -163,7 +163,12 @@ class ScanConfig(BaseModel):
         description="盘中形态监控：全市场「洗盘反包·进行中」与「N日新高突破」实时提醒（每票每日每形态一次）",
     )
     pattern_poll_minutes: int = Field(default=3, ge=1, le=15,
-                                      description="形态监控轮询间隔(分钟，仅盘中)")
+                                      description="形态监控轮询间隔(分钟，仅盘中)。慢车道：全市场形态+板块异动")
+    pattern_fast_seconds: int = Field(default=45, ge=0, le=300,
+                                      description="反包候选快车道轮询秒数(0=关)：只盯反包候选池几十只票，"
+                                                  "爆发(涨幅≥5%或触板且守生命线)45秒级提醒。HTTP行情源的物理极限即此，"
+                                                  "秒级tick需websocket数据源")
+    war_map_time: str = Field(default="09:25", description="盘前作战地图发送时点(HH:MM)：候选名单+生命线+昨日情绪背景")
     pattern_break_high_days: int = Field(default=20, ge=5, le=120,
                                          description="新高突破的N日窗口")
     pattern_break_vr: float = Field(default=1.5, ge=1.0, le=10,
@@ -294,10 +299,10 @@ class MarketRegimeConfig(BaseModel):
     # 点火盘中监控：确认点火立即提醒（稳妥版：连续确认+退潮预警+一日两条封顶）
     ignition_watch_enabled: bool = Field(default=True,
                                          description="盘中点火监控：连续 ignition_sustain_checks 次达标即提醒点火，跌破0提醒退潮")
-    ignition_watch_minutes: int = Field(default=5, ge=1, le=30,
-                                        description="点火监控检查间隔(分钟)，默认5分钟")
+    ignition_watch_minutes: int = Field(default=1, ge=1, le=30,
+                                        description="点火监控检查间隔(分钟)，默认1分钟：连续3次达标约3分钟确认点火（原5分钟轮询需15分钟）")
     ignition_sustain_checks: int = Field(default=3, ge=1, le=10,
-                                         description="确认点火需要的连续达标次数(默认3次=15分钟持续)，过滤开盘冲高假点火")
+                                         description="确认点火需要的连续达标次数(默认3次=约3分钟持续)，过滤开盘冲高假点火")
     ignition_min_pool: int = Field(default=10, ge=1, le=100,
                                    description="点火监控最小样本池(昨日涨停家数)，过小不可信则跳过")
     ignition_auto_scan: bool = Field(default=False,

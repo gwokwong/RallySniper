@@ -11,6 +11,7 @@ from typing import Any
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, patternwatch, replay, scanstore, wzqwatch
 from . import sellwatch, yesterday
@@ -106,6 +107,53 @@ def _pattern_job() -> None:
             print(f"[scheduler] 形态监控: 新增{len(r['new'])}条")
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] 形态监控失败: {exc}")
+
+
+def _pattern_fast_job() -> None:
+    """反包候选快车道（默认45秒级）：只盯候选池，爆发即刻提醒。"""
+    try:
+        if ds.market_status()["status"] not in ("trading",):
+            return
+        r = patternwatch.poll_fast()
+        if r.get("new"):
+            print(f"[scheduler] 快车道: 新增{len(r['new'])}条")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 快车道失败: {exc}")
+
+
+def _war_map_job() -> None:
+    """盘前作战地图：候选名单+生命线+昨日情绪背景（休市日跳过）。"""
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        r = patternwatch.war_map()
+        if not r.get("success"):
+            print(f"[scheduler] 作战地图失败: {r.get('error')}")
+            return
+        s = r.get("sentiment") or {}
+        lines = [f"昨日（{r['prev_date']}）市场情绪：炸板率 {s.get('bomb_rate', '--')}%"
+                 f"（闸门阈值 {s.get('bomb_max'):g}%）、市场最高板 {s.get('max_streak', '--')} 板"]
+        br = s.get("bomb_rate")
+        if br is not None and br > float(s.get("bomb_max") or 45):
+            lines.append("⚠️ 昨日炸板率过高：今日即使点火，开仓闸门也会拦截——今日以观察为主，降低预期。")
+        else:
+            lines.append("昨日分歧可控：若盘中点火确认，按纪律执行（信号以推送为准）。")
+        lines.append(f"\n【反包候选 {r['n_candidates']} 只·展示前{len(r['candidates'])}只】"
+                     f"（生命线=洗盘日收盘，跌破即形态失败）")
+        for c in r.get("candidates", []):
+            lines.append(f"- {c['name']}({c['code']}) {c['industry']}｜昨收{c['prev_close']}"
+                         f"｜生命线{c['life_line']}（洗盘日{c['wash_date'][5:]}）")
+        lines.append("\n提醒：候选≠买入信号；候选爆发时快车道45秒内提醒，"
+                     "确认以点火确认+尾盘推送为准。")
+        title = f"【盘前作战地图】{r['prev_date']} 情绪背景 + {r['n_candidates']} 只反包候选"
+        body = "\n".join(lines)
+        notifications.add(title, body, [], kind="pattern")
+        cfg2 = load_config()
+        if cfg2.notification:
+            notifier.broadcast(cfg2.notification, title, body, [])
+        print(f"[scheduler] 作战地图已发送: {r['n_candidates']} 只候选")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 作战地图失败: {exc}")
 
 
 def _wzq_job() -> None:
@@ -468,6 +516,19 @@ def start() -> dict[str, Any]:
                                 timezone="Asia/Shanghai"),
             id="pattern_watch", max_instances=1, coalesce=True,
         )
+        if int(cfg.scan.pattern_fast_seconds or 0) > 0:
+            _scheduler.add_job(
+                _pattern_fast_job,
+                trigger=IntervalTrigger(seconds=max(15, int(cfg.scan.pattern_fast_seconds)),
+                                        timezone="Asia/Shanghai"),
+                id="pattern_fast", max_instances=1, coalesce=True,
+            )
+        wm_h, wm_m = cfg.scan.war_map_time.split(":")
+        _scheduler.add_job(
+            _war_map_job,
+            trigger=CronTrigger(hour=int(wm_h), minute=int(wm_m), timezone="Asia/Shanghai"),
+            id="war_map", max_instances=1, coalesce=True,
+        )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -544,6 +605,23 @@ def refresh() -> dict[str, Any]:
             trigger=CronTrigger(hour="9-14", minute=f"*/{max(1, int(cfg.scan.pattern_poll_minutes))}",
                                 timezone="Asia/Shanghai"),
             id="pattern_watch", max_instances=1, coalesce=True,
+        )
+        if _scheduler.get_job("pattern_fast"):
+            _scheduler.remove_job("pattern_fast")
+        if int(cfg.scan.pattern_fast_seconds or 0) > 0:
+            _scheduler.add_job(
+                _pattern_fast_job,
+                trigger=IntervalTrigger(seconds=max(15, int(cfg.scan.pattern_fast_seconds)),
+                                        timezone="Asia/Shanghai"),
+                id="pattern_fast", max_instances=1, coalesce=True,
+            )
+        if _scheduler.get_job("war_map"):
+            _scheduler.remove_job("war_map")
+        wm_h, wm_m = cfg.scan.war_map_time.split(":")
+        _scheduler.add_job(
+            _war_map_job,
+            trigger=CronTrigger(hour=int(wm_h), minute=int(wm_m), timezone="Asia/Shanghai"),
+            id="war_map", max_instances=1, coalesce=True,
         )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}
