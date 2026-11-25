@@ -898,6 +898,33 @@ def followup_date_pair(now: datetime | None = None) -> dict[str, str]:
     }
 
 
+def industry_map_full(ttl: int = 43200) -> dict[str, str]:
+    """全市场代码→行业映射（业绩报表「所处行业」，东财 datacenter 口径）。
+
+    与 push2 行情接口限流隔离；未披露财报的股票（次新等）缺失，
+    板块聚合检测自动忽略缺失个股。12小时缓存。
+    """
+    def fetch() -> dict[str, str] | None:
+        fn = find_function("stock_yjbb_em")
+        if not fn:
+            return None
+        out: dict[str, str] = {}
+        for rd in ("20260930", "20260630"):  # 最新已披露报告期优先
+            df = _safe_call(fn[0], date=rd)
+            if df is None or df.empty:
+                continue
+            for _, row in df.iterrows():
+                code = str(row.get("股票代码", "")).strip().zfill(6)
+                ind = str(row.get("所处行业", "")).strip()
+                if code.isdigit() and ind:
+                    out.setdefault(code, ind)
+            if out:
+                break
+        return out or None
+
+    return cache.get_or_fetch("industry_map_full", ttl, fetch) or {}
+
+
 def fund_flow_map(ttl: int = 180) -> dict[str, dict[str, float | str]]:
     """全市场个股资金流映射：代码 -> 净额/流入/流出/换手/涨跌幅。
 

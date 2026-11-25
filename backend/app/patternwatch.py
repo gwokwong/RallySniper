@@ -151,6 +151,12 @@ def poll() -> dict[str, Any]:
         if not pos:
             return {"checked": False, "reason": "无前置交易日"}
         _prepare_day(dates[pos[-1]])
+    if not state.industry_map:
+        # 板块成分中位口径的行业映射（业绩报表所处行业，与push2限流隔离）
+        try:
+            state.industry_map = ds.industry_map_full()
+        except Exception:  # noqa: BLE001
+            pass
 
     quotes = ds.spot_quote_map()
     if not quotes:
@@ -167,43 +173,66 @@ def poll() -> dict[str, Any]:
         day_alerts = state.day_alerts
         industry_map = dict(state.industry_map)
 
-    # 板块异动检测（个股聚合中位口径）：拉涨≥阈值 / 砸盘≤-阈值，每板块每日各一次
+    # 板块异动检测：优先东财行业板块指数涨跌幅（与行情软件板块口径一致）；
+    # 板块行情不可用时回退「成分股涨跌中位」口径。每板块每日每方向最多一次。
     board_th = float(cfg.scan.pattern_board_anomaly_pct)
-    ind_pcts = defaultdict(list)
-    for code, q in quotes.items():
-        ind = industry_map.get(code)
-        pct = q.get("change_pct")
-        if ind and pct is not None:
-            ind_pcts[ind].append(float(pct))
-    board_now = {ind: float(np.median(vals)) for ind, vals in ind_pcts.items() if len(vals) >= 3}
-    import sys as _s
-    for ind, bp in sorted(board_now.items(), key=lambda kv: -kv[1]):
-        if bp >= board_th and f"{ind}:拉涨" not in state.board_alerted:
-            state.board_alerted.add(f"{ind}:拉涨")
-            new.append({"code": "--", "name": f"板块·{ind}", "pattern": "板块异动·拉涨",
-                        "price": None, "pct": round(bp, 2), "vr": None,
-                        "detail": f"行业聚合涨跌中位 {bp:+.1f}%（板块内 {len(ind_pcts) and ''}{sum(1 for c, ic in industry_map.items() if ic == ind)} 只成分），"
-                                  f"该板块候选优先关注"})
-            if state.day_alerts < cap:
-                state.day_alerts += 1
-                title = f"【板块异动·拉涨】{ind} {bp:+.1f}%"
-                body = (f"{now_hm} 行业聚合涨跌中位 {bp:+.1f}%（成分 {sum(1 for c, ic in industry_map.items() if ic == ind)} 只）\n"
-                        f"该板块反包候选将优先进入主推精选；追高注意兑现节奏。")
-                notifications.add(title, body, [], kind="pattern")
-                if cfg.notification:
-                    notifier.broadcast(cfg.notification, title, body, [])
-        elif bp <= -board_th and f"{ind}:砸盘" not in state.board_alerted:
-            state.board_alerted.add(f"{ind}:砸盘")
-            new.append({"code": "--", "name": f"板块·{ind}", "pattern": "板块异动·砸盘",
-                        "price": None, "pct": round(bp, 2), "vr": None,
-                        "detail": f"行业聚合涨跌中位 {bp:+.1f}%，该板块持仓注意风险，候选暂停追入"})
-            if state.day_alerts < cap:
-                state.day_alerts += 1
-                title = f"【板块异动·砸盘】{ind} {bp:+.1f}%"
-                body = f"{now_hm} 行业聚合涨跌中位 {bp:+.1f}%（成分 {sum(1 for c, ic in industry_map.items() if ic == ind)} 只）——该板块候选暂停追入，持仓注意风险。"
-                notifications.add(title, body, [], kind="pattern")
-                if cfg.notification:
-                    notifier.broadcast(cfg.notification, title, body, [])
+
+    def _board_fire(ind: str, bp: float, members: int | None) -> None:
+        direction = "拉涨" if bp >= board_th else "砸盘"
+        if f"{ind}:{direction}" in state.board_alerted:
+            return
+        state.board_alerted.add(f"{ind}:{direction}")
+        label = (f"行业板块涨跌 {bp:+.1f}%" if members is None
+                 else f"行业聚合涨跌中位 {bp:+.1f}%（成分 {members} 只）")
+        new.append({"code": "--", "name": f"板块·{ind}", "pattern": f"板块异动·{direction}",
+                    "price": None, "pct": round(bp, 2), "vr": None, "detail": label})
+        if state.day_alerts >= cap:
+            return
+        state.day_alerts += 1
+        if direction == "拉涨":
+            title = f"【板块异动·拉涨】{ind} {bp:+.1f}%"
+            body = f"{now_hm} {label}\n该板块反包候选将优先进入主推精选；追高注意兑现节奏。"
+        else:
+            title = f"【板块异动·砸盘】{ind} {bp:+.1f}%"
+            body = f"{now_hm} {label}——该板块候选暂停追入，持仓注意风险。"
+        notifications.add(title, body, [], kind="pattern")
+        if cfg.notification:
+            notifier.broadcast(cfg.notification, title, body, [])
+
+    try:
+        bdf = ds.industry_boards()
+    except Exception:  # noqa: BLE001
+        bdf = None
+    if bdf is not None and not bdf.empty and "涨跌幅" in bdf.columns:
+        for _, row in bdf.iterrows():
+            ind = str(row.get("板块名称", "")).strip()
+            try:
+                bp = float(row.get("涨跌幅"))
+            except (TypeError, ValueError):
+                continue
+            if not ind:
+                continue
+            if bp >= board_th:
+                _board_fire(ind, bp, None)
+            elif bp <= -board_th:
+                _board_fire(ind, bp, None)
+    else:
+        # 回退：成分股中位口径（industry_map 为空时自动跳过）
+        ind_pcts: dict[str, list[float]] = defaultdict(list)
+        for code, q in quotes.items():
+            ind = industry_map.get(code)
+            pct = q.get("change_pct")
+            if ind and pct is not None:
+                ind_pcts[ind].append(float(pct))
+        members: dict[str, int] = {}
+        for c, ic in industry_map.items():
+            members[ic] = members.get(ic, 0) + 1
+        board_now = {ind: float(np.median(vals)) for ind, vals in ind_pcts.items() if len(vals) >= 3}
+        for ind, bp in sorted(board_now.items(), key=lambda kv: -kv[1]):
+            if bp >= board_th:
+                _board_fire(ind, bp, members.get(ind))
+            elif bp <= -board_th:
+                _board_fire(ind, bp, members.get(ind))
 
     for code, q in quotes.items():
         if day_alerts >= cap:
@@ -285,14 +314,17 @@ def poll() -> dict[str, Any]:
 
     with state._lock:
         state.last_new = new
-        state.day_alerts = day_alerts
+        # 板块异动直接累加在 state 上，个股计数在局部：取并集避免互相覆盖
+        state.day_alerts = max(day_alerts, state.day_alerts)
 
-    if new:
-        title = f"【形态突破】{now_hm} 新增 {len(new)} 条（今日累计 {state.day_alerts}）"
+    # 个股形态才发汇总提醒；板块异动已发专属提醒，不重复占用邮件额度
+    stock_new = [x for x in new if not str(x.get("name", "")).startswith("板块·")]
+    if stock_new:
+        title = f"【形态突破】{now_hm} 新增 {len(stock_new)} 条（今日累计 {state.day_alerts}）"
         lines = "\n".join(
             f"- {x['name']}({x['code']})【{x['pattern']}】现价{x['price']} {x['pct']:+.1f}%"
             f"（量比{x['vr'] if x['vr'] is not None else '--'}）：{x['detail']}"
-            for x in new[:20])
+            for x in stock_new[:20])
         body = (f"触发时间：{now_hm}\n{lines}\n\n"
                 "提醒：盘中形态信息，仅供观察与决策参考，不构成买卖信号。\n"
                 "「新高突破」「涨停缩量突破」经回测期望为负，仅作盘中观察，请勿作为买点依据；\n"
