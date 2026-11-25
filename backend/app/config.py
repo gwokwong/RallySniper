@@ -172,8 +172,8 @@ class ScanConfig(BaseModel):
                                     description="每日形态提醒总量上限（防刷屏）")
     pattern_board_alert: bool = Field(default=True,
                                       description="板块异动提醒：行业板块指数（或成分中位回退口径）达到阈值时提醒拉涨/砸盘（每板块每日各一次）")
-    pattern_board_anomaly_pct: float = Field(default=3.0, ge=1.0, le=10,
-                                             description="板块异动·拉涨阈值(%)：板块涨跌幅≥此值触发拉涨提醒（默认3.0）")
+    pattern_board_anomaly_pct: float = Field(default=1.9, ge=1.0, le=10,
+                                             description="板块异动·拉涨阈值(%)：板块涨跌幅≥此值触发拉涨提醒（默认1.9）")
     pattern_board_down_pct: float = Field(default=2.3, ge=0.5, le=10,
                                           description="板块异动·砸盘阈值(%)：板块涨跌幅≤-此值触发砸盘提醒（默认2.3，独立于拉涨阈值，可更灵敏）")
 

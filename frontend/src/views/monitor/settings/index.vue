@@ -450,7 +450,7 @@
             </ElRow>
             <p v-if="config.scan.pattern_watch_enabled && config.scan.pattern_board_alert" class="text-xs text-gray-400 m-0">
               口径：东财行业板块指数涨跌幅（与行情软件板块涨跌一致）；板块行情不可用时回退成分股涨跌中位。
-              砸盘阈值默认 2.3%（比拉涨 3.0% 更灵敏）；触发只发一封专属提醒，每板块每日每方向最多一次，盘中每 {{ config.scan.pattern_poll_minutes }} 分钟扫一次。
+              拉涨阈值默认 1.9%、砸盘阈值默认 2.3%；触发只发一封专属提醒，每板块每日每方向最多一次，盘中每 {{ config.scan.pattern_poll_minutes }} 分钟扫一次。
             </p>
             <p class="text-xs text-gray-400 m-0">
               末次推送（默认 14:40）无信号也会发「系统自检·推送正常」邮件，扫描异常会发异常告警——每天必有邮件，便于发现服务中断。
@@ -837,7 +837,7 @@ const config = reactive<any>({
     a_kill_skip_enabled: false, a_kill_days: 3, a_kill_down_days: 5, a_kill_cum_drop: 15.0,
     vp_combo_filter_enabled: true, vp_combo_exclude_c4: false,
     pattern_watch_enabled: true, pattern_poll_minutes: 3,
-    pattern_board_alert: true, pattern_board_anomaly_pct: 3.0, pattern_board_down_pct: 2.3,
+    pattern_board_alert: true, pattern_board_anomaly_pct: 1.9, pattern_board_down_pct: 2.3,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },
   notification: []
