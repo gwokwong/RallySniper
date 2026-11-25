@@ -116,6 +116,42 @@ def _board_of(code: str) -> str:
     return "other"
 
 
+def _ind_match(a: str, b: str) -> bool:
+    """行业名兼容匹配：涨停池所属行业与业绩报表所处行业可能存在截断差异。"""
+    a, b = (a or "").strip(), (b or "").strip()
+    if not a or not b:
+        return False
+    return a == b or a.startswith(b) or b.startswith(a)
+
+
+CONF_LABEL = {"high": "高置信(建议3x)", "normal": "普通(建议1x)", "probe": "试错(建议0.5x)"}
+
+
+def attach_confidence(signals: list[dict[str, Any]],
+                      pool_ind_cnt: dict[str, int],
+                      market_height_prev: int | None,
+                      size_tier: str | None) -> None:
+    """给信号附加置信档位（回测依据见 config 描述与 2026-11-25 因子研究）。
+
+    - probe（广度不足的试错档点火日）→ 全部试错(0.5x)
+    - high（同板块当日涨停≥4 且 昨日市场最高板≥7）→ 高置信(3x)，回测 86.6%/67笔
+    - 其余 → 普通(1x)
+    """
+    for s in signals:
+        ind = str(s.get("industry") or "")
+        bc = sum(cnt for pind, cnt in pool_ind_cnt.items() if _ind_match(ind, pind))
+        s["board_zt_count"] = bc
+        s["market_height"] = market_height_prev
+        if size_tier == "probe":
+            conf = "probe"
+        elif bc >= 4 and (market_height_prev or 0) >= 7:
+            conf = "high"
+        else:
+            conf = "normal"
+        s["confidence"] = conf
+        s["confidence_label"] = CONF_LABEL[conf]
+
+
 def pass_filter(code: str, name: str, price: float | None,
                 f: dict[str, Any]) -> tuple[bool, str]:
     """按市场筛选配置判断候选股是否纳入扫描。返回 (是否通过, 淘汰原因)。"""
@@ -274,97 +310,114 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
         # 情绪点火闸门（2026-11-21 三个月全市场 2014 笔回测）：昨日涨停股今日
         # 涨幅中位数 ≥ 阈值视为「点火日」——点火日信号胜率 44.9%（基线 22.8%），
         # 非点火日追高信号系统性亏钱，暂停开新仓。妖股模式绕过（与弱市闸门同策略）。
-            ignition: dict[str, Any] = {}
-            if cfg.market_regime.ignition_enabled and cfg.run_mode != "monster":
-                ignition = ds.ignition_premium(eff["date"])
-                # 附带阈值与运行模式，供前端/通知层判断当前是否点火
-                ignition["threshold"] = float(cfg.market_regime.ignition_threshold)
-                ignition["ignited"] = bool(
-                    not ignition.get("degraded") and ignition.get("median") is not None
-                    and float(ignition["median"]) >= float(cfg.market_regime.ignition_threshold)
-                )
-                # 炸板闸门（2026-11-25 全网因子研究）：昨日市场炸板率>阈值=资金分歧极大
-                # （情绪冰点），即使溢价达标也不点火。全部由昨日K线计算，开盘前已知。
-                # 回测（7-11月）：叠加后总收益+5.99→+8.36万，胜率51.8%→57.5%。
-                if ignition["ignited"] and cfg.market_regime.ignition_bomb_gate_enabled:
-                    try:
-                        from . import replay as _rp
-                        dts = _rp.trading_dates()
-                        pos = dts.index(eff["date"]) if eff["date"] in dts else -1
-                        prev_d = dts[pos - 1] if pos >= 1 else None
-                        br = (_rp.market_sentiment().get(prev_d, {}) or {}).get("bomb_rate") if prev_d else None
-                        br_max = float(cfg.market_regime.ignition_bomb_rate_max)
-                        ignition["bomb_rate_prev"] = br
-                        ignition["bomb_rate_max"] = br_max
-                        if br is not None and br > br_max:
-                            ignition["ignited"] = False
-                            with state._lock:
-                                state.ignition = ignition
-                            return {
-                                "success": True, "paused_by_ignition": True, "candidates": 0,
-                                "scanned": 0, "signal_count": 0, "trigger_count": 0,
-                                "watch_count": 0, "signals": [], "ignition": ignition,
-                                "market_regime": regime,
-                                "note": (f"炸板闸门：昨日市场炸板率 {br:.1f}% > {br_max:g}%，"
-                                         f"资金分歧极大（情绪冰点），暂停开新仓"),
-                                **_date_fields(),
-                            }
-                    except Exception:  # noqa: BLE001
-                        pass  # 情绪统计不可用时不拦截（降级）
-            # 广度档位（2026-11-22 阶段研究）：点火日当日涨停家数≥全仓档阈值(默认100)
-            # = 普涨高潮，信号胜率82.7%；家数不足 = 修复反弹，胜率19.8% → 建议试错1/4仓。
-            # 纯提示不拦截；硬拦截用 ignition_min_breadth。
-            today_zt = None
-            size_tier = None
-            if ignition["ignited"]:
+        pool_ind_cnt: dict[str, int] = {}
+        market_height_prev = None
+        ignition: dict[str, Any] = {}
+        if cfg.market_regime.ignition_enabled and cfg.run_mode != "monster":
+            ignition = ds.ignition_premium(eff["date"])
+            # 附带阈值与运行模式，供前端/通知层判断当前是否点火
+            ignition["threshold"] = float(cfg.market_regime.ignition_threshold)
+            ignition["ignited"] = bool(
+                not ignition.get("degraded") and ignition.get("median") is not None
+                and float(ignition["median"]) >= float(cfg.market_regime.ignition_threshold)
+            )
+            # 炸板闸门（2026-11-25 全网因子研究）：昨日市场炸板率>阈值=资金分歧极大
+            # （情绪冰点），即使溢价达标也不点火。全部由昨日K线计算，开盘前已知。
+            # 回测（7-11月）：叠加后总收益+5.99→+8.36万，胜率51.8%→57.5%。
+            if ignition["ignited"] and cfg.market_regime.ignition_bomb_gate_enabled:
                 try:
-                    detail = ds.limit_up_pool_detail(eff["date"], ttl=300)
-                    today_zt = len(detail) if detail else 0
+                    from . import replay as _rp
+                    dts = _rp.trading_dates()
+                    pos = dts.index(eff["date"]) if eff["date"] in dts else -1
+                    prev_d = dts[pos - 1] if pos >= 1 else None
+                    br = (_rp.market_sentiment().get(prev_d, {}) or {}).get("bomb_rate") if prev_d else None
+                    br_max = float(cfg.market_regime.ignition_bomb_rate_max)
+                    ignition["bomb_rate_prev"] = br
+                    ignition["bomb_rate_max"] = br_max
+                    if br is not None and br > br_max:
+                        ignition["ignited"] = False
+                        with state._lock:
+                            state.ignition = ignition
+                        return {
+                            "success": True, "paused_by_ignition": True, "candidates": 0,
+                            "scanned": 0, "signal_count": 0, "trigger_count": 0,
+                            "watch_count": 0, "signals": [], "ignition": ignition,
+                            "market_regime": regime,
+                            "note": (f"炸板闸门：昨日市场炸板率 {br:.1f}% > {br_max:g}%，"
+                                     f"资金分歧极大（情绪冰点），暂停开新仓"),
+                            **_date_fields(),
+                        }
                 except Exception:  # noqa: BLE001
-                    today_zt = None
-                tier_th = int(cfg.market_regime.ignition_tier_breadth or 100)
-                ignition["tier_th"] = tier_th
-                if today_zt is not None:
-                    size_tier = "full" if today_zt >= tier_th else "probe"
-            ignition["today_zt"] = today_zt
-            ignition["size_tier"] = size_tier
-            ignition["size_tier_label"] = {"full": "全仓档(广度普涨)", "probe": "试错档(建议1/4仓)"}.get(
-                size_tier, "档位未知(广度取数失败)")
-            # 广度确认（2026-11-22 阶段研究）：点火∧当日涨停家数≥阈值(高潮)胜率82.7%，
-            # 点火∧家数不足(修复反弹)仅14.6%——溢价高但广度不够多为一日游反弹
-            breadth = int(cfg.market_regime.ignition_min_breadth or 0)
-            if breadth > 0 and ignition["ignited"]:
-                ignition["min_breadth"] = breadth
-                if today_zt is not None and today_zt < breadth:
-                    ignition["ignited"] = False
-                    with state._lock:
-                        state.ignition = ignition
-                    return {
-                        "success": True, "paused_by_ignition": True, "candidates": 0,
-                        "scanned": 0, "signal_count": 0, "trigger_count": 0,
-                        "watch_count": 0, "signals": [], "ignition": ignition,
-                        "market_regime": regime,
-                        "note": (f"情绪点火但广度不足（今日涨停 {today_zt} 家 < {breadth}，"
-                                 f"中位溢价 {ignition.get('median'):+.2f}% 属修复反弹非高潮），暂停开新仓"),
-                        **_date_fields(),
-                    }
-            with state._lock:
-                state.ignition = ignition
-            median = ignition.get("median")
-            if not ignition.get("degraded") and median is not None \
-                    and float(median) < float(cfg.market_regime.ignition_threshold):
+                    pass  # 情绪统计不可用时不拦截（降级）
+        # 广度档位（2026-11-22 阶段研究）：点火日当日涨停家数≥全仓档阈值(默认100)
+        # = 普涨高潮，信号胜率82.7%；家数不足 = 修复反弹，胜率19.8% → 建议试错1/4仓。
+        # 纯提示不拦截；硬拦截用 ignition_min_breadth。
+        today_zt = None
+        size_tier = None
+        pool_ind_cnt: dict[str, int] = {}
+        market_height_prev = None
+        if ignition["ignited"]:
+            try:
+                detail = ds.limit_up_pool_detail(eff["date"], ttl=300)
+                today_zt = len(detail) if detail else 0
+            except Exception:  # noqa: BLE001
+                today_zt = None
+            tier_th = int(cfg.market_regime.ignition_tier_breadth or 100)
+            ignition["tier_th"] = tier_th
+            if today_zt is not None:
+                size_tier = "full" if today_zt >= tier_th else "probe"
+            # 置信档位数据（2026-11-25 因子研究）：
+            # - 同板块当日涨停家数（板块效应，池内所属行业计数）
+            # - 昨日市场最高连板高度（情绪高度，昨日K线即可知）
+            # 高置信档 = 板块≥4 且 高度≥7 → 回测 86.6% 胜率（67笔/5个月）
+            from collections import Counter as _Counter
+            pool_ind_cnt = dict(_Counter(
+                str(p.get("industry") or "").strip() for p in (detail or [])))
+            try:
+                from . import replay as _rp
+                dts2 = _rp.trading_dates()
+                pos2 = dts2.index(eff["date"]) if eff["date"] in dts2 else -1
+                prev2 = dts2[pos2 - 1] if pos2 >= 1 else None
+                market_height_prev = (_rp.market_sentiment().get(prev2, {}) or {}).get("max_streak") if prev2 else None
+            except Exception:  # noqa: BLE001
+                market_height_prev = None
+            ignition["market_height_prev"] = market_height_prev
+        ignition["today_zt"] = today_zt
+        ignition["size_tier"] = size_tier
+        ignition["size_tier_label"] = {"full": "全仓档(广度普涨)", "probe": "试错档(建议1/4仓)"}.get(
+            size_tier, "档位未知(广度取数失败)")
+        # 广度确认（2026-11-22 阶段研究）：点火∧当日涨停家数≥阈值(高潮)胜率82.7%，
+        # 点火∧家数不足(修复反弹)仅14.6%——溢价高但广度不够多为一日游反弹
+        breadth = int(cfg.market_regime.ignition_min_breadth or 0)
+        if breadth > 0 and ignition["ignited"]:
+            ignition["min_breadth"] = breadth
+            if today_zt is not None and today_zt < breadth:
+                ignition["ignited"] = False
+                with state._lock:
+                    state.ignition = ignition
                 return {
                     "success": True, "paused_by_ignition": True, "candidates": 0,
                     "scanned": 0, "signal_count": 0, "trigger_count": 0,
                     "watch_count": 0, "signals": [], "ignition": ignition,
                     "market_regime": regime,
-                    "note": (f"情绪未点火（{ignition.get('prev_date', '')} 涨停股今日中位溢价 "
-                             f"{median:+.2f}% < {cfg.market_regime.ignition_threshold:g}%），暂停开新仓"),
+                    "note": (f"情绪点火但广度不足（今日涨停 {today_zt} 家 < {breadth}，"
+                             f"中位溢价 {ignition.get('median'):+.2f}% 属修复反弹非高潮），暂停开新仓"),
                     **_date_fields(),
                 }
-        else:
-            with state._lock:
-                state.ignition = ignition
+        with state._lock:
+            state.ignition = ignition
+        median = ignition.get("median")
+        if not ignition.get("degraded") and median is not None \
+                and float(median) < float(cfg.market_regime.ignition_threshold):
+            return {
+                "success": True, "paused_by_ignition": True, "candidates": 0,
+                "scanned": 0, "signal_count": 0, "trigger_count": 0,
+                "watch_count": 0, "signals": [], "ignition": ignition,
+                "market_regime": regime,
+                "note": (f"情绪未点火（{ignition.get('prev_date', '')} 涨停股今日中位溢价 "
+                         f"{median:+.2f}% < {cfg.market_regime.ignition_threshold:g}%），暂停开新仓"),
+                **_date_fields(),
+            }
 
         with state._lock:
             state.scan_date = eff["date"]
@@ -482,6 +535,13 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
         if cap > 0 and len(signals) > cap:
             capped_note = f"信号 {len(signals)} 只超每日上限 {cap}，已随机等权抽取推送"
             signals = random.sample(signals, cap)
+        # 置信档位（2026-11-25 因子研究）：高置信=同板块当日涨停≥4且昨日市场高度≥7板
+        # （回测 86.6% 胜率，5个月67笔）；点火日全仓档普通=1x；广度不足=试错0.5x
+        try:
+            attach_confidence(signals, pool_ind_cnt, market_height_prev,
+                              size_tier if ignition.get("ignited") else None)
+        except Exception:  # noqa: BLE001
+            pass
         duration = time.time() - t0
         with state._lock:
             state.signals = signals

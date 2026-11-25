@@ -171,13 +171,26 @@ def run_market_push(push_time: str | None = None, source: str = "系统定时") 
                 f"\n【广度档位】今日涨停 {ign['today_zt']} 家（阈值 {ign.get('tier_th', 100)}）→ {tier_label}；"
                 f"试错档请按纪律控制仓位。"
             )
+            # 置信档位汇总（2026-11-25 因子研究：板块效应×情绪高度 → 高置信档回测86.6%）
+            if signals:
+                n_high = sum(1 for s in signals if s.get("confidence") == "high")
+                n_norm = sum(1 for s in signals if s.get("confidence") == "normal")
+                n_probe = sum(1 for s in signals if s.get("confidence") == "probe")
+                content += (
+                    f"\n【置信档位】高置信 {n_high} 只（同板块涨停≥4∧市场高度≥7，回测86.6%，建议3x）、"
+                    f"普通 {n_norm} 只（建议1x）"
+                    + (f"、试错 {n_probe} 只（建议0.5x）" if n_probe else "")
+                    + "；档位仅为历史回测分层，非收益承诺。"
+                )
         # 主推精选（结构化分散参考，非alpha承诺）：盈利优先→行业分散→取前3只。
         # 数据背景：点火日内按任何单一维度精选（低价/营收增速/强度）均不优于等权，
         # 此段只为资金有限时提供 2-4 只的分散结构；档位（全仓/试错）才是已验证的分层。
         trig_all = [s for s in signals if s.get("stage") == "trigger"]
         if trig_all:
             picks, seen_ind = [], set()
+            # 高置信优先入精选（回测86.6%），其余按盈利优先+行业分散
             for s in sorted(trig_all, key=lambda x: (
+                    x.get("confidence") != "high",
                     not x.get("profit_pos"), -(x.get("rev_yoy") if x.get("rev_yoy") is not None else -999),
                     -x.get("strength", 0))):
                 ind = s.get("industry") or s.get("code", "")
@@ -188,13 +201,15 @@ def run_market_push(push_time: str | None = None, source: str = "系统定时") 
                 if len(picks) >= 3:
                     break
             if picks:
-                content += "\n【主推精选·结构化分散参考】（盈利优先+行业分散；非买入承诺，生命线=涨停日最低价）"
+                content += "\n【主推精选·结构化分散参考】（高置信优先+盈利+行业分散；非买入承诺，生命线=涨停日最低价）"
                 for s in picks:
                     ry = s.get("rev_yoy")
                     fund = f"营收{'--' if ry is None else format(ry, '+.0f') + '%'}"
                     pp = "盈利" if s.get("profit_pos") else ("未知" if s.get("profit_pos") is None else "亏损")
+                    conf = s.get("confidence_label") or ""
                     content += (f"\n- ★ {s.get('name', '')}({s.get('code', '')}) 现价{s.get('price', '')}"
-                                f"｜{fund}｜{pp}｜{s.get('industry', '--')}")
+                                f"｜{fund}｜{pp}｜{s.get('industry', '--')}"
+                                + (f"｜{conf}" if conf else ""))
 
         # 逐票命中原因（战法+指标级理由+基本面），让邮件正文自带"为什么买"
         trig = [s for s in signals if s.get("stage") == "trigger"][:10]
@@ -210,9 +225,11 @@ def run_market_push(push_time: str | None = None, source: str = "系统定时") 
                     fund += f"｜{'盈利' if pp else '亏损'}"
                 if s.get("industry"):
                     fund += f"｜{s['industry']}"
+                conf = s.get("confidence_label") or ""
                 content += (f"\n- {s.get('name', '')}({s.get('code', '')})【{s.get('strategy', '')}·"
-                            f"{s.get('stage_label', '放量启动')}】现价{s.get('price', '')}{fund}："
-                            f"{'；'.join(s.get('reasons', []))}")
+                            f"{s.get('stage_label', '放量启动')}】现价{s.get('price', '')}{fund}"
+                            + (f"｜{conf}" if conf else "")
+                            + f"：{'；'.join(s.get('reasons', []))}")
         if ds.cache.is_degraded("fund_flow_map"):
             content += "\n（资金流数据源降级中，净流入可能显示为 --）"
         results = notifier.broadcast(cfg.notification, title, content, signals)
