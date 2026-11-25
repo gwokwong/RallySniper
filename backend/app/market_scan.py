@@ -126,6 +126,50 @@ def _ind_match(a: str, b: str) -> bool:
 
 CONF_LABEL = {"high": "高置信(建议3x)", "normal": "普通(建议1x)", "probe": "试错(建议0.5x)"}
 
+CONF_ORDER = {"high": 0, "normal": 1, "probe": 2}
+
+
+def recommend_allocation(signals: list[dict[str, Any]], capital: float) -> dict[str, Any]:
+    """按可用资金给出具体组合建议（A股100股/手，置信档位+盈利+行业分散优选）。
+
+    资金自管：系统只做"这一笔钱怎么开局"的参考，不预留、不跟踪仓位。
+    小资金提示：佣金普遍最低5元/笔，单笔金额过小时成本占比显著上升。
+    """
+    cands = [s for s in signals if s.get("stage") == "trigger" and s.get("price")]
+    cands.sort(key=lambda s: (CONF_ORDER.get(s.get("confidence"), 1),
+                              not s.get("profit_pos"),
+                              -(s.get("rev_yoy") if s.get("rev_yoy") is not None else -999),
+                              -s.get("strength", 0)))
+    n_target = 1 if capital < 3000 else 2 if capital < 6000 else 3 if capital < 10000 else 4
+    alloc: list[dict[str, Any]] = []
+    used = 0.0
+    seen_ind: set[str] = set()
+    for s in cands:
+        if len(alloc) >= n_target:
+            break
+        ind = str(s.get("industry") or s["code"])
+        if ind in seen_ind:
+            continue  # 行业分散
+        price = float(s["price"])
+        lots = int(capital // max(1, n_target) // (100 * price))
+        if lots < 1:
+            continue  # 单只手数买不起，换下一候选
+        seen_ind.add(ind)
+        amt = round(lots * 100 * price, 2)
+        used += amt
+        alloc.append({"code": s["code"], "name": s.get("name", s["code"]),
+                      "price": price, "lots": lots, "shares": lots * 100, "amount": amt,
+                      "confidence": s.get("confidence"), "confidence_label": s.get("confidence_label", "")})
+    residual = round(capital - used, 2)
+    fee_est = 0.0
+    for a in alloc:
+        fee_est += max(5.0, a["amount"] * 0.00025) * 2  # 买卖双边，万2.5、最低5元/笔（常见券商水平）
+    fee_est = round(fee_est, 2)
+    return {"capital": capital, "n_target": n_target, "alloc": alloc,
+            "invested": round(used, 2), "residual": residual, "fee_est": fee_est,
+            "note": ("佣金按万2.5、单笔最低5元估算；小资金单笔<2000元时成本占比偏高，"
+                     "宁少一只也别摊太薄。") if capital < 6000 and alloc else ""}
+
 
 def attach_confidence(signals: list[dict[str, Any]],
                       pool_ind_cnt: dict[str, int],

@@ -360,6 +360,10 @@ class AppConfig(BaseModel):
                     "monster=抓妖股（弱市照开+连板加速+厚利放宽止损且不移动止盈）",
     )
     watchlist: list[str] = Field(default_factory=lambda: ["600519", "000858", "300750"])
+    available_capital: float = Field(default=0.0, ge=0,
+                                     description="可用资金(元)，0=不做资金分配建议。设置后点火推送自动给出"
+                                                 "具体组合：几只、每只几手、金额、留存现金与佣金预估（按置信档位+"
+                                                 "盈利+行业分散优选，100股/手最小单位折算）。资金自管，系统不预留")
     holdings: list[str] = Field(default_factory=list, description="已标记为持有的股票代码")
     holding_costs: dict[str, float] = Field(default_factory=dict,
                                             description="持仓成本价 {code: 买入价}，用于浮盈分档止损")

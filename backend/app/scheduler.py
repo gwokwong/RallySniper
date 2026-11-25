@@ -241,6 +241,28 @@ def run_market_push(push_time: str | None = None, source: str = "系统定时") 
                     + (f"、试错 {n_probe} 只（建议0.5x）" if n_probe else "")
                     + "；档位仅为历史回测分层，非收益承诺。"
                 )
+            # 资金分配建议（用户自管仓位，系统不预留）：按 available_capital 给具体组合
+            cap_amt = float(getattr(cfg, "available_capital", 0) or 0)
+            if cap_amt > 0:
+                try:
+                    al = market_scan.recommend_allocation(signals, cap_amt)
+                    if al.get("alloc"):
+                        content += (f"\n【资金分配建议】可用 {al['capital']:g} 元 → 建议 {len(al['alloc'])} 只"
+                                    f"（目标每只约 {al['capital'] / max(1, al['n_target']):g} 元，行业分散）")
+                        for a in al["alloc"]:
+                            conf = a.get("confidence_label") or ""
+                            content += (f"\n- ★ {a['name']}({a['code']}) 现价{a['price']}"
+                                        f"｜{a['lots']}手={a['shares']}股≈{a['amount']:g}元"
+                                        + (f"｜{conf}" if conf else ""))
+                        content += (f"\n合计投入约 {al['invested']:g} 元，留存现金约 {al['residual']:g} 元，"
+                                    f"双边佣金约 {al['fee_est']:g} 元。"
+                                    + (f"（{al['note']}）" if al.get("note") else "") +
+                                    "\n仅为按最小交易单位的参考开局，仓位由你自行控制。")
+                    else:
+                        content += (f"\n【资金分配建议】可用 {cap_amt:g} 元：今日信号价格超出可买范围"
+                                    f"（单只最低需 100股×现价），无法按 {al['n_target'] if isinstance(al, dict) else 1} 只组合建仓。")
+                except Exception:  # noqa: BLE001
+                    pass
         # 主推精选（结构化分散参考，非alpha承诺）：盈利优先→行业分散→取前3只。
         # 数据背景：点火日内按任何单一维度精选（低价/营收增速/强度）均不优于等权，
         # 此段只为资金有限时提供 2-4 只的分散结构；档位（全仓/试错）才是已验证的分层。

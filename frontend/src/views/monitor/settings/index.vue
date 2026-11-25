@@ -699,6 +699,16 @@
             <ElFormItem label="每次扫描最多推送（0=不限）">
               <ElInputNumber v-model="config.market_filter.daily_signal_cap" :min="0" :max="200" :step="5" style="width:100%" />
             </ElFormItem>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">可用资金（点火推送自动给出具体组合：几只/几手/留多少现金）</span>
+            </div>
+            <ElFormItem label="可用资金(元)，0=不推荐">
+              <ElInputNumber v-model="config.available_capital" :min="0" :max="10000000" :step="1000" style="width:100%" />
+            </ElFormItem>
+            <p class="text-xs text-gray-400 m-0">
+              按 100 股/手折算，高置信优先+盈利+行业分散优选；买不起的自动跳过；附留存现金与佣金预估。资金自管，系统不预留不跟踪。
+            </p>
             <p class="text-xs text-gray-400">
               回测提示：点火日信号会集中爆发（单日最多 71 只，单只 1 万需 71 万资金）。按资金量设 10~20 可控占用，
               超出部分随机等权抽取（强度排序已被回测证伪，高分=追高，不采用）。每日上限 20 的回测总营收约为不限的 40%，峰值资金占用从 71 万降到 20 万。
