@@ -483,25 +483,34 @@ def _strategy_strong_continue(d: pd.DataFrame, r: dict[str, Any]) -> dict[str, A
 
 
 def recent_a_kill(d: pd.DataFrame, r: dict[str, Any]) -> bool:
-    """买入过滤：近 N 个交易日内（含今日）出现过「A杀」→ 不碰。
+    """买入过滤：刚经历「多日连跌A杀」触底后的 N 个交易日内 → 不碰。
 
-    A杀定义（冲高-跳水长上影）：当日盘中冲高 ≥ a_kill_high_pct%（默认5%），
-    且收盘较盘中高点回落 ≥ a_kill_fall_pct%（默认6%）——两者都相对昨收。
-    两条件同时成立意味着收盘涨幅 ≤ -1%，即冲高后大幅跳水。
-    检查窗口 = a_kill_days（默认3）个交易日内（含今日）出现过 A杀日。
+    A杀定义（多日连跌，杀到很低的位置）：连续 a_kill_down_days（默认5）个交易日
+    收盘逐日走低，且从连跌段前收盘到段底收盘的累计跌幅 ≥ a_kill_cum_drop（默认15%）。
+    「触底」= 连跌段最后一根K线；触底日仍在 a_kill_days（默认3）个交易日内
+    （含今日），或今日仍在连跌中（底=今日），都视为「刚经历A杀」不碰。
     """
     days = max(0, int(r.get("a_kill_days", 3) or 0))
-    hp_th = float(r.get("a_kill_high_pct", 5.0) or 5.0)
-    fp_th = float(r.get("a_kill_fall_pct", 6.0) or 6.0)
-    if days <= 0 or len(d) < 2:
+    down_n = max(2, int(r.get("a_kill_down_days", 5) or 5))
+    drop_th = float(r.get("a_kill_cum_drop", 15.0) or 15.0)
+    if days <= 0 or len(d) < down_n + 2:
         return False
-    tail = min(len(d), days + 3)  # 多取2行保证 shift(1) 的昨收可用
-    sub = d.iloc[-tail:]
-    pc = sub["close"].shift(1)
-    hp = (sub["high"] / pc - 1) * 100        # 盘中冲高幅度
-    fall = (sub["high"] - sub["close"]) / pc * 100  # 收盘距高点回落幅度
-    kill = (hp >= hp_th) & (fall >= fp_th)
-    return bool(kill.iloc[-(days + 1):].fillna(False).any())
+    closes = d["close"].astype(float).to_numpy()
+    n = len(closes)
+    # 只把「触底日 + 其后 days-1 日」内的位置当作候选段底：今日仍在连跌 → 底=今日，
+    # 底部至今不足 days 个交易日都算「刚经历A杀」
+    for e in range(n - 1, n - 2 - days, -1):
+        s0 = e - down_n  # 段前一日下标（连跌为 s0+1..e 共 down_n 天）
+        if s0 < 0:
+            break
+        seg = closes[s0 + 1: e + 1]
+        # 连续下跌：每天都比前一天收盘低
+        if not all(seg[i] < seg[i - 1] for i in range(1, len(seg))):
+            continue
+        if (closes[e] / closes[s0] - 1) * 100 >= -drop_th:
+            continue
+        return True  # 合格A杀段且段底在近 days 日内
+    return False
 
 
 def _strategy_wash_reversal(d: pd.DataFrame, r: dict[str, Any]) -> dict[str, Any]:

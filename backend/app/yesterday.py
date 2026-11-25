@@ -10,7 +10,7 @@ import threading
 from datetime import datetime
 from typing import Any
 
-from . import datasource as ds, mainwave
+from . import datasource as ds, mainwave, scanstore
 
 
 class YesterdayState:
@@ -25,6 +25,8 @@ class YesterdayState:
         self.market_label: str | None = None
         self.rows: list[dict[str, Any]] = []
         self.summary: dict[str, int] = {}
+        self.source: str | None = None    # 上一次扫描来源：手动刷新/手动推送/系统定时
+        self.saved_at: str | None = None
         self._lock = threading.RLock()
 
     def snapshot(self) -> dict[str, Any]:
@@ -40,10 +42,17 @@ class YesterdayState:
                 "market_label": self.market_label,
                 "total": len(self.rows),
                 "summary": dict(self.summary),
+                "source": self.source,
+                "saved_at": self.saved_at,
             }
 
 
 state = YesterdayState()
+
+
+def last_persisted() -> dict[str, Any] | None:
+    """落盘的上一次昨日涨停（内存态为空时作回退）。"""
+    return scanstore.load("yesterday")
 
 
 def _market_board(code: str) -> str:
@@ -101,11 +110,12 @@ def classify(code: str, name: str, prev: dict[str, Any],
     return "平开震荡", "涨跌幅有限，暂无方向"
 
 
-def scan_yesterday() -> dict[str, Any]:
+def scan_yesterday(source: str = "手动刷新") -> dict[str, Any]:
     """拉取涨停基准日涨停池 + 表现观察日行情，生成分类明细与统计。
 
     口径：今天看昨天 —— 取「涨停基准日」的涨停池，观察这些票在「表现观察日」的走势。
     交易日：周四涨停 → 周五表现；周末：周四涨停 → 周五收盘表现（行情接口反映最近交易日）。
+    成功后落盘为「上一次昨日涨停」（含来源标注，重启不丢）。
     """
     with state._lock:
         if state.running:
@@ -164,6 +174,18 @@ def scan_yesterday() -> dict[str, Any]:
         market = ds.market_status()
         with state._lock:
             state.market_label = market["label"]
+            state.source = source
+            state.saved_at = now
+        try:
+            scanstore.save("yesterday", {
+                "source": source, "time": now,
+                "base_date": base_date, "observe_date": observe_date,
+                "base_label": pair["base_label"], "observe_label": pair["observe_label"],
+                "total": len(rows), "summary": summary, "rows": rows,
+                "market_status": market["label"],
+            })
+        except Exception:  # noqa: BLE001
+            pass
         return {
             "success": True, "time": now,
             "trade_date": base_date,  # 兼容旧字段

@@ -663,27 +663,30 @@
             </p>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
-              <span class="text-xs text-gray-500">A杀过滤（冲高跳水长上影后N个交易日内不碰）</span>
+              <span class="text-xs text-gray-500">A杀过滤（多日连跌杀到低位，触底后N个交易日内不碰）</span>
               <ElSwitch v-model="config.market_filter.a_kill_skip_enabled" size="small" />
             </div>
-            <ElFormItem v-if="config.market_filter.a_kill_skip_enabled" label="回看交易日数">
-              <ElInputNumber v-model="config.market_filter.a_kill_days" :min="0" :max="10" style="width:100%" />
-            </ElFormItem>
             <ElRow v-if="config.market_filter.a_kill_skip_enabled" :gutter="12">
-              <ElCol :span="12">
-                <ElFormItem label="盘中冲高幅度≥(%)">
-                  <ElInputNumber v-model="config.market_filter.a_kill_high_pct" :min="1" :max="19" :step="0.5" style="width:100%" />
+              <ElCol :span="8">
+                <ElFormItem label="触底后不碰(交易日)">
+                  <ElInputNumber v-model="config.market_filter.a_kill_days" :min="0" :max="10" style="width:100%" />
                 </ElFormItem>
               </ElCol>
-              <ElCol :span="12">
-                <ElFormItem label="高点回落幅度≥(%)">
-                  <ElInputNumber v-model="config.market_filter.a_kill_fall_pct" :min="1" :max="19" :step="0.5" style="width:100%" />
+              <ElCol :span="8">
+                <ElFormItem label="连续下跌天数≥">
+                  <ElInputNumber v-model="config.market_filter.a_kill_down_days" :min="2" :max="20" style="width:100%" />
+                </ElFormItem>
+              </ElCol>
+              <ElCol :span="8">
+                <ElFormItem label="累计跌幅≥(%)">
+                  <ElInputNumber v-model="config.market_filter.a_kill_cum_drop" :min="5" :max="50" :step="1" style="width:100%" />
                 </ElFormItem>
               </ElCol>
             </ElRow>
             <p v-if="config.market_filter.a_kill_skip_enabled" class="text-xs text-gray-400 m-0">
-              ⚠️ 回测证伪提示（7-11月）：被此过滤剔除的 111 笔信号反而盈利（胜率 54.1% / +1.93万，优于保留集 49.0%）——
-              A杀日往往就是洗盘反包的「洗盘日」，过滤会把核心形态剔除。默认关闭，仅供实盘对照验证。
+              ⚠️ 回测证伪提示（7-11月，连跌≥5天且累计≥15%，触底后3日）：被过滤的 56 笔反而更强
+              （胜率 57.1% / 平均+3.09% vs 其余 49.3% / +0.77%）——深跌后的反包涨停是「超跌深度洗盘」形态，
+              质量更高。默认关闭，仅供实盘对照验证。
             </p>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
@@ -796,7 +799,7 @@ const config = reactive<any>({
     ma10_consec_enabled: true, ma10_consec_days: 2,
     touch_ma10_exit_enabled: true, touch_ma10_count: 4, touch_ma10_window: 30,
     touch_strong_reset_enabled: false, touch_strong_pct: 5.0,
-    a_kill_skip_enabled: false, a_kill_days: 3, a_kill_high_pct: 5.0, a_kill_fall_pct: 6.0,
+    a_kill_skip_enabled: false, a_kill_days: 3, a_kill_down_days: 5, a_kill_cum_drop: 15.0,
     pattern_watch_enabled: true, pattern_poll_minutes: 3,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },

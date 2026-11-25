@@ -8,6 +8,7 @@ defineOptions({ name: 'YesterdayFollow' })
 
 const rows = ref<YesterdayRow[]>([])
 const snapshot = ref<any>({})
+const lastInfo = ref<any>(null)   // 上一次结果来源 + 时间
 const category = ref('all')
 const loading = ref(false)
 const pushing = ref(false)
@@ -31,6 +32,7 @@ async function loadData() {
     const res = await monitorApi.yesterdaySnapshot()
     rows.value = res?.rows || []
     snapshot.value = res?.snapshot || {}
+    lastInfo.value = res?.last || null
   } catch { /* 请求层已提示 */ }
 }
 
@@ -65,6 +67,12 @@ onMounted(loadData)
           <div class="flex items-center gap-2">
             <span class="text-lg font-semibold">昨日涨停跟进</span>
             <ElTag type="danger" size="small" effect="dark">10:30 / 14:40 简报</ElTag>
+            <ElTag v-if="lastInfo?.source" size="small" effect="plain">
+              {{ lastInfo.source }} · {{ (lastInfo.saved_at || '').replace('T', ' ') }}
+            </ElTag>
+            <ElTag v-else-if="snapshot.last_scan" size="small" effect="plain">
+              上次更新 {{ snapshot.last_scan.replace('T', ' ') }}
+            </ElTag>
           </div>
           <p class="text-sm text-gray-500 mt-2">
             今天看昨天：观察

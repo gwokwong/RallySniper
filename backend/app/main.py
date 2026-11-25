@@ -666,45 +666,68 @@ def market_scan_status() -> dict[str, Any]:
 def market_scan_now(push: bool = False) -> dict[str, Any]:
     """手动触发一次全市场扫描。push=true 时同时发站内通知与邮件。"""
     if push:
-        return ok(scheduler.run_market_push(datetime.now().strftime("%H:%M")))
+        return ok(scheduler.run_market_push(datetime.now().strftime("%H:%M"), source="手动推送"))
     result = market_scan.scan_market()
+    if result.get("success"):
+        market_scan.persist_last_scan(result, "手动扫描")
     return ok(result)
 
 
 @app.get("/api/market/signals")
 def market_signals() -> dict[str, Any]:
-    """返回最近一次全市场扫描的命中信号。"""
-    return ok({
-        "snapshot": market_scan.state.snapshot(),
-        "signals": market_scan.latest_signals(),
-    })
+    """返回最近一次全市场扫描的命中信号（内存态为空时回退到落盘快照，重启不丢）。"""
+    snap = market_scan.state.snapshot()
+    signals = market_scan.latest_signals()
+    last: dict[str, Any] | None = None
+    if not signals:
+        persisted = market_scan.last_scan_persisted()
+        if persisted:
+            signals = persisted.get("signals") or []
+            snap = {**snap, **(persisted.get("snapshot") or {})}
+            last = {"saved_at": persisted.get("saved_at"), "source": persisted.get("source")}
+    else:
+        last = {"saved_at": snap.get("last_saved_at"), "source": snap.get("last_source")}
+    return ok({"snapshot": snap, "signals": signals, "last": last})
 
 
 @app.post("/api/market/push-now")
 def market_push_now() -> dict[str, Any]:
     """立即按双时点推送逻辑执行一次（用于验证站内+邮件链路）。"""
-    return ok(scheduler.run_market_push(datetime.now().strftime("%H:%M")))
+    return ok(scheduler.run_market_push(datetime.now().strftime("%H:%M"), source="手动推送"))
 
 
 # ----------------------------- 昨日涨停跟进 -----------------------------
 
 @app.get("/api/yesterday/snapshot")
 def yesterday_snapshot() -> dict[str, Any]:
+    """昨日涨停跟进快照（内存态为空时回退到落盘快照，重启不丢）。"""
+    snap = yesterday.latest_snapshot()
+    rows = yesterday.latest()
+    last: dict[str, Any] | None = None
+    if not rows:
+        persisted = yesterday.last_persisted()
+        if persisted:
+            rows = persisted.get("rows") or []
+            last = {"saved_at": persisted.get("saved_at"), "source": persisted.get("source"),
+                    "base_label": persisted.get("base_label"),
+                    "observe_label": persisted.get("observe_label")}
+    else:
+        last = {"saved_at": snap.get("saved_at"), "source": snap.get("source"),
+                "base_label": snap.get("base_label"), "observe_label": snap.get("observe_label")}
     return ok({
-        "snapshot": yesterday.latest_snapshot(),
-        "rows": yesterday.latest(),
+        "snapshot": snap, "rows": rows, "last": last,
         "times": ["10:30", "14:40"],
     })
 
 
 @app.post("/api/yesterday/scan")
 def yesterday_scan() -> dict[str, Any]:
-    return ok(yesterday.scan_yesterday())
+    return ok(yesterday.scan_yesterday(source="手动扫描"))
 
 
 @app.post("/api/yesterday/push-now")
 def yesterday_push_now() -> dict[str, Any]:
-    return ok(scheduler.run_yesterday_push(datetime.now().strftime("%H:%M")))
+    return ok(scheduler.run_yesterday_push(datetime.now().strftime("%H:%M"), source="手动推送"))
 
 
 # ----------------------------- 持仓卖出风控 -----------------------------

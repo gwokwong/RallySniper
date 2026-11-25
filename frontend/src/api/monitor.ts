@@ -194,7 +194,7 @@ export const monitorApi = {
   marketScan: (push = false) =>
     request.post<any>({ url: `/api/market/scan?push=${push}` }),
   marketSignals: () =>
-    request.get<{ snapshot: any; signals: MarketSignal[] }>({ url: '/api/market/signals' }),
+    request.get<{ snapshot: any; signals: MarketSignal[]; last?: { saved_at?: string; source?: string } | null }>({ url: '/api/market/signals' }),
   marketScanStatus: () => request.get<any>({ url: '/api/market/scan-status' }),
   marketReplay: (date: string) =>
     request.get<any>({ url: `/api/market/replay?date=${date}`, timeout: 120000 }),
@@ -206,7 +206,7 @@ export const monitorApi = {
 
   /** 昨日涨停跟进 */
   yesterdaySnapshot: () => request.get<{
-    snapshot: any; rows: YesterdayRow[]; times: string[]
+    snapshot: any; rows: YesterdayRow[]; times: string[]; last?: { saved_at?: string; source?: string } | null
   }>({ url: '/api/yesterday/snapshot' }),
   yesterdayScan: () => request.post<any>({ url: '/api/yesterday/scan' }),
   yesterdayPush: () => request.post<any>({ url: '/api/yesterday/push-now' }),

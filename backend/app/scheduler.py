@@ -12,7 +12,7 @@ from typing import Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, patternwatch, replay, wzqwatch
+from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, patternwatch, replay, scanstore, wzqwatch
 from . import sellwatch, yesterday
 import json
 
@@ -130,11 +130,12 @@ def _cache_refresh_job() -> None:
         print(f"[scheduler] K线缓存刷新失败: {exc}")
 
 
-def run_market_push(push_time: str | None = None) -> dict[str, Any]:
-    """执行一次全市场扫描 + 站内通知 + 邮件推送。"""
+def run_market_push(push_time: str | None = None, source: str = "系统定时") -> dict[str, Any]:
+    """执行一次全市场扫描 + 站内通知 + 邮件推送（成功后落盘为「上一次全市场机会」）。"""
     result = market_scan.scan_market(push_time=push_time)
     if not result.get("success"):
         return result
+    market_scan.persist_last_scan(result, source)
 
     signals = result.get("signals", [])
     label = push_time or datetime.now().strftime("%H:%M")
@@ -247,9 +248,9 @@ def _mail_rows(signals: list[dict[str, Any]], kind: str) -> list[dict[str, Any]]
     return rows
 
 
-def run_yesterday_push(push_time: str) -> dict[str, Any]:
-    """昨日涨停跟进简报：扫描 + 站内通知 + 邮件。"""
-    result = yesterday.scan_yesterday()
+def run_yesterday_push(push_time: str, source: str = "系统定时") -> dict[str, Any]:
+    """昨日涨停跟进简报：扫描 + 站内通知 + 邮件（成功后落盘为「上一次昨日涨停」）。"""
+    result = yesterday.scan_yesterday(source=source)
     if not result.get("success"):
         return result
     title, body, mail_rows = yesterday.brief_lines()
@@ -308,6 +309,12 @@ def _job(push_time: str, heartbeat: bool = False) -> None:
         # 若无闸门会拿最近交易日数据重复推送（2026-11-21 审计确认的缺口）
         if ds.market_status()["status"] == "closed":
             return
+        # 跨进程防重：双进程误并存（如 systemd + 手动 nohup）时两个调度器会在
+        # 同一时点各自推送造成重复邮件，只有抢到令牌的进程真正发送
+        tdate = ds.effective_trading_date()["date"]
+        if not scanstore.claim_once(f"market_{tdate}_{push_time}"):
+            print(f"[scheduler] {push_time} 全市场推送已有进程执行（防重跳过）")
+            return
         result = run_market_push(push_time)
         if heartbeat and not result.get("signals"):
             if result.get("success"):
@@ -332,6 +339,11 @@ def _job(push_time: str, heartbeat: bool = False) -> None:
 def _yesterday_job(push_time: str) -> None:
     try:
         if ds.market_status()["status"] not in ("trading", "lunch"):
+            return
+        # 跨进程防重（同 _job）：10:30 双进程并存时的重复邮件由此拦截
+        tdate = ds.effective_trading_date()["date"]
+        if not scanstore.claim_once(f"yesterday_{tdate}_{push_time}"):
+            print(f"[scheduler] {push_time} 昨日涨停简报已有进程执行（防重跳过）")
             return
         run_yesterday_push(push_time)
     except Exception as exc:  # noqa: BLE001

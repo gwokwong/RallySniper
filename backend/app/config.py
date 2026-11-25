@@ -325,15 +325,15 @@ class MarketFilterConfig(BaseModel):
                                               "(单只1万需71万资金)，按资金量设10~20可控制占用；随机等权抽签，"
                                               "强度排序已被回测证伪(高分=追高)不采用")
     a_kill_skip_enabled: bool = Field(default=False,
-                                      description="A杀过滤：近N个交易日内出现冲高跳水长上影(A杀)的股票不产生买入信号。"
-                                                  "7-11月回测证伪：被过滤的111笔反而盈利(胜率54.1%/+1.93万，优于保留集49.0%)——"
-                                                  "A杀日往往就是洗盘反包的洗盘日，过滤会把核心形态剔除；默认关闭，供实盘对照")
+                                      description="A杀过滤：多日连跌(≥5天且累计≥15%)触底后N个交易日内的股票不产生买入信号。"
+                                                  "7-11月回测证伪：被过滤的56笔反而更强(胜率57.1%/+3.09% vs 其余49.3%/+0.77%)——"
+                                                  "深跌后的反包涨停是超跌深度洗盘形态，质量更高；默认关闭供实盘对照")
     a_kill_days: int = Field(default=3, ge=0, le=10,
-                             description="A杀过滤回看交易日数：A杀日及随后N-1个交易日内不碰(默认3)")
-    a_kill_high_pct: float = Field(default=5.0, ge=1.0, le=19.0,
-                                   description="A杀判定：盘中冲高幅度≥此值(%)，相对昨收")
-    a_kill_fall_pct: float = Field(default=6.0, ge=1.0, le=19.0,
-                                   description="A杀判定：收盘较盘中高点回落≥此值(%)，相对昨收")
+                             description="触底后不碰交易日数：A杀触底日及随后N-1个交易日内不碰(默认3)")
+    a_kill_down_days: int = Field(default=5, ge=2, le=20,
+                                  description="A杀判定：连续下跌交易日数≥此值(默认5天连跌)")
+    a_kill_cum_drop: float = Field(default=15.0, ge=5.0, le=50.0,
+                                   description="A杀判定：连跌段累计跌幅≥此值(%)，从段前收盘到段底(默认15%)")
 
 
 class AppConfig(BaseModel):

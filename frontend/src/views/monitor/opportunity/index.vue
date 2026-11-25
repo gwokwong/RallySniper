@@ -8,6 +8,7 @@ defineOptions({ name: 'MarketOpportunity' })
 
 const signals = ref<MarketSignal[]>([])
 const snapshot = ref<any>({})
+const lastInfo = ref<any>(null)   // 上一次结果来源：手动扫描/手动推送/系统定时 + 时间
 const status = ref<any>({})
 const loading = ref(false)
 const pushing = ref(false)
@@ -90,6 +91,7 @@ async function loadData() {
     ])
     signals.value = sigRes?.signals || []
     snapshot.value = sigRes?.snapshot || {}
+    lastInfo.value = sigRes?.last || null
     status.value = statusRes || {}
     watchCodes.value = watchRes?.codes || []
   } catch { /* 请求层已提示 */ }
@@ -201,7 +203,12 @@ onMounted(loadData)
         <ElCard shadow="never">
           <div class="text-sm text-gray-500">数据交易日</div>
           <div class="text-lg font-semibold mt-1">{{ snapshot.scan_date_label || '待扫描' }}</div>
-          <div class="text-xs text-gray-400 mt-1">上次扫描 {{ snapshot.last_scan ? snapshot.last_scan.replace('T',' ') : '--' }}</div>
+          <div class="text-xs text-gray-400 mt-1">
+            上次扫描 {{ (lastInfo?.saved_at || snapshot.last_scan || '').replace('T', ' ') || '--' }}
+            <ElTag v-if="lastInfo?.source || snapshot.last_source" size="small" effect="plain" class="ml-1">
+              {{ lastInfo?.source || snapshot.last_source }}
+            </ElTag>
+          </div>
         </ElCard>
       </ElCol>
       <ElCol :span="6">

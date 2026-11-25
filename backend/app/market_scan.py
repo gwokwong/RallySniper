@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any
 
-from . import datasource as ds, mainwave
+from . import datasource as ds, mainwave, scanstore
 from .config import effective_config, load_config
 
 
@@ -41,6 +41,8 @@ class MarketScanState:
         self.market_regime: dict[str, Any] = {}
         self.ignition: dict[str, Any] = {}
         self.run_mode: str = "stable"
+        self.last_source: str | None = None   # 上一次扫描来源：手动扫描/手动推送/系统定时
+        self.last_saved_at: str | None = None
         self._lock = threading.RLock()
 
     def snapshot(self) -> dict[str, Any]:
@@ -62,10 +64,30 @@ class MarketScanState:
                 "market_regime": dict(self.market_regime),
                 "ignition": dict(self.ignition),
                 "run_mode": self.run_mode,
+                "last_source": self.last_source,
+                "last_saved_at": self.last_saved_at,
             }
 
 
 state = MarketScanState()
+
+
+def persist_last_scan(result: dict[str, Any], source: str) -> None:
+    """成功扫描后保存「上一次全市场机会」快照（含来源标注，重启不丢）。"""
+    with state._lock:
+        state.last_source = source
+        state.last_saved_at = datetime.now().isoformat(timespec="seconds")
+    try:
+        scanstore.save("scan", {"source": source,
+                                "snapshot": state.snapshot(),
+                                "signals": result.get("signals", [])})
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def last_scan_persisted() -> dict[str, Any] | None:
+    """落盘的上一次全市场机会（内存态为空时作回退）。"""
+    return scanstore.load("scan")
 
 
 def _date_fields() -> dict[str, Any]:
