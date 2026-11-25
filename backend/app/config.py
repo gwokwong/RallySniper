@@ -202,6 +202,10 @@ class SellConfig(BaseModel):
                                       description="缩量跌停量比上限(默认0.5)，量比≤此值且跌幅达标才算缩量跌停")
     shrink_limit_drop: float = Field(default=0.095, ge=0.05, le=0.2,
                                      description="缩量跌停跌幅门槛(默认9.5%)")
+    ma10_consec_enabled: bool = Field(default=True,
+                                      description="MA10连续破位卖出：连续N天收盘跌破MA10即确认卖出（第4通道）")
+    ma10_consec_days: int = Field(default=2, ge=2, le=10,
+                                  description="MA10连续破位天数：连续N天收盘<MA10即触发")
     cooldown_enabled: bool = Field(default=True, description="是否启用确认冷却期(同一波下跌不重复发确认邮件)")
     cooldown_reset_pct: float = Field(default=0.03, ge=0.005, le=0.2,
                                       description="冷却重置：股价较上次确认价上涨超此比例视为创新高，允许新一轮确认")

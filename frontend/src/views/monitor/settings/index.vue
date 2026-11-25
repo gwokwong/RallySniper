@@ -673,6 +673,14 @@
               7-11月回测：营收同比&gt;10% 的信号 53% 胜率 / 平均+2.73% / 总营收+3.2万，优于全部信号（46% / +0.99% / +2.7万）。
               业绩缺失（未披露/次新）默认保留并标注；不使用净利润因子——回测显示亏损股反有困境反转溢价。
             </p>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">MA10 连续破位卖出（连续N天收盘跌破MA10即确认，第4通道）</span>
+              <ElSwitch v-model="config.sell.ma10_consec_enabled" size="small" />
+            </div>
+            <ElFormItem v-if="config.sell.ma10_consec_enabled" label="连续天数">
+              <ElInputNumber v-model="config.sell.ma10_consec_days" :min="2" :max="10" style="width:100%" />
+            </ElFormItem>
             <p class="text-xs text-gray-400 mt-1">
               默认排除 ST 与北交所，主板/科创/创业全开，价格不限。筛选在候选阶段生效，可显著减少扫描耗时。
             </p>
@@ -736,6 +744,7 @@ const config = reactive<any>({
     intraday_interval_minutes: 5, confirm_time: '14:50', notify_times: 2,
     kline_refresh_time: '15:10', daily_check_time: '09:20',
     wzq_watch_enabled: true, wzq_watch_time: '15:20',
+    ma10_consec_enabled: true, ma10_consec_days: 2,
     pattern_watch_enabled: true, pattern_poll_minutes: 3,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },

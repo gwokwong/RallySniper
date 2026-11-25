@@ -234,6 +234,26 @@ def _evaluate(code: str, name: str, quote: dict[str, Any],
             peak = max(highs[-21:-1]) if len(highs) >= 21 else (max(highs) if highs else cur)
             out.append({**common, "strategy": "急跌破位",
                         "level": "确认", "reasons": reasons, "peak": round(peak, 2)})
+    # 4) MA10连续破位（第4通道）：连续N天收盘跌破MA10即确认卖出。
+    #    比 MA20 三通道更快，比单日急跌更稳——两根K线确认趋势而非噪音。
+    #    与 ma10_confirm（单日大跌破MA10）不同：不需要跌幅门槛，纯粹趋势跟随。
+    ma10_consec_on = bool(rules.get("ma10_consec_enabled", True))
+    ma10_consec_n = max(2, int(rules.get("ma10_consec_days", 2)))
+    if ma10_consec_on and ma10 > 0:
+        consec = 0
+        for j in range(len(closes) - 1, max(0, len(closes) - ma10_consec_n - 2), -1):
+            ma10_j = float(pd.Series(closes[:j + 1]).rolling(10).mean().iloc[-1]) if j >= 9 else None
+            if ma10_j and closes[j] < ma10_j:
+                consec += 1
+            else:
+                break
+        if consec >= ma10_consec_n:
+            reasons = [f"连续{consec}天收盘跌破MA10({ma10:.2f})，趋势转弱"]
+            reasons.append("尾盘确认，按纪律执行")
+            out.append({**common, "strategy": "MA10连续破位",
+                        "level": "确认" if mode == "confirm" else "预警",
+                        "reasons": reasons})
+
     return out
 
 
