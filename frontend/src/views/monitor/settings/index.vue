@@ -894,7 +894,7 @@ const config = reactive<any>({
     vp_combo_filter_enabled: true, vp_combo_exclude_c4: false,
     pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25',
     pattern_board_alert: true, pattern_board_anomaly_pct: 1.9, pattern_board_down_pct: 2.3,
-    available_capital: 8000, alloc_max_count: 2, commission_rate: 0.0001, commission_min: 0,
+    available_capital: 8000, alloc_max_count: 2, commission_rate: 0.0001, commission_min: 1,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },
   notification: []
