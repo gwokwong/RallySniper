@@ -94,10 +94,11 @@ def _load_bars(force: bool = False) -> dict[str, pd.DataFrame]:
 
 def invalidate() -> None:
     """缓存文件更新后调用，强制下次重新加载。"""
-    global _bars_loaded
+    global _bars_loaded, _sentiment_cache
     with _lock:
         _bars_loaded = False
         _turnover_cache.clear()
+        _sentiment_cache = None
 
 
 def _row_of(code: str, date: str) -> int | None:
@@ -202,6 +203,8 @@ def _cfg_fingerprint(cfg) -> str:
         "tier": cfg.market_regime.ignition_tier_breadth,
         "breadth": cfg.market_regime.ignition_min_breadth,
         "ignition_enabled": cfg.market_regime.ignition_enabled,
+        "bomb_gate": [cfg.market_regime.ignition_bomb_gate_enabled,
+                      float(cfg.market_regime.ignition_bomb_rate_max)],
     }, sort_keys=True, ensure_ascii=False)
     return hashlib.md5(raw.encode()).hexdigest()[:10]
 
@@ -275,6 +278,14 @@ def replay(date: str) -> dict[str, Any]:
     blocked = ""
     if cfg.market_regime.ignition_enabled and not ignited:
         blocked = f"闸门未点火（{prev_day} 池在目标日中位溢价 {premium:+.2f}% < {th:g}%）"
+    # 炸板闸门（2026-11-25 因子研究）：昨日市场炸板率>阈值=资金分歧极大（情绪冰点），
+    # 即使溢价达标也不点火。7-11月回测：总收益 +5.99→+8.36万，胜率 51.8%→57.5%。
+    if cfg.market_regime.ignition_enabled and ignited and cfg.market_regime.ignition_bomb_gate_enabled:
+        br = market_sentiment().get(prev_day, {}).get("bomb_rate") if prev_day else None
+        br_max = float(cfg.market_regime.ignition_bomb_rate_max)
+        if br is not None and br > br_max:
+            ignited = False
+            blocked = f"炸板闸门（{prev_day} 市场炸板率 {br:.1f}% > {br_max:g}%，资金分歧极大）"
     elif cfg.market_regime.ignition_enabled and cfg.market_regime.ignition_min_breadth > 0 \
             and n_zt < int(cfg.market_regime.ignition_min_breadth):
         blocked = (f"情绪点火但广度不足（当日涨停 {n_zt} 家 < {cfg.market_regime.ignition_min_breadth}，"
@@ -414,6 +425,58 @@ def replay(date: str) -> dict[str, Any]:
 
 
 _orig_completed = sw._completed_history
+
+
+_sentiment_cache: dict[str, dict[str, float]] | None = None
+
+
+def market_sentiment() -> dict[str, dict[str, float]]:
+    """每交易日市场短线情绪统计（全部来自K线缓存，开盘前即可知，零盘中接口依赖）。
+
+    - bomb_rate 炸板率(%)：盘中触板未封 ÷ 盘中触板；触板=高点≥昨收+(涨停阈值-0.3pp)。
+      情绪周期经典指标：>45% 资金分歧极大（7-11月回测：该环境下反包入场胜率仅38.1%）。
+    - max_streak 市场最高连板高度（情绪高度）。
+    """
+    global _sentiment_cache
+    with _lock:
+        if _sentiment_cache is not None:
+            return _sentiment_cache
+    bars = _load_bars()
+    touched_n: dict[str, int] = {}
+    sealed_n: dict[str, int] = {}
+    max_streak: dict[str, int] = {}
+    for code, df in bars.items():
+        c = df["close"].to_numpy(dtype=float)
+        h = df["high"].to_numpy(dtype=float)
+        p = df["pct_change"].to_numpy(dtype=float)
+        n = len(c)
+        th = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+        pc = np.empty(n)
+        pc[0] = np.nan
+        pc[1:] = c[:-1]
+        sealed = (p >= th) & (c >= h * 0.995)
+        touched = (~np.isnan(pc)) & ((h / pc - 1) * 100 >= (th - 0.3))
+        dt = [str(x)[:10] for x in df["date"]]
+        st = 0
+        for j in range(n):
+            d = dt[j]
+            st = st + 1 if sealed[j] else 0
+            if d < "2026-06-01":
+                continue
+            if touched[j]:
+                touched_n[d] = touched_n.get(d, 0) + 1
+            if sealed[j]:
+                sealed_n[d] = sealed_n.get(d, 0) + 1
+                if st > max_streak.get(d, 0):
+                    max_streak[d] = st
+    out: dict[str, dict[str, float]] = {}
+    for d in set(touched_n) | set(sealed_n):
+        t, s = touched_n.get(d, 0), sealed_n.get(d, 0)
+        out[d] = {"bomb_rate": round((t - s) / t * 100, 2) if t > 0 else None,
+                  "touched": t, "sealed": s, "max_streak": max_streak.get(d, 0)}
+    with _lock:
+        _sentiment_cache = out
+    return out
 
 
 def lu_codes_on(date: str) -> list[str]:

@@ -295,12 +295,27 @@
             </div>
             <ElFormItem v-if="config.market_regime.ignition_enabled" label="点火阈值(%)">
               <ElInputNumber v-model="config.market_regime.ignition_threshold" :min="0" :max="10" :step="0.5" style="width:100%" />
+              <div class="text-xs text-gray-400">
+                敏感性回测（7-11月）：2.2→+3.14万 / 2.5→+3.69万 / 2.8→+5.20万 / 3.0→+5.99万，3.0 单调最优勿调低。
+              </div>
             </ElFormItem>
             <ElFormItem v-if="config.market_regime.ignition_enabled" label="点火广度确认（当日涨停家数，0=关）">
               <ElInputNumber v-model="config.market_regime.ignition_min_breadth" :min="0" :max="1000" :step="10" style="width:100%" />
               <div class="text-xs text-gray-400">
                 阶段研究：点火∧高潮(家数≥100)信号胜率 82.7%/+8.3万，点火∧家数不足(修复反弹)仅 14.6%/-5.1万。
                 设 100 复现「只做普涨日」；默认 0 关闭，建议 12 月前瞻验证后开启。
+              </div>
+            </ElFormItem>
+            <div v-if="config.market_regime.ignition_enabled" class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">炸板闸门（昨日市场炸板率过高=资金分歧极大，不点火）</span>
+              <ElSwitch v-model="config.market_regime.ignition_bomb_gate_enabled" size="small" />
+            </div>
+            <ElFormItem v-if="config.market_regime.ignition_enabled && config.market_regime.ignition_bomb_gate_enabled" label="炸板闸门阈值(%)">
+              <ElInputNumber v-model="config.market_regime.ignition_bomb_rate_max" :min="10" :max="80" :step="5" style="width:100%" />
+              <div class="text-xs text-gray-400">
+                昨日市场炸板率（触板未封÷触板，情绪周期经典指标）超过此值=资金分歧极大，即使溢价达标也不点火。
+                全部由昨日K线计算，开盘前已知、零盘中接口依赖。
+                回测（7-11月，全网因子研究）：叠加后 398→280笔、胜率 51.8%→57.5%、总收益 +5.99→+8.36万（+40%）；5个月仅多拦 5 天。
               </div>
             </ElFormItem>
             <div class="flex items-center justify-between mb-1">
@@ -815,6 +830,7 @@ const config = reactive<any>({
     weak_action: 'half', wash_primary: true, strong_requires_bull: true,
     ignition_enabled: true, ignition_threshold: 3.0, ignition_min_breadth: 0,
     ignition_watch_enabled: true, ignition_watch_minutes: 5, ignition_sustain_checks: 3,
+    ignition_bomb_gate_enabled: true, ignition_bomb_rate_max: 45.0,
     ignition_min_pool: 10, ignition_auto_scan: false
   },
   scan: {},

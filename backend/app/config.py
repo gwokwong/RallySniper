@@ -310,6 +310,11 @@ class MarketRegimeConfig(BaseModel):
                                        description="全仓档广度阈值：点火日当日涨停家数≥此值为全仓档，低于为试错档"
                                                    "(建议1/4仓位)。纯提示不拦截——回测全仓档胜率82.7%、试错档19.8%，"
                                                    "阶梯仓位样本内营收+7.1万 vs 全等仓+3.4万，资金敞口降43%")
+    ignition_bomb_gate_enabled: bool = Field(default=True,
+                                             description="炸板闸门：昨日市场炸板率(触板未封/触板)超阈值时即使溢价达标也不点火。"
+                                                         "情绪周期经典指标——7-11月回测：叠加后总收益+5.99→+8.36万，胜率51.8%→57.5%（全网因子研究最优）")
+    ignition_bomb_rate_max: float = Field(default=45.0, ge=10.0, le=80.0,
+                                          description="炸板闸门阈值(%)：昨日炸板率超过此值拦截开新仓（默认45，对应「资金分歧极大」）")
 
 
 class MarketFilterConfig(BaseModel):

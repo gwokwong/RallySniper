@@ -274,15 +274,43 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
         # 情绪点火闸门（2026-11-21 三个月全市场 2014 笔回测）：昨日涨停股今日
         # 涨幅中位数 ≥ 阈值视为「点火日」——点火日信号胜率 44.9%（基线 22.8%），
         # 非点火日追高信号系统性亏钱，暂停开新仓。妖股模式绕过（与弱市闸门同策略）。
-        ignition: dict[str, Any] = {}
-        if cfg.market_regime.ignition_enabled and cfg.run_mode != "monster":
-            ignition = ds.ignition_premium(eff["date"])
-            # 附带阈值与运行模式，供前端/通知层判断当前是否点火
-            ignition["threshold"] = float(cfg.market_regime.ignition_threshold)
-            ignition["ignited"] = bool(
-                not ignition.get("degraded") and ignition.get("median") is not None
-                and float(ignition["median"]) >= float(cfg.market_regime.ignition_threshold)
-            )
+            ignition: dict[str, Any] = {}
+            if cfg.market_regime.ignition_enabled and cfg.run_mode != "monster":
+                ignition = ds.ignition_premium(eff["date"])
+                # 附带阈值与运行模式，供前端/通知层判断当前是否点火
+                ignition["threshold"] = float(cfg.market_regime.ignition_threshold)
+                ignition["ignited"] = bool(
+                    not ignition.get("degraded") and ignition.get("median") is not None
+                    and float(ignition["median"]) >= float(cfg.market_regime.ignition_threshold)
+                )
+                # 炸板闸门（2026-11-25 全网因子研究）：昨日市场炸板率>阈值=资金分歧极大
+                # （情绪冰点），即使溢价达标也不点火。全部由昨日K线计算，开盘前已知。
+                # 回测（7-11月）：叠加后总收益+5.99→+8.36万，胜率51.8%→57.5%。
+                if ignition["ignited"] and cfg.market_regime.ignition_bomb_gate_enabled:
+                    try:
+                        from . import replay as _rp
+                        dts = _rp.trading_dates()
+                        pos = dts.index(eff["date"]) if eff["date"] in dts else -1
+                        prev_d = dts[pos - 1] if pos >= 1 else None
+                        br = (_rp.market_sentiment().get(prev_d, {}) or {}).get("bomb_rate") if prev_d else None
+                        br_max = float(cfg.market_regime.ignition_bomb_rate_max)
+                        ignition["bomb_rate_prev"] = br
+                        ignition["bomb_rate_max"] = br_max
+                        if br is not None and br > br_max:
+                            ignition["ignited"] = False
+                            with state._lock:
+                                state.ignition = ignition
+                            return {
+                                "success": True, "paused_by_ignition": True, "candidates": 0,
+                                "scanned": 0, "signal_count": 0, "trigger_count": 0,
+                                "watch_count": 0, "signals": [], "ignition": ignition,
+                                "market_regime": regime,
+                                "note": (f"炸板闸门：昨日市场炸板率 {br:.1f}% > {br_max:g}%，"
+                                         f"资金分歧极大（情绪冰点），暂停开新仓"),
+                                **_date_fields(),
+                            }
+                    except Exception:  # noqa: BLE001
+                        pass  # 情绪统计不可用时不拦截（降级）
             # 广度档位（2026-11-22 阶段研究）：点火日当日涨停家数≥全仓档阈值(默认100)
             # = 普涨高潮，信号胜率82.7%；家数不足 = 修复反弹，胜率19.8% → 建议试错1/4仓。
             # 纯提示不拦截；硬拦截用 ignition_min_breadth。
