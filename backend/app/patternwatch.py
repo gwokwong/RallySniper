@@ -262,10 +262,11 @@ def poll() -> dict[str, Any]:
             if base and base > 0 and price > base * 1.002 and vr is not None and vr >= vr_min:
                 alerted.add(f"{code}:brk")
                 day_alerts += 1
-                new.append({"code": code, "name": nm, "pattern": f"新高突破",
+                new.append({"code": code, "name": nm, "pattern": "新高突破·仅供观察",
                             "price": round(price, 2), "pct": round(pct, 2),
                             "vr": round(vr, 2),
-                            "detail": f"突破前{cfg.scan.pattern_break_high_days}日最高{base:.2f}，量比{vr:.1f}"})
+                            "detail": (f"突破前{cfg.scan.pattern_break_high_days}日最高{base:.2f}，量比{vr:.1f}"
+                                       "（⚠️ 该形态回测期望为负，勿作买点）")})
 
         # 形态3：涨停缩量突破（用户战法：近10日有涨停→缩量≥3日不破涨停日最低→放量突破区间最高）
         if f"{code}:wzt" not in alerted:
@@ -275,11 +276,12 @@ def poll() -> dict[str, Any]:
                 if low_today is None or low_today >= wb["low"] * 0.995:   # 当日也未破涨停日最低
                     alerted.add(f"{code}:wzt")
                     day_alerts += 1
-                    new.append({"code": code, "name": nm, "pattern": "涨停缩量突破",
+                    new.append({"code": code, "name": nm, "pattern": "涨停缩量突破·仅供观察",
                                 "price": round(price, 2), "pct": round(pct, 2),
                                 "vr": round(vr, 2),
                                 "detail": (f"突破{wb['ldate'][5:]}涨停以来区间最高{wb['ph']:.2f}"
-                                           f"（缩量≥3日不破{wb['low']:.2f}），量比{vr:.1f}")})
+                                           f"（缩量≥3日不破{wb['low']:.2f}），量比{vr:.1f}"
+                                           "（⚠️ 该形态回测期望为负，勿作买点）")})
 
     with state._lock:
         state.last_new = new
@@ -291,7 +293,10 @@ def poll() -> dict[str, Any]:
             f"- {x['name']}({x['code']})【{x['pattern']}】现价{x['price']} {x['pct']:+.1f}%"
             f"（量比{x['vr'] if x['vr'] is not None else '--'}）：{x['detail']}"
             for x in new[:20])
-        body = f"触发时间：{now_hm}\n{lines}\n\n提醒：盘中形态信息，仅供观察与决策参考，不构成买卖信号。"
+        body = (f"触发时间：{now_hm}\n{lines}\n\n"
+                "提醒：盘中形态信息，仅供观察与决策参考，不构成买卖信号。\n"
+                "「新高突破」「涨停缩量突破」经回测期望为负，仅作盘中观察，请勿作为买点依据；\n"
+                "买入决策以「洗盘反包+点火闸门」尾盘扫描推送为准。")
         notifications.add(title, body, [], kind="pattern")
         if cfg.notification:
             notifier.broadcast(cfg.notification, title, body, [])
