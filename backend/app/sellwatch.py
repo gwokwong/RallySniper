@@ -81,6 +81,8 @@ def _evaluate(code: str, name: str, quote: dict[str, Any],
         return []
     closes.append(cur)
     s = pd.Series(closes)
+    # pct_series：含今日的逐日涨跌幅序列（供后续通道使用）
+    pct_series = [float(x) for x in hist["pct_change"].astype(float)] + [float(pct or 0)]
     ma = s.rolling(20).mean()
     ma20 = float(ma.iloc[-1]) if pd.notna(ma.iloc[-1]) else 0.0
     ma20_prev = float(ma.iloc[-2]) if len(ma) >= 2 and pd.notna(ma.iloc[-2]) else 0.0
@@ -94,6 +96,13 @@ def _evaluate(code: str, name: str, quote: dict[str, Any],
     buffer = float(rules.get("ma20_buffer", 0.01))
     slope_limit = float(rules.get("ma20_slope", -0.005))
     surge_limit = float(rules.get("volume_surge_ratio", 5.0))
+
+    def pct_val(j):
+        """历史第 j 日涨跌幅（j 从 0 起）。"""
+        try:
+            return float(hist["pct_change"].astype(float).iloc[j])
+        except Exception:
+            return None
 
     if vr is None:
         vols = [float(x) for x in hist["volume"].astype(float)[-5:]]
@@ -236,7 +245,6 @@ def _evaluate(code: str, name: str, quote: dict[str, Any],
                         "level": "确认", "reasons": reasons, "peak": round(peak, 2)})
     # 4) MA10连续破位（第4通道）：连续N天收盘跌破MA10即确认卖出。
     #    比 MA20 三通道更快，比单日急跌更稳——两根K线确认趋势而非噪音。
-    #    与 ma10_confirm（单日大跌破MA10）不同：不需要跌幅门槛，纯粹趋势跟随。
     ma10_consec_on = bool(rules.get("ma10_consec_enabled", True))
     ma10_consec_n = max(2, int(rules.get("ma10_consec_days", 2)))
     if ma10_consec_on and ma10 > 0:
@@ -253,6 +261,44 @@ def _evaluate(code: str, name: str, quote: dict[str, Any],
             out.append({**common, "strategy": "MA10连续破位",
                         "level": "确认" if mode == "confirm" else "预警",
                         "reasons": reasons})
+
+    # 5) 首板后第4次回踩MA10（第5通道）：涨停后每次回踩MA10附近均视为一次考验，
+    #    第4次说明主力反复护盘已到极限。从30日内最近涨停日起算，
+    #    统计"收盘触及MA10（close ≤ MA10×1.02）且未大阳线脱离（pct < +3%）"的回踩事件次数。
+    #    连续多天贴线只算同一次回踩，反弹离开后再次贴近才是新的一次。
+    touch_exit_on = bool(rules.get("touch_ma10_exit_enabled", True))
+    touch_th = max(2, int(rules.get("touch_ma10_count", 4)))
+    touch_win = max(10, int(rules.get("touch_ma10_window", 30)))
+    if touch_exit_on and ma10 > 0:
+        # 找最近涨停日 L（30日内最近一次收盘封板）
+        L = None
+        dl = [str(x) for x in hist.get("date", pd.RangeIndex(len(closes)))]
+        for j in range(min(len(closes) - 1, touch_win - 1), -1, -1):
+            th = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+            pcv = pct_val(j)
+            if pcv is not None and pcv >= th and closes[j] >= highs[j] * 0.995:
+                L = j
+                break
+        if L is not None and len(closes) - L >= 4:
+            # 统计从 L+1 到当前（含今日）的回踩事件次数：
+            # 单日回踩 = 收盘价 ≤ MA10×1.02（触及或跌破）且当日涨跌幅 < +3%（非大阳线突破）
+            # 连续符合条件的天数合并为一次回踩事件
+            pc_series = pct_series  # 已在上面定义
+            touch_cnt = 0
+            prev_touch = False
+            for j in range(L + 1, len(closes)):
+                ma10_j = float(pd.Series(closes[:j + 1]).rolling(10).mean().iloc[-1]) if j >= 9 else None
+                is_touch = (ma10_j is not None and closes[j] <= ma10_j * 1.02
+                            and pc_series[j] < 3.0)
+                if is_touch and not prev_touch:
+                    touch_cnt += 1
+                prev_touch = is_touch
+            if touch_cnt >= touch_th:
+                reasons = [f"30日内涨停后已{touch_cnt}次回踩MA10({ma10:.2f})，护盘次数达极限"]
+                reasons.append("尾盘确认，按纪律执行")
+                out.append({**common, "strategy": "首板回踩MA10极限",
+                            "level": "确认" if mode == "confirm" else "预警",
+                            "reasons": reasons})
 
     return out
 

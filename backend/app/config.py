@@ -206,6 +206,12 @@ class SellConfig(BaseModel):
                                       description="MA10连续破位卖出：连续N天收盘跌破MA10即确认卖出（第4通道）")
     ma10_consec_days: int = Field(default=2, ge=2, le=10,
                                   description="MA10连续破位天数：连续N天收盘<MA10即触发")
+    touch_ma10_exit_enabled: bool = Field(default=True,
+                                          description="30日内首板后第4次回踩MA10预警卖出（第5通道）：涨停后每次回踩到MA10附近均视为一次考验，第4次说明主力反复护盘已到极限")
+    touch_ma10_count: int = Field(default=4, ge=2, le=10,
+                                  description="回踩MA10次数阈值：达到此次数即预警卖出")
+    touch_ma10_window: int = Field(default=30, ge=10, le=60,
+                                   description="首板回看窗口(交易日)：从最近30日内首个涨停日起算")
     cooldown_enabled: bool = Field(default=True, description="是否启用确认冷却期(同一波下跌不重复发确认邮件)")
     cooldown_reset_pct: float = Field(default=0.03, ge=0.005, le=0.2,
                                       description="冷却重置：股价较上次确认价上涨超此比例视为创新高，允许新一轮确认")

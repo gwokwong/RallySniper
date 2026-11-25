@@ -681,6 +681,20 @@
             <ElFormItem v-if="config.sell.ma10_consec_enabled" label="连续天数">
               <ElInputNumber v-model="config.sell.ma10_consec_days" :min="2" :max="10" style="width:100%" />
             </ElFormItem>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">首板回踩MA10极限卖出（30日内涨停后第N次回踩MA10即确认，第5通道）</span>
+              <ElSwitch v-model="config.sell.touch_ma10_exit_enabled" size="small" />
+            </div>
+            <ElFormItem v-if="config.sell.touch_ma10_exit_enabled" label="回踩次数阈值">
+              <ElInputNumber v-model="config.sell.touch_ma10_count" :min="2" :max="10" style="width:100%" />
+            </ElFormItem>
+            <ElFormItem v-if="config.sell.touch_ma10_exit_enabled" label="涨停回看窗口(天)">
+              <ElInputNumber v-model="config.sell.touch_ma10_window" :min="10" :max="60" style="width:100%" />
+            </ElFormItem>
+            <p v-if="config.sell.touch_ma10_exit_enabled" class="text-xs text-gray-400 m-0">
+              回踩 = 收盘触及/跌破 MA10×1.02 且未大阳线脱离（涨跌幅&lt;+3%）；连续多天贴线只算一次回踩，反弹离开后再贴近才是新的一次。
+            </p>
             <p class="text-xs text-gray-400 mt-1">
               默认排除 ST 与北交所，主板/科创/创业全开，价格不限。筛选在候选阶段生效，可显著减少扫描耗时。
             </p>
@@ -745,6 +759,7 @@ const config = reactive<any>({
     kline_refresh_time: '15:10', daily_check_time: '09:20',
     wzq_watch_enabled: true, wzq_watch_time: '15:20',
     ma10_consec_enabled: true, ma10_consec_days: 2,
+    touch_ma10_exit_enabled: true, touch_ma10_count: 4, touch_ma10_window: 30,
     pattern_watch_enabled: true, pattern_poll_minutes: 3,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
   },
