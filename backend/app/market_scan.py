@@ -143,8 +143,10 @@ def recommend_allocation(signals: list[dict[str, Any]], capital: float,
                               -(s.get("rev_yoy") if s.get("rev_yoy") is not None else -999),
                               -s.get("strength", 0)))
     n_auto = 1 if capital < 3000 else 2 if capital < 6000 else 3 if capital < 10000 else 4
-    n_target = min(max_count, n_auto) if max_count and max_count > 0 else n_auto
-    n_target = max(1, n_target)
+    if max_count and max_count > 0:
+        n_target = max(1, min(max_count, max(1, len(cands))))  # 最大只数=目标上限
+    else:
+        n_target = n_auto
     alloc: list[dict[str, Any]] = []
     used = 0.0
     seen_ind: set[str] = set()

@@ -169,6 +169,7 @@ class ScanConfig(BaseModel):
                                                   "爆发(涨幅≥5%或触板且守生命线)45秒级提醒。HTTP行情源的物理极限即此，"
                                                   "秒级tick需websocket数据源")
     war_map_time: str = Field(default="09:25", description="盘前作战地图发送时点(HH:MM)：候选名单+生命线+昨日情绪背景")
+    lunch_review_time: str = Field(default="11:35", description="午盘复盘发送时点(HH:MM)：上午板块红绿榜+点火读数+候选异动+持仓快照+午后展望")
     pattern_break_high_days: int = Field(default=20, ge=5, le=120,
                                          description="新高突破的N日窗口")
     pattern_break_vr: float = Field(default=1.5, ge=1.0, le=10,

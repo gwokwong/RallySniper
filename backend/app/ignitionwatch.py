@@ -110,12 +110,12 @@ def _persist() -> None:
 _load_persisted()
 
 
-def _notify(title: str, body: str) -> int:
-    notifications.add(title, body, [], kind="ignition")
+def _notify(title: str, body: str, rows: list[dict[str, Any]] | None = None) -> int:
+    notifications.add(title, body, rows or [], kind="ignition")
     cfg = load_config()
     pushed = 0
     if cfg.notification:
-        results = notifier.broadcast(cfg.notification, title, body, [])
+        results = notifier.broadcast(cfg.notification, title, body, rows or [])
         pushed = sum(1 for r in results if r["success"])
     return pushed
 
@@ -188,6 +188,7 @@ def check() -> dict[str, Any]:
                 mins = need * int(reg.ignition_watch_minutes)
                 title = f"【情绪点火确认·{tier}】中位溢价 {median:+.2f}% ≥ {threshold:g}%"
                 picks_note = ""
+                picks = []
                 try:
                     pk = patternwatch.ignition_picks(4)
                     picks = pk.get("picks", [])
@@ -222,7 +223,12 @@ def check() -> dict[str, Any]:
                     f"\n\n【今日精选候选·结构化分散参考】（盈利优先+行业分散，非买入承诺；"
                     f"生命线以触发后推送为准）\n{picks_note}"
                 )
-                _notify(title, body)
+                pick_rows = [{"strategy": "洗盘反包", "stage": "trigger", "stage_label": "精选候选",
+                              "code": s.get("code"), "name": s.get("name"),
+                              "price": s.get("price"), "change_pct": 0,
+                              "reasons": [f"{s.get('industry', '--')}｜营收{('%.0f%%' % s['rev_yoy']) if s.get('rev_yoy') is not None else '--'}"]}
+                             for s in picks]
+                _notify(title, body, pick_rows)
         elif not state.collapsed and median < 0:
             state.collapsed = True
             state.collapsed_time = now_hm

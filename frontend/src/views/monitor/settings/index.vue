@@ -787,8 +787,15 @@
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs text-gray-500">盘前作战地图（9:25左右发送：反包候选名单+生命线+昨日情绪背景）</span>
             </div>
-            <ElFormItem label="发送时点">
+            <ElFormItem label="作战地图发送时点">
               <ElInput v-model="config.scan.war_map_time" placeholder="09:25" style="width:100%" />
+            </ElFormItem>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">午盘复盘（11:35 左右发送：上午板块红绿榜+点火读数+候选异动+持仓快照+午后展望）</span>
+            </div>
+            <ElFormItem label="午盘复盘发送时点">
+              <ElInput v-model="config.scan.lunch_review_time" placeholder="11:35" style="width:100%" />
             </ElFormItem>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
@@ -892,7 +899,7 @@ const config = reactive<any>({
     touch_strong_reset_enabled: false, touch_strong_pct: 5.0,
     a_kill_skip_enabled: false, a_kill_days: 3, a_kill_down_days: 5, a_kill_cum_drop: 15.0,
     vp_combo_filter_enabled: true, vp_combo_exclude_c4: false,
-    pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25',
+    pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25', lunch_review_time: '11:35',
     pattern_board_alert: true, pattern_board_anomaly_pct: 1.9, pattern_board_down_pct: 2.3,
     available_capital: 8000, alloc_max_count: 2, commission_rate: 0.0001, commission_min: 1,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20

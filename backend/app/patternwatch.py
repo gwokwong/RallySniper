@@ -202,9 +202,12 @@ def poll_fast() -> dict[str, Any]:
                 "\n".join(f"- {x['name']}({x['code']}) 现价{x['price']} {x['pct']:+.1f}%：{x['detail']}"
                           for x in new[:15]) +
                 "\n提醒：候选进行中≠买入确认；确认信号以点火确认+尾盘推送为准，生命线跌破即放弃。")
-        notifications.add(title, body, [], kind="pattern")
+        rows = [{"strategy": "洗盘反包", "stage": "watch", "stage_label": "进行中",
+                 "code": x["code"], "name": x["name"], "price": x.get("price"),
+                 "change_pct": x.get("pct") or 0, "reasons": [x.get("detail", "")]} for x in new]
+        notifications.add(title, body, rows, kind="pattern")
         if cfg.notification:
-            notifier.broadcast(cfg.notification, title, body, [])
+            notifier.broadcast(cfg.notification, title, body, rows)
     return {"checked": True, "new": new}
 
 
@@ -367,22 +370,29 @@ def poll() -> dict[str, Any]:
     if board_round:
         ups = sorted([b for b in board_round if b["direction"] == "拉涨"], key=lambda x: -x["pct"])
         downs = sorted([b for b in board_round if b["direction"] == "砸盘"], key=lambda x: x["pct"])
+        def _board_rows(items, direction):
+            return [{"strategy": "板块异动", "stage": "trigger" if direction == "拉涨" else "watch",
+                     "stage_label": direction, "code": "--", "name": b["ind"],
+                     "price": "", "change_pct": b["pct"], "reasons": [b["label"]]}
+                    for b in items]
         if downs:
             title = f"【板块异动·砸盘】{now_hm} {len(downs)} 个板块集体跳水（阈值 -{down_th:g}%）"
             body = ("触发时间：" + now_hm + "\n" +
                     "\n".join(f"- {b['ind']} {b['pct']:+.1f}%（{b['label']}）" for b in downs) +
                     "\n纪律：上述板块候选暂停追入，持仓注意风险；跳空低开日先看市场高度与炸板率。")
-            notifications.add(title, body, [], kind="pattern")
+            rows = _board_rows(downs, "砸盘")
+            notifications.add(title, body, rows, kind="pattern")
             if cfg.notification:
-                notifier.broadcast(cfg.notification, title, body, [])
+                notifier.broadcast(cfg.notification, title, body, rows)
         if ups:
             title = f"【板块异动·拉涨】{now_hm} {len(ups)} 个板块异动（阈值 +{up_th:g}%）"
             body = ("触发时间：" + now_hm + "\n" +
                     "\n".join(f"- {b['ind']} {b['pct']:+.1f}%（{b['label']}）" for b in ups) +
                     "\n该板块反包候选将优先进入主推精选；追高注意兑现节奏。")
-            notifications.add(title, body, [], kind="pattern")
+            rows = _board_rows(ups, "拉涨")
+            notifications.add(title, body, rows, kind="pattern")
             if cfg.notification:
-                notifier.broadcast(cfg.notification, title, body, [])
+                notifier.broadcast(cfg.notification, title, body, rows)
 
     for code, q in quotes.items():
         if day_alerts >= cap:
@@ -479,9 +489,14 @@ def poll() -> dict[str, Any]:
                 "提醒：盘中形态信息，仅供观察与决策参考，不构成买卖信号。\n"
                 "「新高突破」「涨停缩量突破」经回测期望为负，仅作盘中观察，请勿作为买点依据；\n"
                 "买入决策以「洗盘反包+点火闸门」尾盘扫描推送为准。")
-        notifications.add(title, body, [], kind="pattern")
+        rows = [{"strategy": x.get("pattern", ""), "stage": "watch",
+                 "stage_label": x.get("pattern", ""), "code": x.get("code"),
+                 "name": x.get("name"), "price": x.get("price"),
+                 "change_pct": x.get("pct") or 0, "reasons": [x.get("detail", "")]}
+                for x in stock_new]
+        notifications.add(title, body, rows, kind="pattern")
         if cfg.notification:
-            notifier.broadcast(cfg.notification, title, body, [])
+            notifier.broadcast(cfg.notification, title, body, rows)
 
     return {"checked": True, "new": new, "day_alerts": state.day_alerts}
 

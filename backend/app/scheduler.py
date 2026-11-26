@@ -121,6 +121,88 @@ def _pattern_fast_job() -> None:
         print(f"[scheduler] 快车道失败: {exc}")
 
 
+def _lunch_review_job() -> None:
+    """午盘复盘（11:35）：上午板块红绿榜 + 点火读数 + 候选晨盘异动 + 持仓快照 + 午后展望。"""
+    try:
+        if ds.market_status()["status"] not in ("trading", "lunch"):
+            return
+        cfg2 = load_config()
+        eff = ds.effective_trading_date()
+        now_hm = datetime.now().strftime("%H:%M")
+        lines = [f"数据交易日：{eff.get('label') or eff.get('date')}｜复盘时点 {now_hm}（上午收盘）"]
+        # ① 点火读数
+        try:
+            ign = ds.ignition_premium(eff["date"])
+            med = ign.get("median")
+            th = float(cfg2.market_regime.ignition_threshold)
+            lines.append(f"① 点火读数：{ign.get('prev_date', '')} 涨停池 {ign.get('pool_n', '?')} 只，"
+                         f"今日中位溢价 {med if med is None else format(med, '+.2f')}%"
+                         f"（阈值 {th:g}）→ {'点火进行中' if ign.get('median') is not None and med >= th else '未点火'}")
+        except Exception as _e:  # noqa: BLE001
+            lines.append(f"① 点火读数暂不可用（{str(_e)[:40]}）")
+        # ② 板块红绿榜
+        try:
+            bdf = ds.industry_boards()
+            if bdf is not None and not bdf.empty and "涨跌幅" in bdf.columns:
+                bb = bdf[["板块名称", "涨跌幅"]].copy()
+                bb["涨跌幅"] = bb["涨跌幅"].astype(float)
+                top = bb.sort_values("涨跌幅", ascending=False).head(3)
+                bot = bb.sort_values("涨跌幅").head(3)
+                lines.append("② 板块红榜：" + "、".join(f"{r['板块名称']} {r['涨跌幅']:+.1f}%" for _, r in top.iterrows()))
+                lines.append("   板块绿榜：" + "、".join(f"{r['板块名称']} {r['涨跌幅']:+.1f}%" for _, r in bot.iterrows()))
+        except Exception:
+            lines.append("② 板块行情暂不可用")
+        # ③ 晨盘候选异动
+        try:
+            items = [x for x in (patternwatch.state.last_new or [])]
+            if items:
+                lines.append(f"③ 上午候选/形态异动 {len(items)} 条：" +
+                             "、".join(f"{x.get('name')}({x.get('pattern')})" for x in items[:5]) +
+                             ("…" if len(items) > 5 else ""))
+            else:
+                lines.append("③ 上午候选/形态异动：无")
+        except Exception:
+            pass
+        # ④ 持仓快照（含表格行）
+        rows = []
+        holdings = [h for h in cfg2.holdings if len(h) == 6 and h.isdigit()]
+        if holdings:
+            try:
+                quotes = ds.spot_quote_map(holdings)
+                for h in holdings:
+                    q = quotes.get(h) or {}
+                    if not q.get("price"):
+                        continue
+                    nm = str(q.get("name") or h)
+                    pct = float(q.get("change_pct") or 0)
+                    lines.append(f"④ 持仓 {nm}({h}) 现价{q.get('price')} {pct:+.2f}%")
+                    rows.append({"strategy": "持仓", "stage": "watch", "stage_label": "持仓",
+                                 "code": h, "name": nm, "price": q.get("price"),
+                                 "change_pct": pct, "direction": "down" if pct < 0 else "up",
+                                 "reasons": ["午盘快照"]})
+            except Exception:
+                lines.append("④ 持仓行情暂不可用")
+        # ⑤ 午后展望
+        try:
+            ign = ds.ignition_premium(eff["date"])
+            med = ign.get("median")
+            th = float(cfg2.market_regime.ignition_threshold)
+            if med is not None and med >= th:
+                lines.append("⑤ 午后展望：上午已达标点火——14:00/14:40 推送照常，注意炸板率与板块分化。")
+            else:
+                lines.append("⑤ 午后展望：上午未达标——若午后中位溢价升破阈值，点火监控约1分钟内会提醒。")
+        except Exception:
+            pass
+        title = f"【午盘复盘】{now_hm} 上午小结（候选/持仓/板块/点火）"
+        body = "\n".join(lines)
+        notifications.add(title, body, rows, kind="pattern")
+        if cfg2.notification:
+            notifier.broadcast(cfg2.notification, title, body, rows)
+        print(f"[scheduler] 午盘复盘已发送（持仓行 {len(rows)}）")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 午盘复盘失败: {exc}")
+
+
 def _war_map_job() -> None:
     """盘前作战地图：候选名单+生命线+昨日情绪背景（休市日跳过）。"""
     try:
@@ -147,10 +229,15 @@ def _war_map_job() -> None:
                      "确认以点火确认+尾盘推送为准。")
         title = f"【盘前作战地图】{r['prev_date']} 情绪背景 + {r['n_candidates']} 只反包候选"
         body = "\n".join(lines)
-        notifications.add(title, body, [], kind="pattern")
+        rows = [{"strategy": "反包候选", "stage": "watch", "stage_label": "候选",
+                 "code": c["code"], "name": c["name"], "price": c["prev_close"],
+                 "change_pct": 0,
+                 "reasons": [f"生命线{c['life_line']}（洗盘日{c['wash_date'][5:]}）", f"行业{c['industry']}"]}
+                for c in r.get("candidates", [])]
+        notifications.add(title, body, rows, kind="pattern")
         cfg2 = load_config()
         if cfg2.notification:
-            notifier.broadcast(cfg2.notification, title, body, [])
+            notifier.broadcast(cfg2.notification, title, body, rows)
         print(f"[scheduler] 作战地图已发送: {r['n_candidates']} 只候选")
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] 作战地图失败: {exc}")
@@ -555,6 +642,12 @@ def start() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(wm_h), minute=int(wm_m), timezone="Asia/Shanghai"),
             id="war_map", max_instances=1, coalesce=True,
         )
+        lr_h, lr_m = cfg.scan.lunch_review_time.split(":")
+        _scheduler.add_job(
+            _lunch_review_job,
+            trigger=CronTrigger(hour=int(lr_h), minute=int(lr_m), timezone="Asia/Shanghai"),
+            id="lunch_review", max_instances=1, coalesce=True,
+        )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -648,6 +741,14 @@ def refresh() -> dict[str, Any]:
             _war_map_job,
             trigger=CronTrigger(hour=int(wm_h), minute=int(wm_m), timezone="Asia/Shanghai"),
             id="war_map", max_instances=1, coalesce=True,
+        )
+        if _scheduler.get_job("lunch_review"):
+            _scheduler.remove_job("lunch_review")
+        lr_h, lr_m = cfg.scan.lunch_review_time.split(":")
+        _scheduler.add_job(
+            _lunch_review_job,
+            trigger=CronTrigger(hour=int(lr_h), minute=int(lr_m), timezone="Asia/Shanghai"),
+            id="lunch_review", max_instances=1, coalesce=True,
         )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}
