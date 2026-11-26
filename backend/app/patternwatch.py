@@ -151,14 +151,40 @@ def poll_fast() -> dict[str, Any]:
         alerted = state.alerted
         day_alerts = state.day_alerts
         cap = int(cfg.scan.pattern_max_alerts)
-    if not rev:
+    # 鬼手抄底·5日内信号股：纳入盘中关注（二次启动≥3%即提醒）
+    dip_codes: set[str] = set()
+    try:
+        from . import tdxwatch
+        lx = tdxwatch.latest_signals(5)
+        for c, v in (lx.get("signals") or {}).items():
+            if any(x.get("signal") == "鬼手抄底" for x in v):
+                dip_codes.add(c)
+    except Exception:  # noqa: BLE001
+        pass
+    watch = rev | dip_codes
+    if not watch:
         return {"checked": True, "new": []}
-    quotes = ds.spot_quote_map(sorted(rev))
+    quotes = ds.spot_quote_map(sorted(watch))
     if not quotes:
         return {"checked": True, "new": []}
     new: list[dict[str, Any]] = []
     for code, q in quotes.items():
-        if f"{code}:rev" in alerted or day_alerts >= cap:
+        if day_alerts >= cap:
+            continue
+        # 鬼手抄底票·二次启动（pct≥3%）：候选池外的鬼手表也盯
+        if code not in rev and code in dip_codes and f"{code}:tdxdip" not in alerted:
+            pct_d = q.get("change_pct")
+            price_d = q.get("price")
+            if pct_d is not None and float(pct_d) >= 3.0 and price_d:
+                alerted.add(f"{code}:tdxdip")
+                day_alerts += 1
+                nm_d = str(q.get("name") or code)
+                new.append({"code": code, "name": nm_d, "pattern": "鬼手抄底·二次启动",
+                            "price": round(float(price_d), 2), "pct": round(float(pct_d), 2),
+                            "vr": None,
+                            "detail": "5日内有鬼手抄底信号（回测71.8%/+5.82%），今日再度放量上攻≥3%"})
+                continue
+        if f"{code}:rev" in alerted:
             continue
         price = q.get("price")
         pct = q.get("change_pct")

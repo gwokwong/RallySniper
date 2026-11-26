@@ -284,6 +284,27 @@ def _war_map_job() -> None:
                      "确认以点火确认+尾盘推送为准。")
         title = f"【盘前作战地图】{r['prev_date']} 情绪背景 + {r['n_candidates']} 只反包候选"
         body = "\n".join(lines)
+        # 鬼手抄底·5日内信号股（关注反弹延续，二次放量升级）
+        try:
+            from . import tdxwatch as _tw
+            lx = _tw.latest_signals(5)
+            nm_map = ds.stock_code_names()
+            dip = []
+            for c, v in (lx.get("signals") or {}).items():
+                hit = next((x for x in v if x.get("signal") == "鬼手抄底"), None)
+                if hit:
+                    dip.append({"code": c, "name": nm_map.get(c, c), "days_ago": hit.get("days_ago", 0)})
+            dip.sort(key=lambda x: x["days_ago"])
+            if dip:
+                lines.append(f"\n【鬼手抄底·5日内信号 {len(dip)} 只】（反弹延续关注；二次放量上攻则升级，快车道会提醒）")
+                for x in dip[:10]:
+                    lines.append(f"- {x['name']}({x['code']}) {x['days_ago']}日前信号")
+                    rows.append({"strategy": "鬼手抄底", "stage": "watch", "stage_label": "抄底信号",
+                                 "code": x["code"], "name": x["name"], "price": "",
+                                 "change_pct": 0,
+                                 "reasons": [f"{x['days_ago']}日前触发，5日反弹窗口有效"]})
+        except Exception as _e:  # noqa: BLE001
+            lines.append(f"\n（鬼手指标列表暂不可用：{str(_e)[:40]}）")
         rows = [{"strategy": "反包候选", "stage": "watch", "stage_label": "候选",
                  "code": c["code"], "name": c["name"], "price": c["prev_close"],
                  "change_pct": 0,

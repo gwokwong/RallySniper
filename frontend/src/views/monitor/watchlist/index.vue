@@ -105,6 +105,18 @@
             {{ row.turnover == null ? '--' : `${row.turnover.toFixed(2)}%` }}
           </template>
         </ElTableColumn>
+        <ElTableColumn label="指标信号" width="130">
+          <template #default="{ row }">
+            <template v-if="(tdxMap[row.code] || []).length">
+              <ElTag v-for="t in tdxMap[row.code]" :key="t.signal" size="small"
+                     :type="t.signal === '鬼手抄底' ? 'danger' : (t.signal === '鬼手减仓' ? 'warning' : 'info')"
+                     :effect="t.signal === '鬼手抄底' ? 'dark' : 'plain'" class="mr-1 mb-1">
+                {{ t.signal === '鬼手抄底' ? '⭐抄底' : t.signal === '鬼手减仓' ? '⚠️减仓' : t.signal }}{{ t.days_ago > 0 ? `·${t.days_ago}日前` : '' }}
+              </ElTag>
+            </template>
+            <span v-else class="text-xs text-gray-300">--</span>
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="战法信号" min-width="240">
           <template #default="{ row }">
             <div v-if="row.signals.length" class="flex flex-wrap gap-1">
