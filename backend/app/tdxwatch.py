@@ -142,23 +142,61 @@ def scan_day(date: str) -> list[dict[str, Any]]:
     return out
 
 
-def latest_signals() -> dict[str, Any]:
-    """最近一个已完成交易日的全市场指标信号（按代码聚合，带当日缓存）。供前端
-    市场机会/标的池展示，以及扫描信号附加通达信标记。首次计算约2分钟，之后走缓存。"""
+def latest_signals(window: int = 5) -> dict[str, Any]:
+    """最近 window 个交易日（默认5）内出现过的指标信号，按代码聚合。
+
+    - 鬼手抄底：窗口内出现过即标记（days_ago=几天前，信号衰减参考）
+    - 鬼手减仓：仅当日（卖出预警有时效性）
+    - 噪音信号（CCI超卖/金叉反弹）不进结果
+    首次计算约2分钟，之后走当日缓存。供前端市场机会/标的池展示与扫描信号附加。
+    """
     global _latest_cache
     from . import replay as rp
     dates = rp.trading_dates()
     d = dates[-1]
+    cache_key = f"{d}|{window}"
     with _lock:
-        if _latest_cache and _latest_cache.get("date") == d:
+        if _latest_cache and _latest_cache.get("_key") == cache_key:
             return _latest_cache
-    items = scan_day(d)
+    window = max(1, min(window, len(dates)))
+    start_idx = len(dates) - window
+    start_date = dates[start_idx]
+    d_idx = {dd: i for i, dd in enumerate(dates)}
     keep = {"鬼手抄底", "鬼手减仓", "鬼手买进A", "鬼手买进B", "三线超卖首现"}
-    by_code: dict[str, list[str]] = {}
-    for x in items:
-        if x["signal"] in keep:
-            by_code.setdefault(x["code"], []).append(x["signal"])
-    out = {"date": d, "signals": by_code}
+    bars = rp._load_bars()
+    names = {}
+    try:
+        names = ds.stock_code_names()
+    except Exception:  # noqa: BLE001
+        pass
+    by_code: dict[str, list[dict[str, Any]]] = {}
+    for code, df in bars.items():
+        if code.startswith(("4", "8", "92")) or len(df) < 45:
+            continue
+        nm = str(names.get(code, ""))
+        if "ST" in nm.upper() or "退" in nm:
+            continue
+        dt = [str(x)[:10] for x in df["date"]]
+        if dt[-1] < start_date:
+            continue  # 窗口内停牌
+        sigs = _compute_signals(df)
+        hits: dict[str, int] = {}
+        for name, arr in sigs.items():
+            if name not in keep:
+                continue
+            for j in np.where(arr)[0]:
+                dj = dt[j]
+                if dj < start_date or dj not in d_idx:
+                    continue
+                ago = d_idx[d] - d_idx[dj]
+                if name == "鬼手减仓" and ago > 0:
+                    continue  # 减仓预警仅当日有效
+                if name not in hits or ago < hits[name]:
+                    hits[name] = ago
+        if hits:
+            by_code[code] = [{"signal": k, "days_ago": v}
+                             for k, v in sorted(hits.items(), key=lambda kv: kv[1])]
+    out = {"date": d, "window": window, "signals": by_code, "_key": cache_key}
     with _lock:
         _latest_cache = out
     return out

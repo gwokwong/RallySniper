@@ -364,10 +364,10 @@ onMounted(loadData)
         <ElTableColumn label="通达信指标" width="120">
           <template #default="{ row }">
             <template v-if="(row.tdx || []).length">
-              <ElTag v-for="t in row.tdx" :key="t" size="small"
-                     :type="t === '鬼手抄底' ? 'danger' : (t === '鬼手减仓' ? 'warning' : 'info')"
-                     :effect="t === '鬼手抄底' ? 'dark' : 'plain'" class="mr-1">
-                {{ t === '鬼手抄底' ? '⭐鬼手抄底' : t === '鬼手减仓' ? '⚠️鬼手减仓' : t }}
+              <ElTag v-for="t in row.tdx" :key="t.signal" size="small"
+                     :type="t.signal === '鬼手抄底' ? 'danger' : (t.signal === '鬼手减仓' ? 'warning' : 'info')"
+                     :effect="t.signal === '鬼手抄底' ? 'dark' : 'plain'" class="mr-1">
+                {{ t.signal === '鬼手抄底' ? '⭐鬼手抄底' : t.signal === '鬼手减仓' ? '⚠️鬼手减仓' : t.signal }}{{ t.days_ago > 0 ? `·${t.days_ago}日前` : '' }}
               </ElTag>
             </template>
             <span v-else class="text-gray-300">--</span>
