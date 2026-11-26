@@ -194,6 +194,7 @@ def _lunch_review_job() -> None:
         except Exception:
             pass
         title = f"【午盘复盘】{now_hm} 上午小结（候选/持仓/板块/点火）"
+        ghost_rows = []
         body = "\n".join(lines)
         notifications.add(title, body, rows, kind="pattern")
         if cfg2.notification:
@@ -268,6 +269,7 @@ def _war_map_job() -> None:
             print(f"[scheduler] 作战地图失败: {r.get('error')}")
             return
         s = r.get("sentiment") or {}
+        ghost_rows = []
         lines = [f"昨日（{r['prev_date']}）市场情绪：炸板率 {s.get('bomb_rate', '--')}%"
                  f"（闸门阈值 {s.get('bomb_max'):g}%）、市场最高板 {s.get('max_streak', '--')} 板"]
         br = s.get("bomb_rate")
@@ -280,11 +282,7 @@ def _war_map_job() -> None:
         for c in r.get("candidates", []):
             lines.append(f"- {c['name']}({c['code']}) {c['industry']}｜昨收{c['prev_close']}"
                          f"｜生命线{c['life_line']}（洗盘日{c['wash_date'][5:]}）")
-        lines.append("\n提醒：候选≠买入信号；候选爆发时快车道45秒内提醒，"
-                     "确认以点火确认+尾盘推送为准。")
-        title = f"【盘前作战地图】{r['prev_date']} 情绪背景 + {r['n_candidates']} 只反包候选"
-        body = "\n".join(lines)
-        # 鬼手抄底·5日内信号股（关注反弹延续，二次放量升级）
+        # 鬼手抄底·5日内信号股（反弹延续关注；快车道45秒会盯二次启动）
         try:
             from . import tdxwatch as _tw
             lx = _tw.latest_signals(5)
@@ -299,17 +297,22 @@ def _war_map_job() -> None:
                 lines.append(f"\n【鬼手抄底·5日内信号 {len(dip)} 只】（反弹延续关注；二次放量上攻则升级，快车道会提醒）")
                 for x in dip[:10]:
                     lines.append(f"- {x['name']}({x['code']}) {x['days_ago']}日前信号")
-                    rows.append({"strategy": "鬼手抄底", "stage": "watch", "stage_label": "抄底信号",
-                                 "code": x["code"], "name": x["name"], "price": "",
-                                 "change_pct": 0,
-                                 "reasons": [f"{x['days_ago']}日前触发，5日反弹窗口有效"]})
+                    ghost_rows.append({"strategy": "鬼手抄底", "stage": "watch",
+                                       "stage_label": "抄底信号", "code": x["code"],
+                                       "name": x["name"], "price": "", "change_pct": 0,
+                                       "reasons": [f"{x['days_ago']}日前触发，5日反弹窗口有效"]})
         except Exception as _e:  # noqa: BLE001
             lines.append(f"\n（鬼手指标列表暂不可用：{str(_e)[:40]}）")
+        lines.append("\n提醒：候选≠买入信号；候选爆发时快车道45秒内提醒，"
+                     "确认以点火确认+尾盘推送为准。")
+        title = f"【盘前作战地图】{r['prev_date']} 情绪背景 + {r['n_candidates']} 只反包候选"
+        body = "\n".join(lines)
         rows = [{"strategy": "反包候选", "stage": "watch", "stage_label": "候选",
                  "code": c["code"], "name": c["name"], "price": c["prev_close"],
                  "change_pct": 0,
                  "reasons": [f"生命线{c['life_line']}（洗盘日{c['wash_date'][5:]}）", f"行业{c['industry']}"]}
                 for c in r.get("candidates", [])]
+        rows.extend(ghost_rows)
         notifications.add(title, body, rows, kind="pattern")
         cfg2 = load_config()
         if cfg2.notification:
@@ -317,7 +320,6 @@ def _war_map_job() -> None:
         print(f"[scheduler] 作战地图已发送: {r['n_candidates']} 只候选")
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] 作战地图失败: {exc}")
-
 
 def _wzq_job() -> None:
     """弱转强观察池：收盘后筛巨量炸板名单并推送（休市日跳过）。"""
@@ -348,6 +350,9 @@ def _cache_refresh_job() -> None:
             _time.sleep(5)
         st = replay.market_sentiment()
         print(f"[scheduler] 情绪统计预热: {len(st)} 个交易日")
+        # 预热通达信指标（鬼手抄底5日窗口）：次日快车道/作战地图首查不冷启动
+        lx = tdxwatch.latest_signals(5)
+        print(f"[scheduler] 通达信指标预热: {len(lx.get('signals', {}))} 只")
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] K线缓存刷新失败: {exc}")
 
