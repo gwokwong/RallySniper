@@ -799,6 +799,17 @@
             </ElFormItem>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">盘尾指标预警（收盘后：鬼手抄底⭐买进信号 回测71.8%/+5.82%；鬼手减仓卖出预警）</span>
+            </div>
+            <ElFormItem label="发送时点">
+              <ElInput v-model="config.scan.tdx_time" placeholder="15:15" style="width:100%" />
+            </ElFormItem>
+            <p class="text-xs text-gray-400 m-0">
+              通达信指标日K信号（无未来函数口径）：鬼手抄底=深跌放量单日大涨8%+仍处长期均线下方（超跌反弹结构，7-11月485次/次日开盘买胜率71.8%/均+5.82%）；
+              鬼手减仓=RSI6高位跌破82（信号后5日均-2.50%）；CCI超卖/金叉反弹触发过频不提醒。收盘后等K线刷新完成再扫描，用于次日操作。
+            </p>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
               <span class="text-xs text-gray-500">MA10 连续破位卖出（连续N天收盘跌破MA10即确认，第4通道）</span>
               <ElSwitch v-model="config.sell.ma10_consec_enabled" size="small" />
             </div>
@@ -899,7 +910,7 @@ const config = reactive<any>({
     touch_strong_reset_enabled: false, touch_strong_pct: 5.0,
     a_kill_skip_enabled: false, a_kill_days: 3, a_kill_down_days: 5, a_kill_cum_drop: 15.0,
     vp_combo_filter_enabled: true, vp_combo_exclude_c4: false,
-    pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25', lunch_review_time: '11:35',
+    pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25', lunch_review_time: '11:35', tdx_enabled: true, tdx_time: '15:15',
     pattern_board_alert: true, pattern_board_anomaly_pct: 1.9, pattern_board_down_pct: 2.3,
     available_capital: 8000, alloc_max_count: 2, commission_rate: 0.0001, commission_min: 1,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
