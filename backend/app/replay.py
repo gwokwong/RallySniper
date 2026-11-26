@@ -476,7 +476,10 @@ def market_sentiment() -> dict[str, dict[str, float]]:
     out: dict[str, dict[str, float]] = {}
     for d in set(touched_n) | set(sealed_n):
         t, s = touched_n.get(d, 0), sealed_n.get(d, 0)
-        out[d] = {"bomb_rate": round((t - s) / t * 100, 2) if t > 0 else None,
+        # 新股上市首日等场景可能封板却未被触板口径覆盖（首日无涨跌幅限制），
+        # 语义上封板必然曾触板，故钳制到 [0,100]
+        rate = max(0.0, min(100.0, (t - s) / t * 100)) if t > 0 and t >= s else (0.0 if t > 0 else None)
+        out[d] = {"bomb_rate": round(rate, 2) if rate is not None else None,
                   "touched": t, "sealed": s, "max_streak": max_streak.get(d, 0)}
     with _lock:
         _sentiment_cache = out
