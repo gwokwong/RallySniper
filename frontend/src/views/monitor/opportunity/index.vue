@@ -361,18 +361,6 @@ onMounted(loadData)
         <ElTableColumn label="换手率" width="85" align="right">
           <template #default="{ row }">{{ row.turnover != null ? row.turnover + '%' : '--' }}</template>
         </ElTableColumn>
-        <ElTableColumn label="通达信指标" width="120">
-          <template #default="{ row }">
-            <template v-if="(row.tdx || []).length">
-              <ElTag v-for="t in row.tdx" :key="t.signal" size="small"
-                     :type="t.signal === '鬼手抄底' ? 'danger' : (t.signal === '鬼手减仓' ? 'warning' : 'info')"
-                     :effect="t.signal === '鬼手抄底' ? 'dark' : 'plain'" class="mr-1">
-                {{ t.signal === '鬼手抄底' ? '⭐鬼手抄底' : t.signal === '鬼手减仓' ? '⚠️鬼手减仓' : t.signal }}{{ t.days_ago > 0 ? `·${t.days_ago}日前` : '' }}
-              </ElTag>
-            </template>
-            <span v-else class="text-gray-300">--</span>
-          </template>
-        </ElTableColumn>
         <ElTableColumn label="主力净流入" width="110" align="right">
           <template #default="{ row }">
             <span :style="{ color: changeColor(row.net_inflow) }">{{ fmtMoney(row.net_inflow) }}</span>
