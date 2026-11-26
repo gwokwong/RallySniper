@@ -259,6 +259,140 @@ def _tdx_job() -> None:
         print(f"[scheduler] 通达信指标预警失败: {exc}")
 
 
+def _early_review_job() -> None:
+    """早盘快评（9:31）：集合竞价结束后立即发送——竞价版点火读数 + 候选高开排行 + 激进版组合。
+
+    定位：激进前置参考。正式确认信号仍以点火确认+14:00/14:40尾盘推送为准。
+    """
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        cfg2 = load_config()
+        eff = ds.effective_trading_date()
+        today = str(eff["date"])
+        if "-" not in today:
+            today = f"{today[:4]}-{today[4:6]}-{today[6:8]}"
+        dts = replay.trading_dates()
+        prev_list = [x for x in dts if x < today]
+        prev = prev_list[-1] if prev_list else None
+        if prev is None:
+            return
+        snap = ds.spot_quote_map()
+        if not snap:
+            print("[scheduler] 早盘快评: 行情快照不可用")
+            return
+        now_hm = datetime.now().strftime("%H:%M")
+        lines = [f"集合竞价快评 {now_hm}（数据=开盘价口径）"]
+        # ① 竞价版点火读数：昨日涨停池今日开盘涨幅中位数
+        try:
+            pool = ds.limit_up_pool_detail(prev.replace("-", ""), ttl=300)
+            gaps = []
+            for p in pool or []:
+                q = snap.get(p.get("code", ""))
+                if q and q.get("change_pct") is not None:
+                    gaps.append(float(q["change_pct"]))
+            if len(gaps) >= 3:
+                med = float(np.median(gaps)) if False else float(sorted(gaps)[len(gaps) // 2])
+                hi = sum(1 for g in gaps if g >= 3)
+                lo = sum(1 for g in gaps if g <= -5)
+                lines.append(f"① 竞价点火读数：昨日涨停 {len(gaps)} 只开盘溢价中位 {med:+.2f}%"
+                             f"（高开≥3% {hi} 只 / 低开≤-5% {lo} 只）→ "
+                             f"{'开盘偏强，点火概率高' if med >= 1.5 else ('中性' if med >= -1 else '开盘偏弱，警惕退潮')}")
+            else:
+                lines.append("① 竞价点火读数：样本不足")
+        except Exception as _e:  # noqa: BLE001
+            lines.append(f"① 竞价点火读数暂不可用（{str(_e)[:40]}）")
+        # ② 候选高开排行（反包候选 + 鬼手抄底5日内）
+        r = patternwatch.war_map(top_n=0)
+        ghost_rows = []
+        try:
+            from . import tdxwatch as _tw
+            lx = _tw.latest_signals(5)
+            nm_map = ds.stock_code_names()
+            for c, v in (lx.get("signals") or {}).items():
+                hit = next((x for x in v if x.get("signal") == "鬼手抄底"), None)
+                if hit:
+                    ghost_rows.append({"code": c, "name": nm_map.get(c, c), "days_ago": hit.get("days_ago", 0)})
+        except Exception:  # noqa: BLE001
+            pass
+        cand_rows = []
+        for c in r.get("candidates", []):
+            q = snap.get(c["code"]) or {}
+            if q.get("change_pct") is None:
+                continue
+            cand_rows.append({**c, "gap": float(q["change_pct"]), "now_price": q.get("price")})
+        cand_by_code = {x["code"]: x for x in cand_rows}
+        for g in ghost_rows:
+            base = cand_by_code.get(g["code"])
+            q = snap.get(g["code"]) or {}
+            if q.get("change_pct") is None:
+                continue
+            if base is None:
+                base = {"code": g["code"], "name": g["name"], "industry": "--",
+                        "life_line": 0, "wash_date": "", "prev_close": q.get("price")}
+            cand_rows.append({**base, "gap": float(q["change_pct"]),
+                              "now_price": q.get("price"), "ghost": True,
+                              "days_ago": g["days_ago"]})
+        # 分层：承接区(高开2~6%) / 追高危险(≥7%) / 平开观察(0~2%) / 弱势(<0)
+        zone_hot, zone_good, zone_flat, zone_weak = [], [], [], []
+        for x in cand_rows:
+            g = x["gap"]
+            if g >= 7: zone_hot.append(x)
+            elif g >= 2: zone_good.append(x)
+            elif g >= 0: zone_flat.append(x)
+            else: zone_weak.append(x)
+        zone_good.sort(key=lambda x: -x["gap"]); zone_hot.sort(key=lambda x: -x["gap"])
+        zone_flat.sort(key=lambda x: -x["gap"]); zone_weak.sort(key=lambda x: x["gap"])
+        lines.append(f"② 候选高开排行：承接区(高开2~6%) {len(zone_good)} 只｜追高危险(≥7%) {len(zone_hot)} 只｜"
+                     f"平开 {len(zone_flat)} 只｜弱势低开 {len(zone_weak)} 只")
+        # ③ 激进版组合（承接区内选，行业分散，快照现价折算手数）
+        cap_amt = float(getattr(cfg2, "available_capital", 0) or 0)
+        alloc = None
+        if cap_amt > 0 and zone_good:
+            try:
+                from . import market_scan as _ms
+                pseudo = [{"code": x["code"], "name": x["name"], "price": x["now_price"] or x["gap"],
+                           "stage": "trigger", "confidence": "normal",
+                           "confidence_label": "激进参考", "profit_pos": None,
+                           "rev_yoy": None, "strength": x["gap"],
+                           "industry": x.get("industry", "--")} for x in zone_good[:12]]
+                alloc = _ms.recommend_allocation(
+                    pseudo, cap_amt,
+                    max_count=int(getattr(cfg2, "alloc_max_count", 0) or 0),
+                    commission_rate=float(getattr(cfg2, "commission_rate", 0.00025) or 0.00025),
+                    commission_min=float(getattr(cfg2, "commission_min", 5.0) or 0))
+            except Exception:  # noqa: BLE001
+                alloc = None
+        rows = []
+        for label, items in (("承接区", zone_good), ("追高危险", zone_hot),
+                             ("平开观察", zone_flat), ("弱势低开", zone_weak)):
+            for x in items[:8]:
+                rows.append({"strategy": "反包候选", "stage": "watch",
+                             "stage_label": label, "code": x["code"], "name": x["name"],
+                             "price": x.get("now_price") or "", "change_pct": x["gap"],
+                             "reasons": [f"生命线{x.get('life_line', 0) or '--'}",
+                                         f"{'鬼手抄底·%d日前' % x['days_ago'] if x.get('ghost') else '洗盘日' + str(x.get('wash_date', ''))[5:]}"]})
+        if alloc and alloc.get("alloc"):
+            lines.append(f"③ 激进版组合（承接区候选，现价折算手数；⚠️信号未确认，尾盘推送为准）：")
+            for a in alloc["alloc"]:
+                conf = a.get("confidence_label") or ""
+                lines.append(f"- ★ {a['name']}({a['code']}) 开盘价{a['price']}"
+                             f"｜{a['lots']}手={a['shares']}股≈{a['amount']:g}元"
+                             + (f"｜{conf}" if conf else ""))
+            lines.append(f"合计投入约 {alloc['invested']:g} 元，留存 {alloc['residual']:g} 元，"
+                         f"双边佣金约 {alloc['fee_est']:g} 元。生命线跌破即放弃。")
+        elif cap_amt > 0:
+            lines.append(f"③ 可用 {cap_amt:g} 元：承接区内无可组合候选（高开过度或弱势），激进组合今日不给出。")
+        title = f"【早盘快评·集合竞价】{now_hm} 开盘点火读数 + 候选高开排行"
+        body = "\n".join(lines)
+        notifications.add(title, body, rows, kind="pattern")
+        if cfg2.notification:
+            notifier.broadcast(cfg2.notification, title, body, rows)
+        print(f"[scheduler] 早盘快评已发送: 承接区{len(zone_good)} 追高{len(zone_hot)} 弱势{len(zone_weak)}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 早盘快评失败: {exc}")
+
+
 def _war_map_job() -> None:
     """盘前作战地图：候选名单+生命线+昨日情绪背景（休市日跳过）。"""
     try:
@@ -736,6 +870,12 @@ def start() -> dict[str, Any]:
                 trigger=CronTrigger(hour=int(tx_h), minute=int(tx_m), timezone="Asia/Shanghai"),
                 id="tdx_watch", max_instances=1, coalesce=True,
             )
+        er_h, er_m = cfg.scan.early_review_time.split(":")
+        _scheduler.add_job(
+            _early_review_job,
+            trigger=CronTrigger(hour=int(er_h), minute=int(er_m), timezone="Asia/Shanghai"),
+            id="early_review", max_instances=1, coalesce=True,
+        )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -847,6 +987,14 @@ def refresh() -> dict[str, Any]:
                 trigger=CronTrigger(hour=int(tx_h), minute=int(tx_m), timezone="Asia/Shanghai"),
                 id="tdx_watch", max_instances=1, coalesce=True,
             )
+        if _scheduler.get_job("early_review"):
+            _scheduler.remove_job("early_review")
+        er_h, er_m = cfg.scan.early_review_time.split(":")
+        _scheduler.add_job(
+            _early_review_job,
+            trigger=CronTrigger(hour=int(er_h), minute=int(er_m), timezone="Asia/Shanghai"),
+            id="early_review", max_instances=1, coalesce=True,
+        )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}
 

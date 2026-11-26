@@ -799,6 +799,17 @@
             </ElFormItem>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">早盘快评（9:31 竞价结束后：昨日涨停开盘溢价读数+候选高开排行+激进版组合）</span>
+            </div>
+            <ElFormItem label="发送时点">
+              <ElInput v-model="config.scan.early_review_time" placeholder="09:31" style="width:100%" />
+            </ElFormItem>
+            <p class="text-xs text-gray-400 m-0">
+              集合竞价口径（9:25撮合后的开盘价）；承接区=高开2~6%（有承接可介入），≥7%归入追高危险不进组合；
+              ⚠️激进版组合为信号未确认的前置参考，正式确认以点火+尾盘推送为准，生命线跌破即放弃。
+            </p>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
               <span class="text-xs text-gray-500">盘尾指标预警（收盘后：鬼手抄底⭐买进信号 回测71.8%/+5.82%；鬼手减仓卖出预警）</span>
             </div>
             <ElFormItem label="发送时点">
@@ -910,7 +921,7 @@ const config = reactive<any>({
     touch_strong_reset_enabled: false, touch_strong_pct: 5.0,
     a_kill_skip_enabled: false, a_kill_days: 3, a_kill_down_days: 5, a_kill_cum_drop: 15.0,
     vp_combo_filter_enabled: true, vp_combo_exclude_c4: false,
-    pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25', lunch_review_time: '11:35', tdx_enabled: true, tdx_time: '15:15',
+    pattern_watch_enabled: true, pattern_poll_minutes: 3, pattern_fast_seconds: 45, war_map_time: '09:25', lunch_review_time: '11:35', tdx_enabled: true, tdx_time: '15:15', early_review_time: '09:31',
     pattern_board_alert: true, pattern_board_anomaly_pct: 1.9, pattern_board_down_pct: 2.3,
     available_capital: 8000, alloc_max_count: 2, commission_rate: 0.0001, commission_min: 1,
     pattern_break_high_days: 20, pattern_break_vr: 1.5, pattern_max_alerts: 20
