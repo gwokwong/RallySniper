@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import threading
 from typing import Any
 
 import numpy as np
@@ -19,6 +20,8 @@ import pandas as pd
 
 from . import datasource as ds
 from .config import load_config
+
+_lock = threading.Lock()
 
 _signals_cache: dict[str, dict[str, list[int]]] | None = None
 # {signal_name: {code: [触发日行号列表]}}（最新一次全市场扫描结果）
@@ -137,6 +140,31 @@ def scan_day(date: str) -> list[dict[str, Any]]:
                             "price": round(float(df["close"].iloc[j]), 2),
                             "pct": round(float(df["pct_change"].iloc[j]), 2)})
     return out
+
+
+def latest_signals() -> dict[str, Any]:
+    """最近一个已完成交易日的全市场指标信号（按代码聚合，带当日缓存）。供前端
+    市场机会/标的池展示，以及扫描信号附加通达信标记。首次计算约2分钟，之后走缓存。"""
+    global _latest_cache
+    from . import replay as rp
+    dates = rp.trading_dates()
+    d = dates[-1]
+    with _lock:
+        if _latest_cache and _latest_cache.get("date") == d:
+            return _latest_cache
+    items = scan_day(d)
+    keep = {"鬼手抄底", "鬼手减仓", "鬼手买进A", "鬼手买进B", "三线超卖首现"}
+    by_code: dict[str, list[str]] = {}
+    for x in items:
+        if x["signal"] in keep:
+            by_code.setdefault(x["code"], []).append(x["signal"])
+    out = {"date": d, "signals": by_code}
+    with _lock:
+        _latest_cache = out
+    return out
+
+
+_latest_cache: dict[str, Any] | None = None
 
 
 def scan_today() -> dict[str, Any]:

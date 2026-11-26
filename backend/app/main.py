@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import (
-    analyzer, datasource as ds, ignitionwatch, mainwave, monitor, market_scan, patternwatch, replay, wzqwatch,
+    analyzer, datasource as ds, ignitionwatch, mainwave, monitor, market_scan, patternwatch, replay, tdxwatch, wzqwatch,
     notifications, notifier as notifier_mod, scheduler, sellwatch, yesterday,
 )
 from .config import AppConfig, load_config, save_config, update_config
@@ -655,6 +655,12 @@ def clear_history() -> dict[str, Any]:
 
 
 # ----------------------------- 全市场扫描与推送 -----------------------------
+
+@app.get("/api/tdx/latest")
+def tdx_latest() -> dict[str, Any]:
+    """最近一个已完成交易日的通达信指标信号（按代码聚合）。"""
+    return ok(tdxwatch.latest_signals())
+
 
 @app.get("/api/market/scan-status")
 def market_scan_status() -> dict[str, Any]:

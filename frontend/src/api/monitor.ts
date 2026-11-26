@@ -209,6 +209,7 @@ export const monitorApi = {
     snapshot: any; rows: YesterdayRow[]; times: string[]; last?: { saved_at?: string; source?: string } | null
   }>({ url: '/api/yesterday/snapshot' }),
   yesterdayScan: () => request.post<any>({ url: '/api/yesterday/scan' }),
+  tdxLatest: () => request.get<{ date: string; signals: Record<string, string[]> }>({ url: '/api/tdx/latest' }),
   yesterdayPush: () => request.post<any>({ url: '/api/yesterday/push-now' }),
 
   /** 持有标记 */

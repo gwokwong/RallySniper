@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any
 
-from . import datasource as ds, mainwave, scanstore
+from . import datasource as ds, mainwave, scanstore, tdxwatch
 from .config import effective_config, load_config
 
 
@@ -595,6 +595,15 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
         try:
             attach_confidence(signals, pool_ind_cnt, market_height_prev,
                               size_tier if ignition.get("ignited") else None)
+        except Exception:  # noqa: BLE001
+            pass
+        # 通达信指标标记（昨日已完成的鬼手抄底/减仓等，供前端展示联动）
+        try:
+            latest = tdxwatch.latest_signals()
+            by_code = latest.get("signals", {})
+            for s in signals:
+                t = by_code.get(s.get("code")) or []
+                s["tdx"] = t
         except Exception:  # noqa: BLE001
             pass
         duration = time.time() - t0

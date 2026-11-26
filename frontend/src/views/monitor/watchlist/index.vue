@@ -105,6 +105,18 @@
             {{ row.turnover == null ? '--' : `${row.turnover.toFixed(2)}%` }}
           </template>
         </ElTableColumn>
+        <ElTableColumn label="通达信" width="130">
+          <template #default="{ row }">
+            <template v-if="(tdxMap[row.code] || []).length">
+              <ElTag v-for="t in tdxMap[row.code]" :key="t" size="small"
+                     :type="t === '鬼手抄底' ? 'danger' : (t === '鬼手减仓' ? 'warning' : 'info')"
+                     :effect="t === '鬼手抄底' ? 'dark' : 'plain'" class="mr-1 mb-1">
+                {{ t === '鬼手抄底' ? '⭐抄底' : t === '鬼手减仓' ? '⚠️减仓' : t }}
+              </ElTag>
+            </template>
+            <span v-else class="text-xs text-gray-300">--</span>
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="战法信号" min-width="240">
           <template #default="{ row }">
             <div v-if="row.signals.length" class="flex flex-wrap gap-1">
@@ -320,6 +332,15 @@ const formatChange = (v: number | null) =>
 const isHeld = (row: WatchlistRow) => heldCodes.value.includes(row.code)
 const isFirst = (row: WatchlistRow) => rows.value[0]?.code === row.code
 const isLast = (row: WatchlistRow) => rows.value[rows.value.length - 1]?.code === row.code
+
+const tdxMap = ref<Record<string, string[]>>({})
+
+async function loadTdx() {
+  try {
+    const res: any = await monitorApi.tdxLatest()
+    tdxMap.value = res?.signals || {}
+  } catch { /* 静默 */ }
+}
 
 async function loadData(showLoading = true) {
   if (showLoading) loading.value = true
@@ -552,6 +573,7 @@ async function handleScan() {
 
 onMounted(async () => {
   await loadData()
+  loadTdx()
   // 支持深链：#/monitor/watchlist?code=600519&tab=intraday 直接打开个股详情
   const q = String(route.query.code || '')
   if (!q) return
