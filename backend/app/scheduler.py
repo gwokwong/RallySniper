@@ -13,7 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, patternwatch, replay, scanstore, wzqwatch
+from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, patternwatch, replay, scanstore, tdxwatch, wzqwatch
 from . import sellwatch, yesterday
 import json
 
@@ -201,6 +201,61 @@ def _lunch_review_job() -> None:
         print(f"[scheduler] 午盘复盘已发送（持仓行 {len(rows)}）")
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] 午盘复盘失败: {exc}")
+
+
+def _tdx_job() -> None:
+    """通达信指标日K预警（收盘后）：等K线刷新完成后扫描当日信号，合并一封邮件。"""
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        import time as _time
+        for _ in range(180):  # 等 15:10 的缓存刷新完成（最多15分钟）
+            prog = getattr(replay, "_refresh_progress", {}) or {}
+            if prog.get("finished"):
+                break
+            _time.sleep(5)
+        r = tdxwatch.scan_today()
+        items = r.get("items", [])
+        if not items:
+            print("[scheduler] 通达信指标: 今日无信号")
+            return
+        cfg2 = load_config()
+        holdings = set(h for h in cfg2.holdings if len(h) == 6 and h.isdigit())
+        rows, lines = [], []
+        dips = [x for x in items if x["signal"] == "鬼手抄底"]
+        jians = [x for x in items if x["signal"] == "鬼手减仓"]
+        others = [x for x in items if x["signal"] not in ("鬼手抄底", "鬼手减仓")]
+        if dips:
+            lines.append(f"【⭐鬼手抄底·买进信号】{len(dips)} 只（回测7-11月485次：次日开盘买胜率71.8%/均+5.82%）")
+            for x in dips[:15]:
+                star = "★持仓触发 " if x["code"] in holdings else ""
+                lines.append(f"- {star}{x['name']}({x['code']}) 现价{x['price']} {x['pct']:+.1f}%")
+                rows.append({"strategy": "鬼手抄底", "stage": "trigger", "stage_label": "⭐买进信号(回测72%胜率)",
+                             "code": x["code"], "name": x["name"], "price": x["price"],
+                             "change_pct": x["pct"], "reasons": ["深跌放量单日大涨8%+，仍处长期均线下方——超跌反弹结构"]})
+        if jians:
+            hi = [x for x in jians if x["code"] in holdings]
+            lines.append(f"【⚠️鬼手减仓·卖出预警】{len(jians)} 只触发（信号后5日平均 -2.50%）"
+                         + (f"，其中持仓触发 {len(hi)} 只：{'、'.join(x['name'] for x in hi[:8])}" if hi else ""))
+            for x in jians[:10]:
+                star = "★持仓触发 " if x["code"] in holdings else ""
+                lines.append(f"- {star}{x['name']}({x['code']}) 现价{x['price']} {x['pct']:+.1f}%")
+                rows.append({"strategy": "鬼手减仓", "stage": "watch", "stage_label": "⚠️减仓预警",
+                             "code": x["code"], "name": x["name"], "price": x["price"],
+                             "change_pct": x["pct"], "direction": "down",
+                             "reasons": ["RSI6高位跌破82——信号后5日平均-2.50%，持仓注意减仓"]})
+        if others:
+            lines.append(f"【仅供参考⚠️回测无优势】鬼手买进A/B、三线超卖首现等 {len(others)} 条（不构成建议）")
+            for x in others[:8]:
+                lines.append(f"- {x['name']}({x['code']}) {x['signal']} 现价{x['price']}")
+        title = f"【盘尾指标预警】鬼手抄底 {len(dips)} 只 / 减仓预警 {len(jians)} 只"
+        body = "\n".join(lines)
+        notifications.add(title, body, rows, kind="pattern")
+        if cfg2.notification:
+            notifier.broadcast(cfg2.notification, title, body, rows)
+        print(f"[scheduler] 通达信指标预警: 抄底{len(dips)} 减仓{len(jians)} 其他{len(others)}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 通达信指标预警失败: {exc}")
 
 
 def _war_map_job() -> None:
@@ -648,6 +703,13 @@ def start() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(lr_h), minute=int(lr_m), timezone="Asia/Shanghai"),
             id="lunch_review", max_instances=1, coalesce=True,
         )
+        if cfg.scan.tdx_enabled:
+            tx_h, tx_m = cfg.scan.tdx_time.split(":")
+            _scheduler.add_job(
+                _tdx_job,
+                trigger=CronTrigger(hour=int(tx_h), minute=int(tx_m), timezone="Asia/Shanghai"),
+                id="tdx_watch", max_instances=1, coalesce=True,
+            )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -750,6 +812,15 @@ def refresh() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(lr_h), minute=int(lr_m), timezone="Asia/Shanghai"),
             id="lunch_review", max_instances=1, coalesce=True,
         )
+        if _scheduler.get_job("tdx_watch"):
+            _scheduler.remove_job("tdx_watch")
+        if cfg.scan.tdx_enabled:
+            tx_h, tx_m = cfg.scan.tdx_time.split(":")
+            _scheduler.add_job(
+                _tdx_job,
+                trigger=CronTrigger(hour=int(tx_h), minute=int(tx_m), timezone="Asia/Shanghai"),
+                id="tdx_watch", max_instances=1, coalesce=True,
+            )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}
 

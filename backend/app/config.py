@@ -170,6 +170,9 @@ class ScanConfig(BaseModel):
                                                   "秒级tick需websocket数据源")
     war_map_time: str = Field(default="09:25", description="盘前作战地图发送时点(HH:MM)：候选名单+生命线+昨日情绪背景")
     lunch_review_time: str = Field(default="11:35", description="午盘复盘发送时点(HH:MM)：上午板块红绿榜+点火读数+候选异动+持仓快照+午后展望")
+    tdx_enabled: bool = Field(default=True, description="通达信指标日K预警（收盘后）：鬼手抄底（回测7-11月485次、次日开盘买胜率71.8%/均+5.82%）、"
+                                                       "鬼手减仓（信号后5日均-2.50%的卖出预警）等；CCI超卖/金叉反弹触发过频不提醒")
+    tdx_time: str = Field(default="15:15", description="通达信指标预警发送时点(HH:MM)：收盘后等K线刷新完成再扫描，用于次日操作")
     pattern_break_high_days: int = Field(default=20, ge=5, le=120,
                                          description="新高突破的N日窗口")
     pattern_break_vr: float = Field(default=1.5, ge=1.0, le=10,
