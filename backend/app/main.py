@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import (
-    analyzer, datasource as ds, ignitionwatch, mainwave, monitor, market_scan, patternwatch, replay, tdxwatch, wzqwatch,
+    analyzer, datasource as ds, ignitionwatch, lanban, mainwave, monitor, market_scan, patternwatch, replay, tdxwatch, wzqwatch,
     notifications, notifier as notifier_mod, scheduler, sellwatch, yesterday,
 )
 from .config import AppConfig, load_config, save_config, update_config
@@ -655,6 +655,12 @@ def clear_history() -> dict[str, Any]:
 
 
 # ----------------------------- 全市场扫描与推送 -----------------------------
+
+@app.get("/api/lanban/candidates")
+def lanban_candidates() -> dict[str, Any]:
+    """烂板接力候选（T-2涨停→T-1开盘无板+触板+收盘封板+放量换手）。"""
+    return ok(lanban.candidates())
+
 
 @app.get("/api/positions/plan")
 def positions_plan() -> dict[str, Any]:

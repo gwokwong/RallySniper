@@ -161,7 +161,15 @@ def poll_fast() -> dict[str, Any]:
                 dip_codes.add(c)
     except Exception:  # noqa: BLE001
         pass
-    watch = rev | dip_codes
+    # 烂板接力候选（T-1烂板换手板）——接力确认=今日封板（规则7：上午板才算，下午板不打）
+    lan_codes: dict[str, dict] = {}
+    try:
+        from . import lanban as _lb
+        for c in _lb.candidates().get("candidates", []):
+            lan_codes[c["code"]] = c
+    except Exception:  # noqa: BLE001
+        pass
+    watch = rev | dip_codes | set(lan_codes.keys())
     if not watch:
         return {"checked": True, "new": []}
     quotes = ds.spot_quote_map(sorted(watch))
@@ -171,6 +179,28 @@ def poll_fast() -> dict[str, Any]:
     for code, q in quotes.items():
         if day_alerts >= cap:
             continue
+        # 烂板接力·秒板确认（规则7：上午板才算）
+        if code in lan_codes and f"{code}:lanban" not in alerted:
+            q_l = lan_codes[code]
+            limit_px = float(q_l["limit_px"])
+            price_f = float(q.get("price") or 0)
+            opened_lim = float(q.get("open") or 0) >= limit_px * 0.995
+            now_h = int(now_hm.split(":")[0]) if now_hm else 12
+            if price_f >= limit_px * 0.995 and not opened_lim:
+                if now_h >= 13:
+                    pass  # 下午板不打（规则7）
+                elif q_l["streak"] >= 4 and float(q.get("open") or 0) < float(q_l["t1_close"]):
+                    pass  # 高位低开必死（规则6）
+                else:
+                    alerted.add(f"{code}:lanban")
+                    day_alerts += 1
+                    tag = "二进三" if q_l["streak"] == 2 else f"{q_l['streak']}连板"
+                    new.append({"code": code, "name": nm, "pattern": f"烂板接力·{tag}封板",
+                                "price": round(price_f, 2), "pct": round(float(q.get("change_pct") or 0), 2),
+                                "vr": None,
+                                "detail": (f"昨日换手烂板（放量{q_l['vol_ratio_1d']}倍），今日上午封板"
+                                           f"｜接力确认价{limit_px}｜回测封住5日均+8.65%（二进三）")})
+                continue
         # 鬼手抄底票·二次启动（pct≥3%）：候选池外的鬼手表也盯
         if code not in rev and code in dip_codes and f"{code}:tdxdip" not in alerted:
             pct_d = q.get("change_pct")

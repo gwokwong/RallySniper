@@ -68,6 +68,15 @@ export const monitorRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'lanban',
+      name: 'LanbanRelay',
+      component: '/monitor/lanban',
+      meta: {
+        title: 'menus.monitor.lanban',
+        icon: 'ri:rocket-line'
+      }
+    },
+    {
       path: 'settings',
       name: 'MonitorSettings',
       component: '/monitor/settings',

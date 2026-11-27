@@ -211,6 +211,7 @@ export const monitorApi = {
   yesterdayScan: () => request.post<any>({ url: '/api/yesterday/scan' }),
   tdxLatest: () => request.get<{ date: string; window?: number; signals: Record<string, { signal: string; days_ago: number }[]> }>({ url: '/api/tdx/latest' }),
   positionsPlan: () => request.get<{ plans: any[]; time: string }>({ url: '/api/positions/plan', timeout: 60000 }),
+  lanbanCandidates: () => request.get<{ date: string; n: number; candidates: any[] }>({ url: '/api/lanban/candidates' }),
   yesterdayPush: () => request.post<any>({ url: '/api/yesterday/push-now' }),
 
   /** 持有标记 */
