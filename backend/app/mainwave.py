@@ -616,7 +616,7 @@ def _strategy_dual_death_cross(d: pd.DataFrame, r: dict[str, Any]) -> dict[str, 
     high_pos = d["close"].tail(60).rank(pct=True).iloc[-1] if len(d) >= 20 else 1.0
     reasons: list[str] = []
     if in_death:
-        reasons.append("5日线位于20日线下方(死叉状态)")
+        reasons.append("5日线位于20日线下方(死叉状态，趋势指标未修复)")
     if hit_cross:
         reasons.append(f"死叉形成于{ago}日前")
     if high_pos >= 0.6:

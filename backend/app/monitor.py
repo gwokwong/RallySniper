@@ -92,6 +92,34 @@ def scan_once(cfg: AppConfig | None = None, push: bool = True) -> dict[str, Any]
             )
         ]
 
+    # 实时行情覆盖：盘中日K可能缺当日行（数据源限流等），信号价会显示成昨收——
+    # 用实时快照覆盖 现价/涨跌幅，并注明信号按上一交易日收盘确认
+    try:
+        _codes = sorted({s.get("code") for s in fresh if s.get("code")})
+        _quotes = ds.spot_quote_map(_codes) if _codes else {}
+        for s in fresh:
+            q = _quotes.get(s.get("code")) or {}
+            if not q:
+                continue
+            sig_price = s.get("price")
+            pre = q.get("pre_close")
+            if sig_price and pre and abs(float(sig_price) - float(pre)) < 0.005:
+                s["reasons"] = list(s.get("reasons") or []) + [
+                    "信号按上一交易日收盘确认；现价为实时行情"]
+            if q.get("price") is not None:
+                s["price"] = q["price"]
+            if q.get("change_pct") is not None:
+                s["change_pct"] = float(q["change_pct"])
+    except Exception:  # noqa: BLE001
+        pass
+    # 同票「买点+危险」并存：反转首日均线未修复属常见，缓和非离场表述
+    _up_codes = {s.get("code") for s in fresh
+                 if s.get("stage") == "trigger" and s.get("direction") != "down"}
+    for s in fresh:
+        if s.get("direction") == "down" and s.get("code") in _up_codes:
+            s["reasons"] = list(s.get("reasons") or []) + [
+                "（同票当日已触发买点信号：反弹首日均线未修复属常见，以生命线为准，跌破再离场）"]
+
     if push and fresh and cfg.notification:
         trigger_n = sum(1 for s in fresh if s.get("stage") == "trigger")
         watch_n = sum(1 for s in fresh if s.get("stage") == "watch")
