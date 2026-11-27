@@ -176,6 +176,48 @@ def _safe_call(fn: Callable, *args: Any, **kwargs: Any) -> pd.DataFrame | None:
 
 # ----------------------------- 行情接口 -----------------------------
 
+def _tencent_spot_df(codes: list[str]) -> pd.DataFrame | None:
+    """腾讯批量实时行情（qt.gtimg.cn）：东财限流时的可靠按码源（快、含量比）。
+
+    字段映射（~分隔）：1名称 2代码 3现价 4昨收 5今开 6成交量 30时间 32涨跌%
+    33最高 34最低 37成交额(万) 38换手率 49量比。
+    """
+    try:
+        import requests
+    except Exception:  # noqa: BLE001
+        return None
+    syms = []
+    for c in codes:
+        c = str(c).zfill(6)
+        if c.startswith(("6", "9")):
+            syms.append("sh" + c)
+        elif c.startswith(("0", "2", "3")):
+            syms.append("sz" + c)
+        # 北交（4/8/92）腾讯无标准覆盖，跳过
+    if not syms:
+        return None
+    url = "https://qt.gtimg.cn/q=" + ",".join(syms)
+    try:
+        resp = requests.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+        resp.encoding = "gbk"
+        rows = []
+        for part in resp.text.split(";"):
+            part = part.strip()
+            if "=" not in part or "~" not in part:
+                continue
+            f = part.split("~")
+            if len(f) < 50 or not f[2]:
+                continue
+            rows.append({"代码": f[2].zfill(6), "名称": f[1], "最新价": f[3],
+                         "涨跌幅": f[32], "昨收": f[4], "今开": f[5],
+                         "最高": f[33], "最低": f[34], "成交量": f[6],
+                         "成交额": str(float(f[37]) * 10000) if f[37] else "0",
+                         "换手率": f[38], "量比": f[49], "行情时间": f[30]})
+        return pd.DataFrame(rows) if rows else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def stock_spot(ttl: int = 30) -> pd.DataFrame | None:
     """沪深京 A 股实时行情。
 
@@ -212,6 +254,40 @@ def spot_quote_map(codes: list[str] | set[str] | None = None,
     """
     if not codes:
         return {}
+    # 腾讯按码源优先：东财限流时仍能取到最新价（熔断降级曾导致邮件发旧价——用户实测痛点）
+    wanted_set = {str(c).zfill(6)[-6:] for c in codes}
+    tdf = _tencent_spot_df(sorted(wanted_set))
+    if tdf is not None and not tdf.empty and "代码" in tdf.columns:
+        out_t: dict[str, dict[str, Any]] = {}
+
+        def val_t(row: Any, *names: str) -> float | None:
+            for n in names:
+                if n in tdf.columns:
+                    vv = pd.to_numeric(row[n], errors="coerce")
+                    return None if pd.isna(vv) else float(vv)
+            return None
+
+        for _, row in tdf.iterrows():
+            code = str(row["代码"]).zfill(6)
+            if code not in wanted_set:
+                continue
+            out_t[code] = {
+                "name": str(row.get("名称", code)).strip(),
+                "price": val_t(row, "最新价"),
+                "change_pct": val_t(row, "涨跌幅"),
+                "open": val_t(row, "今开"),
+                "high": val_t(row, "最高"),
+                "low": val_t(row, "最低"),
+                "pre_close": val_t(row, "昨收"),
+                "volume": val_t(row, "成交量"),
+                "amount": val_t(row, "成交额"),
+                "volume_ratio": val_t(row, "量比"),
+                "turnover": val_t(row, "换手率"),
+                "source": "tencent",
+                "quote_time": str(row.get("行情时间", "")),
+            }
+        if out_t:
+            return out_t  # 腾讯源成功 → 全部 wanted 已覆盖，直接返回最新价
     df = stock_spot(ttl)
     if df is None or df.empty:
         return {}
