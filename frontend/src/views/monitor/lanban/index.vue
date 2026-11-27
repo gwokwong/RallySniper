@@ -37,7 +37,7 @@
         </ElTableColumn>
         <ElTableColumn label="昨日收盘" width="90" align="right" prop="t1_close" />
         <ElTableColumn label="接力确认价" width="100" align="right">
-          <template #default="{ row }"><b class="text-red-600">{{ row.limit_px }}</b></template>
+          <template #default="{ row }"><b class="text-red-600">{{ row.relay_px || row.limit_px }}</b></template>
         </ElTableColumn>
         <ElTableColumn label="放量倍数" width="90" align="right" prop="vol_ratio_1d" />
         <ElTableColumn label="换手%" width="85" align="right">

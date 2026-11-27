@@ -523,7 +523,7 @@ def _lanban_auction_job() -> None:
                 lines.append(f"【{z}】{len(items)} 只：")
                 for x in items[:10]:
                     lines.append(f"- {x['name']}({x['code']}) 竞价{x['price']} {x['gap']:+.2f}%"
-                                 f"｜接力确认价{x['limit_px']}｜{x['streak']}板")
+                                 f"｜接力确认价{x['limit_px']}｜{x['streak']}进{x['streak']+1}")
         lines.append("\n纪律：承接区可竞价买入（规则5 高开秒板进）；一字/超高开拿不到也不追；"
                      "低开不接力（规则6 高位低开必死）。买入后以 45 秒快车道封板确认+第3次放量离场。")
         title = f"【烂板接力·竞价提醒】{now_hm} 承接区 {len(zones['承接区(高开2~7%)'])} 只可关注"

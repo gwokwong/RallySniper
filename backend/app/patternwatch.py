@@ -194,7 +194,7 @@ def poll_fast() -> dict[str, Any]:
         # 烂板接力·秒板确认（规则3/7：放量换手板才有合力；上午板才算；一字不打）
         if code in lan_codes and f"{code}:lanban" not in alerted:
             q_l = lan_codes[code]
-            limit_px = float(q_l["limit_px"])
+            limit_px = float(q_l.get("relay_px") or q_l["limit_px"])
             price_f = float(q.get("price") or 0)
             opened_lim = float(q.get("open") or 0) >= limit_px * 0.995
             vr_today = float(q.get("volume_ratio") or 0)

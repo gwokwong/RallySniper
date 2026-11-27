@@ -91,11 +91,13 @@ def _detect_candidates(date: str) -> list[dict[str, Any]]:
         v_ma5 = float(v.rolling(5).mean().iloc[j - 1]) if j >= 5 else 0
         if not (float(v.iloc[j]) >= 1.5 * max(v_ma5, 1)):
             continue  # 未放量（规则3/4）
+        relay_px = round(float(c.iloc[j]) * (1 + th / 100), 2)  # 接力日涨停价=昨收×1.1
         out.append({
             "code": code, "name": nm or code,
             "industry": imap.get(code, "--"),
             "streak": run,                    # T-1 收盘连板高度（2=二进三候选）
-            "limit_px": limit_px,             # 今日接力确认价（触此价=封板）
+            "limit_px": limit_px,             # T-1 板的涨停价（昨日触板位，内部用）
+            "relay_px": relay_px,             # 今日接力确认价（触及=今日封板）
             "t1_close": round(float(c.iloc[j]), 2),
             "turnover_pct": round(float(hist_turnover(df).iloc[j]), 2) if len(hist_turnover(df)) > j else None,
             "vol_ratio_1d": round(float(v.iloc[j]) / max(v_ma5, 1), 2),
