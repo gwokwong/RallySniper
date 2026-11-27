@@ -367,7 +367,7 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
         # 非点火日追高信号系统性亏钱，暂停开新仓。妖股模式绕过（与弱市闸门同策略）。
         pool_ind_cnt: dict[str, int] = {}
         market_height_prev = None
-        ignition: dict[str, Any] = {}
+        ignition: dict[str, Any] = {"ignited": False}
         if cfg.market_regime.ignition_enabled and cfg.run_mode != "monster":
             ignition = ds.ignition_premium(eff["date"])
             # 附带阈值与运行模式，供前端/通知层判断当前是否点火
@@ -379,7 +379,7 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
             # 炸板闸门（2026-11-25 全网因子研究）：昨日市场炸板率>阈值=资金分歧极大
             # （情绪冰点），即使溢价达标也不点火。全部由昨日K线计算，开盘前已知。
             # 回测（7-11月）：叠加后总收益+5.99→+8.36万，胜率51.8%→57.5%。
-            if ignition["ignited"] and cfg.market_regime.ignition_bomb_gate_enabled:
+            if ignition.get("ignited") and cfg.market_regime.ignition_bomb_gate_enabled:
                 try:
                     from . import replay as _rp
                     dts = _rp.trading_dates()
@@ -411,7 +411,7 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
         size_tier = None
         pool_ind_cnt: dict[str, int] = {}
         market_height_prev = None
-        if ignition["ignited"]:
+        if ignition.get("ignited"):
             try:
                 detail = ds.limit_up_pool_detail(eff["date"], ttl=300)
                 today_zt = len(detail) if detail else 0
@@ -444,7 +444,7 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
         # 广度确认（2026-11-22 阶段研究）：点火∧当日涨停家数≥阈值(高潮)胜率82.7%，
         # 点火∧家数不足(修复反弹)仅14.6%——溢价高但广度不够多为一日游反弹
         breadth = int(cfg.market_regime.ignition_min_breadth or 0)
-        if breadth > 0 and ignition["ignited"]:
+        if breadth > 0 and ignition.get("ignited"):
             ignition["min_breadth"] = breadth
             if today_zt is not None and today_zt < breadth:
                 ignition["ignited"] = False
