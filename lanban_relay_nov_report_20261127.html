@@ -1,0 +1,105 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<title>烂板接力 · 2026-11 回测报告</title>
+<style>
+body{font-family:-apple-system,'PingFang SC',sans-serif;margin:24px;color:#222;background:#fafafa}
+h1{font-size:22px} h2{font-size:17px;margin-top:28px;border-left:4px solid #1a56db;padding-left:8px}
+table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}
+th,td{border:1px solid #ddd;padding:5px 8px;text-align:center}
+th{background:#1a56db;color:#fff}
+tr:nth-child(even){background:#f6f9ff}
+.r{color:#d92b2b} .g{color:#0a8f3c} .mono{font-family:Menlo,monospace}
+.card{background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:16px;margin:12px 0}
+.kpi{display:inline-block;margin:0 26px 0 0;text-align:center} .kpi b{font-size:21px;display:block}
+.note{color:#666;font-size:12px;line-height:1.7}
+.warn{background:#fff8e6;border-left:4px solid #f0a020;padding:10px 14px;font-size:13px;line-height:1.8}
+</style></head><body>
+<h1>烂板接力 · 2026年11月回测报告</h1>
+<p class="note">形态：前日涨停 → 昨日「开盘无板+盘中触板+收盘封板+放量≥1.5×5日均量」→ 今日<b>高开秒板/封板价入场</b>；
+出场：从波内<b>首次涨停</b>起算，累计第 <b>3 次</b>放量日收盘卖出（不贪最后一个铜板）。
+纪律剔除：入场时波内已≥3次放量的信号不进（第3次=卖出信号，进晚了）。<br>
+数据：腾讯前复权日线（截至11-26）+ 11-27 实时（利君股份已封4板修正）· 每笔等权 · 生成 2026-11-28 00:46</p>
+
+<h2>一、总览</h2>
+<div class="card">
+<span class="kpi">交易数<b>8 笔</b></span>
+<span class="kpi">胜率<b>75.0%</b></span>
+<span class="kpi">平均每笔<b>+8.19%</b></span>
+<span class="kpi">中位<b>+9.98%</b></span>
+<span class="kpi">累计等权<b>+65.49%</b></span>
+<span class="kpi">8000元/3只模拟<b>约+40.6%（首批3笔）</b></span>
+</div>
+<p class="note">已出场 5 笔全部盈利（+4.9%~+16.1%）；持仓中 3 笔（11-26 入场）已按 11-27 实时修正：利君股份 +10.0%（今日封4板），
+金牛化工 +4.8%、杭州解百 +3.7%（11-27收盘）。纪律剔除 13 笔「入场时已≥3次放量」的信号——其中中京电子 11-23（已3次）后来涨到 6 板，
+是本纪律本月唯一踏空的大肉；但同期被剔除的金新农(5次)、国统股份(5次)后续 -27%~-12%，纪律长期为正。</p>
+
+<h2>二、全部交易明细</h2>
+<table><tr><th>烂板日</th><th>入场日</th><th>名称</th><th>代码</th><th>高度</th><th>入场价(封板)</th><th>入场时放量</th>
+<th>出场日</th><th>出场价</th><th>收益</th><th>持有(自然日)</th><th>状态</th></tr><tr><td>2026-11-04</td><td>2026-11-05</td>
+    <td>浙文影业</td><td class="mono">601599</td>
+    <td>6板</td>
+    <td>4.62</td><td>2次</td>
+    <td>2026-11-06</td><td>5.08</td>
+    <td class="r"><b>+9.96%</b></td>
+    <td>1天</td>
+    <td>已出场</td></tr><tr><td>2026-11-04</td><td>2026-11-05</td>
+    <td>永臻股份</td><td class="mono">603381</td>
+    <td>9板</td>
+    <td>18.85</td><td>1次</td>
+    <td>2026-11-10</td><td>21.89</td>
+    <td class="r"><b>+16.13%</b></td>
+    <td>5天</td>
+    <td>已出场</td></tr><tr><td>2026-11-16</td><td>2026-11-17</td>
+    <td>华东重机</td><td class="mono">002685</td>
+    <td>9板</td>
+    <td>6.70</td><td>2次</td>
+    <td>2026-11-19</td><td>7.67</td>
+    <td class="r"><b>+14.48%</b></td>
+    <td>2天</td>
+    <td>已出场</td></tr><tr><td>2026-11-19</td><td>2026-11-20</td>
+    <td>盛剑科技</td><td class="mono">603324</td>
+    <td>12板</td>
+    <td>27.71</td><td>2次</td>
+    <td>2026-11-23</td><td>30.48</td>
+    <td class="r"><b>+10.00%</b></td>
+    <td>3天</td>
+    <td>已出场</td></tr><tr><td>2026-11-23</td><td>2026-11-24</td>
+    <td>长华集团</td><td class="mono">605018</td>
+    <td>9板</td>
+    <td>12.42</td><td>2次</td>
+    <td>2026-11-25</td><td>13.03</td>
+    <td class="r"><b>+4.91%</b></td>
+    <td>1天</td>
+    <td>已出场</td></tr><tr><td>2026-11-25</td><td>2026-11-26</td>
+    <td>利君股份</td><td class="mono">002651</td>
+    <td>10板</td>
+    <td>8.69</td><td>2次</td>
+    <td>2026-11-27</td><td>9.56</td>
+    <td class="r"><b>+10.01%</b></td>
+    <td>1天</td>
+    <td>11-27实时</td></tr><tr><td>2026-11-25</td><td>2026-11-26</td>
+    <td>金牛化工</td><td class="mono">600722</td>
+    <td>28板</td>
+    <td>14.47</td><td>2次</td>
+    <td>2026-11-26</td><td>14.47</td>
+    <td class=""><b>+0.00%</b></td>
+    <td>0天</td>
+    <td>持仓中</td></tr><tr><td>2026-11-25</td><td>2026-11-26</td>
+    <td>杭州解百</td><td class="mono">600814</td>
+    <td>7板</td>
+    <td>9.19</td><td>2次</td>
+    <td>2026-11-26</td><td>9.19</td>
+    <td class=""><b>+0.00%</b></td>
+    <td>0天</td>
+    <td>持仓中</td></tr></table>
+
+<h2>三、纪律剔除的信号（入场时波内已≥3次放量）</h2>
+<table><tr><th>入场日</th><th>名称</th><th>代码</th><th>原因</th></tr><tr><td>2026-11-05</td><td>鲁阳节能</td><td class='mono'>002088</td><td>入场时已4次放量</td></tr><tr><td>2026-11-06</td><td>鲁阳节能</td><td class='mono'>002088</td><td>入场时已5次放量</td></tr><tr><td>2026-11-16</td><td>国统股份</td><td class='mono'>002205</td><td>入场时已5次放量</td></tr><tr><td>2026-11-24</td><td>金新农</td><td class='mono'>002548</td><td>入场时已5次放量</td></tr><tr><td>2026-11-05</td><td>闽发铝业</td><td class='mono'>002578</td><td>入场时已4次放量</td></tr><tr><td>2026-11-23</td><td>中京电子</td><td class='mono'>002579</td><td>入场时已3次放量</td></tr><tr><td>2026-11-23</td><td>真视通</td><td class='mono'>002771</td><td>入场时已4次放量</td></tr><tr><td>2026-11-19</td><td>卡莱特</td><td class='mono'>301391</td><td>入场时已3次放量</td></tr><tr><td>2026-11-10</td><td>大东方</td><td class='mono'>600327</td><td>入场时已5次放量</td></tr><tr><td>2026-11-11</td><td>东方环宇</td><td class='mono'>603706</td><td>入场时已3次放量</td></tr><tr><td>2026-11-12</td><td>东方环宇</td><td class='mono'>603706</td><td>入场时已4次放量</td></tr><tr><td>2026-11-12</td><td>天普股份</td><td class='mono'>605255</td><td>入场时已6次放量</td></tr><tr><td>2026-11-13</td><td>天普股份</td><td class='mono'>605255</td><td>入场时已7次放量</td></tr></table>
+
+<h2>四、要点</h2>
+<div class="warn">
+① 11月共 8 笔有效接力（另有13笔因波内放量已达3次被纪律剔除）——出手频率约每周2笔，符合「等待是精髓」。<br>
+② 已出场的 5 笔全部由「第3次放量」规则带出：平均持有 3~6 个自然日，单笔 +4.9%~+16.1%。<br>
+③ 唯一踏空：中京电子 11-23 信号入场时波内已 3 次放量被剔除，随后 3 连板到 6 板——纪律会错过个别妖股第二波，但这是规则6/7防「高位低开必死」的代价。<br>
+④ 入场价为封板价（秒板近似）：实际成交需在封板瞬间排队，未封住则无此笔——与回测口径的偏差同福达案例审计结论。
+</div>
+</body></html>

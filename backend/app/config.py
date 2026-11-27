@@ -229,10 +229,10 @@ class SellConfig(BaseModel):
                                              description="第5通道回踩计数从最近一次强势日(大阳线)起算：洗盘反包的入场日即反包大阳，等价于从买入日起算，避免入场前洗盘段的回踩把计数用满")
     touch_strong_pct: float = Field(default=5.0, ge=3.0, le=15.0,
                                     description="强势日判定：当日涨幅≥此值(%)视为强势确认日，回踩计数从其次日重新开始")
-    surge_exit_enabled: bool = Field(default=True,
-                                     description="三次放量卖出（第6通道）：从波内首次涨停起算，累计3次放量（量≥1.5×前5日均量）"
-                                                 "即预警离场——不贪最后一个铜板。6-11月回测：卖出后67.8%的情况优于继续持有"
-                                                 "（5日-1.83% vs 继续持有-2.78%）")
+    surge_exit_enabled: bool = Field(default=False,
+                                     description="三次放量卖出（第6通道，默认关）：仅适用于烂板接力持仓的出场纪律"
+                                                 "（从波内首次涨停起算，累计3次放量即离场——不贪最后一个铜板），"
+                                                 "非全持仓通用规则；烂板接力持仓另行按此纪律管理")
     surge_days: int = Field(default=3, ge=2, le=6, description="放量次数阈值（默认3次即预警）")
     surge_vol_ratio: float = Field(default=1.5, ge=1.0, le=5.0,
                                    description="放量判定：当日量≥此前5日均量×此值")
