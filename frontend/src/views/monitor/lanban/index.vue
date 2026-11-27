@@ -8,8 +8,8 @@
             <ElTag type="danger" size="small" effect="dark">二进三换手板 · 次日高开秒板</ElTag>
           </div>
           <p class="text-sm text-gray-500 mt-2">
-            形态：前日涨停 → 昨日<b>开盘无板+盘中触板+收盘封板+放量换手</b>（烂板/换手板）→ 今日接力确认价
-            <b>{{ rows[0]?.limit_px || '--' }}（首只）</b> 封板即提醒。
+            形态：前日涨停 → 昨日<b>开盘无板+盘中触板+收盘封板+放量换手</b>（烂板/换手板）→ 今日接力确认价封板即提醒。
+            <b>二进三、三进四均可做</b>（回测：封住 5日均 二进三+8.65%、三进四+4.12%~+12.12%），关键=昨日必须放量换手、今日必须放量封板。
             <br />九条纪律：①只做连板核心 ②情绪反转节点出手 ③放量换手板才有合力 ④无量上板不碰
             ⑤二进三选换手板次日秒板进 ⑥高位三次放量后低开必死 ⑦缩量不打/下午板不打/一字不打
             ⑧等待 ⑨跟随主力顺势。
@@ -30,8 +30,8 @@
         <ElTableColumn label="行业" width="110" prop="industry" />
         <ElTableColumn label="连板高度" width="100">
           <template #default="{ row }">
-            <ElTag :type="row.streak === 2 ? 'danger' : (row.streak >= 4 ? 'warning' : 'info')" size="small" effect="dark">
-              {{ row.streak === 2 ? '⭐二进三' : row.streak + '连板' }}
+            <ElTag :type="row.streak <= 3 ? 'danger' : 'warning'" size="small" effect="dark">
+              {{ row.streak }}进{{ row.streak + 1 }}
             </ElTag>
           </template>
         </ElTableColumn>

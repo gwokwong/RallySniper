@@ -179,27 +179,30 @@ def poll_fast() -> dict[str, Any]:
     for code, q in quotes.items():
         if day_alerts >= cap:
             continue
-        # 烂板接力·秒板确认（规则7：上午板才算）
+        # 烂板接力·秒板确认（规则3/7：放量换手板才有合力；上午板才算；一字不打）
         if code in lan_codes and f"{code}:lanban" not in alerted:
             q_l = lan_codes[code]
             limit_px = float(q_l["limit_px"])
             price_f = float(q.get("price") or 0)
             opened_lim = float(q.get("open") or 0) >= limit_px * 0.995
+            vr_today = float(q.get("volume_ratio") or 0)
             now_h = int(now_hm.split(":")[0]) if now_hm else 12
             if price_f >= limit_px * 0.995 and not opened_lim:
                 if now_h >= 13:
                     pass  # 下午板不打（规则7）
                 elif q_l["streak"] >= 4 and float(q.get("open") or 0) < float(q_l["t1_close"]):
                     pass  # 高位低开必死（规则6）
+                elif vr_today < 1.2:
+                    pass  # 无量上板（规则4：量化封板多为消息刺激，无量不碰）
                 else:
                     alerted.add(f"{code}:lanban")
                     day_alerts += 1
-                    tag = "二进三" if q_l["streak"] == 2 else f"{q_l['streak']}连板"
+                    tag = f"{q_l['streak']}进{q_l['streak'] + 1}"
                     new.append({"code": code, "name": nm, "pattern": f"烂板接力·{tag}封板",
                                 "price": round(price_f, 2), "pct": round(float(q.get("change_pct") or 0), 2),
-                                "vr": None,
-                                "detail": (f"昨日换手烂板（放量{q_l['vol_ratio_1d']}倍），今日上午封板"
-                                           f"｜接力确认价{limit_px}｜回测封住5日均+8.65%（二进三）")})
+                                "vr": round(vr_today, 2),
+                                "detail": (f"昨日换手烂板（放量{q_l['vol_ratio_1d']}倍），今日放量封板（量比{vr_today:.1f}）"
+                                           f"｜接力确认价{limit_px}｜回测封住5日均+8.65%（二进三）/ +4.12%（三进四可控）")})
                 continue
         # 鬼手抄底票·二次启动（pct≥3%）：候选池外的鬼手表也盯
         if code not in rev and code in dip_codes and f"{code}:tdxdip" not in alerted:
