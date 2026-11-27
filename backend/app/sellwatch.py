@@ -314,7 +314,7 @@ def _evaluate(code: str, name: str, quote: dict[str, Any],
 
     # 6) 三次放量（第6通道）：从波内首次涨停起算，累计3次放量即预警离场——不贪最后一个铜板。
     #    回测（6-11月，3406样本）：第3次放量次日开盘卖出，67.8% 的情况优于继续持有。
-    surge_on = bool(rules.get("surge_exit_enabled", True))
+    surge_on = bool(rules.get("surge_exit_enabled", False))
     if surge_on:
         try:
             vols = hist["volume"].astype(float).to_numpy()
