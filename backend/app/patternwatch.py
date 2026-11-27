@@ -169,7 +169,19 @@ def poll_fast() -> dict[str, Any]:
             lan_codes[c["code"]] = c
     except Exception:  # noqa: BLE001
         pass
-    watch = rev | dip_codes | set(lan_codes.keys())
+    # 昨日涨停股（换手连板形成盯守）：今日开盘无板+放量+上午封板 → 买入窗口+明日烂板接力候选
+    hsb_codes: set[str] = set()
+    try:
+        dts = replay.trading_dates()
+        today_s = str(today)
+        if "-" not in today_s:
+            today_s = f"{today_s[:4]}-{today_s[4:6]}-{today_s[6:8]}"
+        prev_list = [x for x in dts if x < today_s]
+        if prev_list:
+            hsb_codes = set(replay.lu_codes_on(prev_list[-1]))
+    except Exception:  # noqa: BLE001
+        pass
+    watch = rev | dip_codes | set(lan_codes.keys()) | hsb_codes
     if not watch:
         return {"checked": True, "new": []}
     quotes = ds.spot_quote_map(sorted(watch))
@@ -204,6 +216,26 @@ def poll_fast() -> dict[str, Any]:
                                 "detail": (f"昨日换手烂板（放量{q_l['vol_ratio_1d']}倍），今日放量封板（量比{vr_today:.1f}）"
                                            f"｜接力确认价{limit_px}｜回测封住5日均+8.65%（二进三）/ +4.12%（三进四可控）")})
                 continue
+        # 昨日涨停股·换手连板形成（今日开盘无板+放量+上午封板）→ 买入窗口+明日烂板接力候选
+        if (code in hsb_codes and code not in rev and code not in dip_codes
+                and code not in lan_codes and f"{code}:hsb" not in alerted):
+            th_h = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+            pre_h = float(q.get("pre_close") or 0)
+            limit_h = round(pre_h * (1 + th_h / 100), 2)
+            price_h = float(q.get("price") or 0)
+            op_h = float(q.get("open") or 0)
+            vr_h = float(q.get("volume_ratio") or 0)
+            now_min = int(now_hm[:2]) * 60 + int(now_hm[3:5]) if now_hm else 0
+            if (pre_h and price_h >= limit_h * 0.995 and op_h < limit_h * 0.995
+                    and vr_h >= 1.2 and now_min <= 11 * 60 + 30):
+                alerted.add(f"{code}:hsb")
+                day_alerts += 1
+                new.append({"code": code, "name": str(q.get("name") or code), "pattern": "换手连板·上午封板",
+                            "price": round(price_h, 2), "pct": round(float(q.get("change_pct") or 0), 2),
+                            "vr": round(vr_h, 2),
+                            "detail": ("昨日涨停，今日开盘无板+放量换手封板（非一字）——换手板买入窗口，"
+                                       "明日自动进入烂板接力候选；封不住/炸板即放弃")})
+                continue
         # 鬼手抄底票·二次启动（pct≥3%）：候选池外的鬼手表也盯
         if code not in rev and code in dip_codes and f"{code}:tdxdip" not in alerted:
             pct_d = q.get("change_pct")
@@ -217,7 +249,7 @@ def poll_fast() -> dict[str, Any]:
                             "vr": None,
                             "detail": "5日内有鬼手抄底信号（回测71.8%/+5.82%），今日再度放量上攻≥3%"})
                 continue
-        if f"{code}:rev" in alerted:
+        if code not in rev or f"{code}:rev" in alerted:
             continue
         price = q.get("price")
         pct = q.get("change_pct")
@@ -256,12 +288,12 @@ def poll_fast() -> dict[str, Any]:
             cur = list(state.last_new or [])
             state.last_new = (cur + new)[-50:]
     if new:
-        title = f"【反包候选异动】{now_hm} {len(new)} 只（快车道）"
+        title = f"【盘中快车道】{now_hm} {len(new)} 只异动（反包/接力/连板）"
         body = ("触发时间：" + now_hm + "\n" +
-                "\n".join(f"- {x['name']}({x['code']}) 现价{x['price']} {x['pct']:+.1f}%：{x['detail']}"
+                "\n".join(f"- {x['name']}({x['code']})【{x['pattern']}】现价{x['price']} {x['pct']:+.1f}%：{x['detail']}"
                           for x in new[:15]) +
-                "\n提醒：候选进行中≠买入确认；确认信号以点火确认+尾盘推送为准，生命线跌破即放弃。")
-        rows = [{"strategy": "洗盘反包", "stage": "watch", "stage_label": "进行中",
+                "\n提醒：进行中≠买入确认；确认信号以点火确认+尾盘推送为准，生命线跌破即放弃。")
+        rows = [{"strategy": x["pattern"], "stage": "watch", "stage_label": x["pattern"],
                  "code": x["code"], "name": x["name"], "price": x.get("price"),
                  "change_pct": x.get("pct") or 0, "reasons": [x.get("detail", "")]} for x in new]
         notifications.add(title, body, rows, kind="pattern")
