@@ -13,7 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from . import datasource as ds, ignitionwatch, market_scan, notifications, notifier, patternwatch, replay, scanstore, tdxwatch, wzqwatch
+from . import datasource as ds, ignitionwatch, lanban, market_scan, notifications, notifier, patternwatch, replay, scanstore, tdxwatch, wzqwatch
 from . import sellwatch, yesterday
 import json
 
@@ -127,7 +127,9 @@ def _tdx_job() -> None:
         if ds.market_status()["status"] == "closed":
             return
         import time as _time
-        for _ in range(180):  # 等 15:10 的缓存刷新完成（最多15分钟）
+        for _ in range(180):  # 刷新线程运行中才等待（最多15分钟）
+            if not getattr(replay, "_refreshing", False):
+                break
             prog = getattr(replay, "_refresh_progress", {}) or {}
             if prog.get("finished"):
                 break
@@ -430,6 +432,110 @@ def _lunch_review_job() -> None:
         print(f"[scheduler] 午盘复盘失败: {exc}")
 
 
+def _lanban_evening_job() -> None:
+    """盘后烂板接力候选（15:25）：等收盘数据刷新完成后发送次日接力名单+接力确认价。"""
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        import time as _time
+        for _ in range(180):  # 刷新线程运行中才等待（最多15分钟）
+            if not getattr(replay, "_refreshing", False):
+                break
+            prog = getattr(replay, "_refresh_progress", {}) or {}
+            if prog.get("finished"):
+                break
+            _time.sleep(5)
+        r = lanban.candidates()
+        cands = r.get("candidates", [])
+        if not cands:
+            print("[scheduler] 烂板接力盘后: 无候选")
+            return
+        cfg2 = load_config()
+        lines = [f"数据日：{r.get('date')}｜明日接力候选 {len(cands)} 只（按连板高度排序）",
+                 "接力确认价=今日涨停价；明日竞价/盘中触及确认价即封板接力（快车道45秒同步提醒）。"]
+        rows = []
+        for c in cands[:15]:
+            tag = "⭐二进三" if c["streak"] == 2 else ("⭐三进四" if c["streak"] == 3 else f"{c['streak']}板")
+            lines.append(f"- {tag} {c['name']}({c['code']}) {c['industry']}｜昨收{c['t1_close']}"
+                         f"｜接力确认价 {c['limit_px']}｜昨日放量{c['vol_ratio_1d']}倍")
+            rows.append({"strategy": "烂板接力", "stage": "watch", "stage_label": tag,
+                         "code": c["code"], "name": c["name"], "price": c["t1_close"],
+                         "change_pct": 0,
+                         "reasons": [f"接力确认价{c['limit_px']}（触及=封板接力）",
+                                     f"昨日放量{c['vol_ratio_1d']}倍换手", f"行业{c['industry']}"]})
+        lines.append("\n纪律：明日高开秒板/上午封板参与（竞价高开2~7%为承接区）；下午板不打；"
+                     "封不住次日离场；高位低开必死。")
+        title = f"【烂板接力·次日候选】{len(cands)} 只（盘后名单）"
+        body = "\n".join(lines)
+        notifications.add(title, body, rows, kind="pattern")
+        if cfg2.notification:
+            notifier.broadcast(cfg2.notification, title, body, rows)
+        print(f"[scheduler] 烂板接力盘后候选已发送: {len(cands)} 只")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 烂板接力盘后失败: {exc}")
+
+
+def _lanban_auction_job() -> None:
+    """烂板接力·竞价提醒（9:24）：集合竞价撮合期间发送候选竞价分层，供 9:25 前竞价买入。"""
+    try:
+        if ds.market_status()["status"] not in ("trading",):
+            return
+        cfg2 = load_config()
+        now_hm = datetime.now().strftime("%H:%M")
+        r = lanban.candidates()
+        cands = r.get("candidates", [])
+        if not cands:
+            return
+        codes = [c["code"] for c in cands]
+        snap = ds.spot_quote_map(codes) or {}
+        if not snap:
+            print("[scheduler] 烂板接力竞价: 行情不可用")
+            return
+        zones = {"承接区(高开2~7%)": [], "一字/超高开(拿不到)": [], "平开观望(0~2%)": [], "弱势低开(不接力)": []}
+        rows = []
+        for c in cands:
+            q = snap.get(c["code"]) or {}
+            pct = q.get("change_pct")
+            if pct is None:
+                continue
+            g = float(pct)
+            limit_px = float(c["limit_px"])
+            price = float(q.get("price") or 0)
+            opened_lim = float(q.get("open") or 0) >= limit_px * 0.995
+            if opened_lim or g >= 9.5:
+                zone = "一字/超高开(拿不到)"
+            elif 2 <= g <= 7:
+                zone = "承接区(高开2~7%)"
+            elif g >= 0:
+                zone = "平开观望(0~2%)"
+            else:
+                zone = "弱势低开(不接力)"
+            zones[zone].append({**c, "gap": round(g, 2), "price": round(price, 2)})
+            rows.append({"strategy": "烂板接力", "stage": "watch",
+                         "stage_label": zone.split("(")[0], "code": c["code"], "name": c["name"],
+                         "price": round(price, 2), "change_pct": round(g, 2),
+                         "reasons": [f"接力确认价{limit_px}（今日触及=封板接力）"]})
+        lines = [f"竞价撮合读数 {now_hm}（竞价价格，供 9:25 前下单参考）："]
+        order = ["承接区(高开2~7%)", "一字/超高开(拿不到)", "平开观望(0~2%)", "弱势低开(不接力)"]
+        for z in order:
+            items = sorted(zones[z], key=lambda x: -x["gap"])
+            if items:
+                lines.append(f"【{z}】{len(items)} 只：")
+                for x in items[:10]:
+                    lines.append(f"- {x['name']}({x['code']}) 竞价{x['price']} {x['gap']:+.2f}%"
+                                 f"｜接力确认价{x['limit_px']}｜{x['streak']}板")
+        lines.append("\n纪律：承接区可竞价买入（规则5 高开秒板进）；一字/超高开拿不到也不追；"
+                     "低开不接力（规则6 高位低开必死）。买入后以 45 秒快车道封板确认+第3次放量离场。")
+        title = f"【烂板接力·竞价提醒】{now_hm} 承接区 {len(zones['承接区(高开2~7%)'])} 只可关注"
+        body = "\n".join(lines)
+        notifications.add(title, body, rows, kind="pattern")
+        if cfg2.notification:
+            notifier.broadcast(cfg2.notification, title, body, rows)
+        print(f"[scheduler] 烂板接力竞价提醒已发送")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 烂板接力竞价提醒失败: {exc}")
+
+
 def _war_map_job() -> None:
     """盘前作战地图：候选名单+生命线+昨日情绪背景（休市日跳过）。"""
     try:
@@ -514,7 +620,9 @@ def _cache_refresh_job() -> None:
         # 不用现场加载全市场K线（进程重启后冷启动可达分钟级）。refresh 为异步
         # 线程，有界轮询等它跑完再预热（最多 15 分钟，超时则放弃由首查自算）。
         import time as _time
-        for _ in range(180):
+        for _ in range(180):  # 刷新线程运行中才等待（最多15分钟）
+            if not getattr(replay, "_refreshing", False):
+                break
             prog = getattr(replay, "_refresh_progress", {}) or {}
             if prog.get("finished"):
                 break
@@ -913,6 +1021,18 @@ def start() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(er_h), minute=int(er_m), timezone="Asia/Shanghai"),
             id="early_review", max_instances=1, coalesce=True,
         )
+        lb_e_h, lb_e_m = cfg.scan.lanban_evening_time.split(":")
+        _scheduler.add_job(
+            _lanban_evening_job,
+            trigger=CronTrigger(hour=int(lb_e_h), minute=int(lb_e_m), timezone="Asia/Shanghai"),
+            id="lanban_evening", max_instances=1, coalesce=True,
+        )
+        lb_a_h, lb_a_m = cfg.scan.lanban_auction_time.split(":")
+        _scheduler.add_job(
+            _lanban_auction_job,
+            trigger=CronTrigger(hour=int(lb_a_h), minute=int(lb_a_m), timezone="Asia/Shanghai"),
+            id="lanban_auction", max_instances=1, coalesce=True,
+        )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -1031,6 +1151,22 @@ def refresh() -> dict[str, Any]:
             _early_review_job,
             trigger=CronTrigger(hour=int(er_h), minute=int(er_m), timezone="Asia/Shanghai"),
             id="early_review", max_instances=1, coalesce=True,
+        )
+        if _scheduler.get_job("lanban_evening"):
+            _scheduler.remove_job("lanban_evening")
+        lb_e_h, lb_e_m = cfg.scan.lanban_evening_time.split(":")
+        _scheduler.add_job(
+            _lanban_evening_job,
+            trigger=CronTrigger(hour=int(lb_e_h), minute=int(lb_e_m), timezone="Asia/Shanghai"),
+            id="lanban_evening", max_instances=1, coalesce=True,
+        )
+        if _scheduler.get_job("lanban_auction"):
+            _scheduler.remove_job("lanban_auction")
+        lb_a_h, lb_a_m = cfg.scan.lanban_auction_time.split(":")
+        _scheduler.add_job(
+            _lanban_auction_job,
+            trigger=CronTrigger(hour=int(lb_a_h), minute=int(lb_a_m), timezone="Asia/Shanghai"),
+            id="lanban_auction", max_instances=1, coalesce=True,
         )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}
