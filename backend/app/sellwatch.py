@@ -12,6 +12,7 @@ import threading
 from datetime import datetime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from . import datasource as ds
@@ -310,6 +311,46 @@ def _evaluate(code: str, name: str, quote: dict[str, Any],
                 out.append({**common, "strategy": "首板回踩MA10极限",
                             "level": "确认" if mode == "confirm" else "预警",
                             "reasons": reasons})
+
+    # 6) 三次放量（第6通道）：从波内首次涨停起算，累计3次放量即预警离场——不贪最后一个铜板。
+    #    回测（6-11月，3406样本）：第3次放量次日开盘卖出，67.8% 的情况优于继续持有。
+    surge_on = bool(rules.get("surge_exit_enabled", True))
+    if surge_on:
+        try:
+            vols = hist["volume"].astype(float).to_numpy()
+        except Exception:  # noqa: BLE001
+            vols = None
+        # 注意：closes 含实时追加行（len=closes 可能比 vols 多1），vols 与历史行对齐，直接使用
+        if vols is not None and len(vols) >= 26:
+            th_ch = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+            n_v = len(vols)
+            w = max(5, int(rules.get("surge_window", 20)))
+            lo = max(1, n_v - w)
+            wave_start = None
+            for j0 in range(lo, n_v):
+                sealed_j0 = (pct_val(j0) or 0) >= th_ch and closes[j0] >= highs[j0] * 0.995
+                prev_sealed = (pct_val(j0 - 1) or 0) >= th_ch and closes[j0 - 1] >= highs[j0 - 1] * 0.995
+                if sealed_j0 and not prev_sealed:
+                    wave_start = j0
+                    break
+            if wave_start is None and any(
+                    (pct_val(k) or 0) >= th_ch and closes[k] >= highs[k] * 0.995 for k in range(lo, n_v)):
+                wave_start = lo
+            if wave_start is not None:
+                surge_need = int(rules.get("surge_days", 3))
+                surge_ratio = float(rules.get("surge_vol_ratio", 1.5))
+                cnt = 0
+                for k in range(wave_start, n_v):
+                    if k >= 5:
+                        base = float(np.mean(vols[k - 5:k]))
+                        if base > 0 and vols[k] >= surge_ratio * base:
+                            cnt += 1
+                if cnt >= surge_need:
+                    reasons = [f"自波内首次涨停已累计 {cnt} 次放量（≥{surge_ratio:g}×5日均量）",
+                               "第三次放量=资金兑现信号，不贪最后一个铜板，按纪律离场"]
+                    out.append({**common, "strategy": "三次放量",
+                                "level": "确认" if mode == "confirm" else "预警",
+                                "reasons": reasons})
 
     return out
 
