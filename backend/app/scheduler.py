@@ -331,7 +331,22 @@ def _lunch_review_job() -> None:
                          f"今日中位溢价 {med_s}%（阈值 {th:g}）→ {state_s}")
         except Exception as _e:  # noqa: BLE001
             lines.append(f"① 点火读数暂不可用（{str(_e)[:40]}）")
-        # ② 板块红绿榜
+        # ②a 涨停家数 / 连板梯队 / 热点行业（东财实时池，与外部情绪工具同源）
+        try:
+            pool_today = ds.limit_up_pool_detail(eff["date"].replace("-", ""), ttl=180) or []
+            if pool_today:
+                from collections import Counter as _Ct
+                lv_cnt = _Ct(int(p.get("streak") or 1) for p in pool_today)
+                ind_cnt = _Ct(str(p.get("industry", "--")) for p in pool_today)
+                high_board = max(lv_cnt) if lv_cnt else 0
+                lb_list = [f"{k}板×{v}" for k, v in sorted(lv_cnt.items()) if k >= 2]
+                hot = "、".join(f"{k}({v})" for k, v in ind_cnt.most_common(3))
+                lines.append(f"② 涨停 {len(pool_today)} 家｜连板 {sum(v for k, v in lv_cnt.items() if k >= 2)} 家｜"
+                             f"高标 {high_board} 板（梯队: {' '.join(lb_list) or '无'}）")
+                lines.append(f"   热点: {hot}")
+        except Exception:
+            lines.append("② 涨停池实时数据暂不可用")
+        # ②b 板块红绿榜
         try:
             bdf = ds.industry_boards()
             if bdf is not None and not bdf.empty and "涨跌幅" in bdf.columns:
