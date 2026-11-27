@@ -210,6 +210,7 @@ export const monitorApi = {
   }>({ url: '/api/yesterday/snapshot' }),
   yesterdayScan: () => request.post<any>({ url: '/api/yesterday/scan' }),
   tdxLatest: () => request.get<{ date: string; window?: number; signals: Record<string, { signal: string; days_ago: number }[]> }>({ url: '/api/tdx/latest' }),
+  positionsPlan: () => request.get<{ plans: any[]; time: string }>({ url: '/api/positions/plan', timeout: 60000 }),
   yesterdayPush: () => request.post<any>({ url: '/api/yesterday/push-now' }),
 
   /** 持有标记 */

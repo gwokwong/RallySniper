@@ -402,3 +402,73 @@ def status() -> dict[str, Any]:
     return {**snapshot, "enabled": cfg.sell.enabled, "holdings": list(cfg.holdings),
             "rules": cfg.sell.model_dump(), "run_mode": cfg.run_mode,
             "times": ["盘中每5分钟", cfg.sell.confirm_time]}
+
+
+def position_plan(code: str, cost: float) -> dict[str, Any]:
+    """持仓操作纪律卡：关键价位 + 四条纪律（按数据自动计算，任意持仓通用）。
+
+    价位体系：
+    - 生命线 = 近8日洗盘日最低（有洗盘日时）；否则 20日最低
+    - 软止损 = 最近涨停/反包确认价收盘（近20日内最近一次封板）
+    - 硬止损 = 生命线与确认日最低的较低者
+    - 第一压力 = 20日最高
+    验证期：最近涨停在5个交易日内时，给出验证期到期日（5日窗口纪律）。
+    """
+    hist = ds.stock_history(code, days=140)
+    if hist is None or len(hist) < 25:
+        return {"success": False, "error": f"{code} 历史数据不足"}
+    c = hist["close"].astype(float)
+    h = hist["high"].astype(float)
+    l = hist["low"].astype(float)
+    p = hist["pct_change"].astype(float)
+    dt = [str(x)[:10] for x in hist["date"]]
+    n = len(dt)
+    last = n - 1
+    th = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
+    sealed = (p >= th) & (c >= h * 0.995)
+    ma10 = round(float(c.rolling(10).mean().iloc[-1]), 2)
+    ma20 = round(float(c.rolling(20).mean().iloc[-1]), 2)
+    high20 = round(float(h.tail(20).max()), 2)
+    low20 = round(float(l.tail(20).min()), 2)
+    # 洗盘日（近8日 ≤-7%，取最近）
+    wash = None
+    for k in range(last, max(last - 8, -1), -1):
+        if float(p.iloc[k]) <= -7.0:
+            wash = k
+            break
+    # 最近涨停日（20日内）
+    lu = None
+    for k in range(last, max(last - 20, -1), -1):
+        if float(p.iloc[k]) >= th and float(c.iloc[k]) >= float(h.iloc[k]) * 0.995:
+            lu = k
+            break
+    life_line = round(float(l.iloc[wash]), 2) if wash is not None else low20
+    confirm_close = round(float(c.iloc[lu]), 2) if lu is not None else None
+    confirm_low = round(float(l.iloc[lu]), 2) if lu is not None else None
+    hard_stop = min(x for x in (life_line, confirm_low) if x is not None) if confirm_low else life_line
+    days_since_lu = (last - lu) if lu is not None else None
+    if lu is not None and last - lu <= 4:
+        expiry = dt[lu + 5] if lu + 5 <= n - 1 else "未来5个交易日"
+    else:
+        expiry = None
+    recent_lu = [dt[j][5:] for j in range(max(0, last - 19), last + 1) if bool(sealed.iloc[j])]
+    pnl_pct = round((float(c.iloc[last]) / cost - 1) * 100, 2) if cost else None
+    soft_stop = confirm_close or ma10
+    rules = [
+        f"收盘跌破 {soft_stop}（{'最近涨停确认价' if confirm_close else 'MA10'}）→ 当日减仓/离场"
+        f"（约 {(soft_stop / cost - 1) * 100:+.1f}%）",
+        "盘中急跌≥8% 或 尾盘破MA10跌5% → 卖出通道自动预警，按纪律执行",
+        (f"5个交易日验证期（至 {expiry}）：未突破 {high20}（20日高）→ 兑现/离场"
+         if expiry else "5个交易日验证期内未突破 20日高 → 兑现/离场"),
+        f"第一压力 {high20}；若触发「鬼手减仓」预警高度重视（敌对月正确率73%+）",
+    ]
+    return {"success": True, "code": code, "cost": cost,
+            "last_close": round(float(c.iloc[last]), 2), "pnl_pct": pnl_pct,
+            "last_date": dt[last],
+            "levels": {"life_line": life_line, "soft_stop": soft_stop,
+                        "hard_stop": hard_stop, "ma10": ma10, "ma20": ma20,
+                        "resist": high20, "support": low20,
+                        "confirm_close": confirm_close,
+                        "days_since_lu": days_since_lu,
+                        "recent_lu_20d": recent_lu},
+            "expiry": expiry, "rules": rules}

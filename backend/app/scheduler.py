@@ -121,89 +121,6 @@ def _pattern_fast_job() -> None:
         print(f"[scheduler] 快车道失败: {exc}")
 
 
-def _lunch_review_job() -> None:
-    """午盘复盘（11:35）：上午板块红绿榜 + 点火读数 + 候选晨盘异动 + 持仓快照 + 午后展望。"""
-    try:
-        if ds.market_status()["status"] not in ("trading", "lunch"):
-            return
-        cfg2 = load_config()
-        eff = ds.effective_trading_date()
-        now_hm = datetime.now().strftime("%H:%M")
-        lines = [f"数据交易日：{eff.get('label') or eff.get('date')}｜复盘时点 {now_hm}（上午收盘）"]
-        # ① 点火读数
-        try:
-            ign = ds.ignition_premium(eff["date"])
-            med = ign.get("median")
-            th = float(cfg2.market_regime.ignition_threshold)
-            lines.append(f"① 点火读数：{ign.get('prev_date', '')} 涨停池 {ign.get('pool_n', '?')} 只，"
-                         f"今日中位溢价 {med if med is None else format(med, '+.2f')}%"
-                         f"（阈值 {th:g}）→ {'点火进行中' if ign.get('median') is not None and med >= th else '未点火'}")
-        except Exception as _e:  # noqa: BLE001
-            lines.append(f"① 点火读数暂不可用（{str(_e)[:40]}）")
-        # ② 板块红绿榜
-        try:
-            bdf = ds.industry_boards()
-            if bdf is not None and not bdf.empty and "涨跌幅" in bdf.columns:
-                bb = bdf[["板块名称", "涨跌幅"]].copy()
-                bb["涨跌幅"] = bb["涨跌幅"].astype(float)
-                top = bb.sort_values("涨跌幅", ascending=False).head(3)
-                bot = bb.sort_values("涨跌幅").head(3)
-                lines.append("② 板块红榜：" + "、".join(f"{r['板块名称']} {r['涨跌幅']:+.1f}%" for _, r in top.iterrows()))
-                lines.append("   板块绿榜：" + "、".join(f"{r['板块名称']} {r['涨跌幅']:+.1f}%" for _, r in bot.iterrows()))
-        except Exception:
-            lines.append("② 板块行情暂不可用")
-        # ③ 晨盘候选异动
-        try:
-            items = [x for x in (patternwatch.state.last_new or [])]
-            if items:
-                lines.append(f"③ 上午候选/形态异动 {len(items)} 条：" +
-                             "、".join(f"{x.get('name')}({x.get('pattern')})" for x in items[:5]) +
-                             ("…" if len(items) > 5 else ""))
-            else:
-                lines.append("③ 上午候选/形态异动：无")
-        except Exception:
-            pass
-        # ④ 持仓快照（含表格行）
-        rows = []
-        holdings = [h for h in cfg2.holdings if len(h) == 6 and h.isdigit()]
-        if holdings:
-            try:
-                quotes = ds.spot_quote_map(holdings)
-                for h in holdings:
-                    q = quotes.get(h) or {}
-                    if not q.get("price"):
-                        continue
-                    nm = str(q.get("name") or h)
-                    pct = float(q.get("change_pct") or 0)
-                    lines.append(f"④ 持仓 {nm}({h}) 现价{q.get('price')} {pct:+.2f}%")
-                    rows.append({"strategy": "持仓", "stage": "watch", "stage_label": "持仓",
-                                 "code": h, "name": nm, "price": q.get("price"),
-                                 "change_pct": pct, "direction": "down" if pct < 0 else "up",
-                                 "reasons": ["午盘快照"]})
-            except Exception:
-                lines.append("④ 持仓行情暂不可用")
-        # ⑤ 午后展望
-        try:
-            ign = ds.ignition_premium(eff["date"])
-            med = ign.get("median")
-            th = float(cfg2.market_regime.ignition_threshold)
-            if med is not None and med >= th:
-                lines.append("⑤ 午后展望：上午已达标点火——14:00/14:40 推送照常，注意炸板率与板块分化。")
-            else:
-                lines.append("⑤ 午后展望：上午未达标——若午后中位溢价升破阈值，点火监控约1分钟内会提醒。")
-        except Exception:
-            pass
-        title = f"【午盘复盘】{now_hm} 上午小结（候选/持仓/板块/点火）"
-        ghost_rows = []
-        body = "\n".join(lines)
-        notifications.add(title, body, rows, kind="pattern")
-        if cfg2.notification:
-            notifier.broadcast(cfg2.notification, title, body, rows)
-        print(f"[scheduler] 午盘复盘已发送（持仓行 {len(rows)}）")
-    except Exception as exc:  # noqa: BLE001
-        print(f"[scheduler] 午盘复盘失败: {exc}")
-
-
 def _tdx_job() -> None:
     """通达信指标日K预警（收盘后）：等K线刷新完成后扫描当日信号，合并一封邮件。"""
     try:
@@ -292,12 +209,12 @@ def _early_review_job() -> None:
                 if q and q.get("change_pct") is not None:
                     gaps.append(float(q["change_pct"]))
             if len(gaps) >= 3:
-                med = float(np.median(gaps)) if False else float(sorted(gaps)[len(gaps) // 2])
+                med = float(sorted(gaps)[len(gaps) // 2])
                 hi = sum(1 for g in gaps if g >= 3)
                 lo = sum(1 for g in gaps if g <= -5)
+                strength = "开盘偏强，点火概率高" if med >= 1.5 else ("中性" if med >= -1 else "开盘偏弱，警惕退潮")
                 lines.append(f"① 竞价点火读数：昨日涨停 {len(gaps)} 只开盘溢价中位 {med:+.2f}%"
-                             f"（高开≥3% {hi} 只 / 低开≤-5% {lo} 只）→ "
-                             f"{'开盘偏强，点火概率高' if med >= 1.5 else ('中性' if med >= -1 else '开盘偏弱，警惕退潮')}")
+                             f"（高开≥3% {hi} 只 / 低开≤-5% {lo} 只）→ {strength}")
             else:
                 lines.append("① 竞价点火读数：样本不足")
         except Exception as _e:  # noqa: BLE001
@@ -306,8 +223,7 @@ def _early_review_job() -> None:
         r = patternwatch.war_map(top_n=0)
         ghost_rows = []
         try:
-            from . import tdxwatch as _tw
-            lx = _tw.latest_signals(5)
+            lx = tdxwatch.latest_signals(5)
             nm_map = ds.stock_code_names()
             for c, v in (lx.get("signals") or {}).items():
                 hit = next((x for x in v if x.get("signal") == "鬼手抄底"), None)
@@ -373,7 +289,7 @@ def _early_review_job() -> None:
                              "reasons": [f"生命线{x.get('life_line', 0) or '--'}",
                                          f"{'鬼手抄底·%d日前' % x['days_ago'] if x.get('ghost') else '洗盘日' + str(x.get('wash_date', ''))[5:]}"]})
         if alloc and alloc.get("alloc"):
-            lines.append(f"③ 激进版组合（承接区候选，现价折算手数；⚠️信号未确认，尾盘推送为准）：")
+            lines.append("③ 激进版组合（承接区候选，现价折算手数；⚠️信号未确认，尾盘推送为准）：")
             for a in alloc["alloc"]:
                 conf = a.get("confidence_label") or ""
                 lines.append(f"- ★ {a['name']}({a['code']}) 开盘价{a['price']}"
@@ -391,6 +307,112 @@ def _early_review_job() -> None:
         print(f"[scheduler] 早盘快评已发送: 承接区{len(zone_good)} 追高{len(zone_hot)} 弱势{len(zone_weak)}")
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] 早盘快评失败: {exc}")
+
+
+
+
+def _lunch_review_job() -> None:
+    """午盘复盘（11:35）：上午板块红绿榜 + 点火读数 + 候选晨盘异动 + 持仓快照/操作纪律卡 + 午后展望。"""
+    try:
+        if ds.market_status()["status"] not in ("trading", "lunch"):
+            return
+        cfg2 = load_config()
+        eff = ds.effective_trading_date()
+        now_hm = datetime.now().strftime("%H:%M")
+        lines = [f"数据交易日：{eff.get('label') or eff.get('date')}｜复盘时点 {now_hm}（上午收盘）"]
+        # ① 点火读数
+        try:
+            ign = ds.ignition_premium(eff["date"])
+            med = ign.get("median")
+            th = float(cfg2.market_regime.ignition_threshold)
+            med_s = "--" if med is None else format(med, "+.2f")
+            state_s = "点火进行中" if (med is not None and med >= th) else "未点火"
+            lines.append(f"① 点火读数：{ign.get('prev_date', '')} 涨停池 {ign.get('pool_n', '?')} 只，"
+                         f"今日中位溢价 {med_s}%（阈值 {th:g}）→ {state_s}")
+        except Exception as _e:  # noqa: BLE001
+            lines.append(f"① 点火读数暂不可用（{str(_e)[:40]}）")
+        # ② 板块红绿榜
+        try:
+            bdf = ds.industry_boards()
+            if bdf is not None and not bdf.empty and "涨跌幅" in bdf.columns:
+                bb = bdf[["板块名称", "涨跌幅"]].copy()
+                bb["涨跌幅"] = bb["涨跌幅"].astype(float)
+                top = bb.sort_values("涨跌幅", ascending=False).head(3)
+                bot = bb.sort_values("涨跌幅").head(3)
+                lines.append("② 板块红榜：" + "、".join(f"{r['板块名称']} {r['涨跌幅']:+.1f}%" for _, r in top.iterrows()))
+                lines.append("   板块绿榜：" + "、".join(f"{r['板块名称']} {r['涨跌幅']:+.1f}%" for _, r in bot.iterrows()))
+        except Exception:
+            lines.append("② 板块行情暂不可用")
+        # ③ 晨盘候选异动
+        try:
+            items = list(patternwatch.state.last_new or [])
+            if items:
+                lines.append(f"③ 上午候选/形态异动 {len(items)} 条：" +
+                             "、".join(f"{x.get('name')}({x.get('pattern')})" for x in items[:5]) +
+                             ("…" if len(items) > 5 else ""))
+            else:
+                lines.append("③ 上午候选/形态异动：无")
+        except Exception:
+            pass
+        # ④ 持仓快照（含表格行）
+        rows = []
+        holdings = [h for h in cfg2.holdings if len(h) == 6 and h.isdigit()]
+        try:
+            quotes = ds.spot_quote_map(holdings) if holdings else {}
+            for h in holdings:
+                q = quotes.get(h) or {}
+                if not q.get("price"):
+                    continue
+                nm = str(q.get("name") or h)
+                pct = float(q.get("change_pct") or 0)
+                lines.append(f"④ 持仓 {nm}({h}) 现价{q.get('price')} {pct:+.2f}%")
+                rows.append({"strategy": "持仓", "stage": "watch", "stage_label": "持仓",
+                             "code": h, "name": nm, "price": q.get("price"),
+                             "change_pct": pct, "direction": "down" if pct < 0 else "up",
+                             "reasons": ["午盘快照"]})
+        except Exception:
+            lines.append("④ 持仓行情暂不可用")
+        # 操作纪律卡（每只持仓：关键价位+四条纪律）
+        try:
+            for h in holdings:
+                cost = float(cfg2.holding_costs.get(h) or 0)
+                if cost <= 0:
+                    continue
+                card = sellwatch.position_plan(h, cost)
+                if not card.get("success"):
+                    continue
+                lv = card.get("levels", {})
+                lines.append(f"【操作纪律·{h}｜成本 {cost:g}｜最新收盘 {card.get('last_close')}"
+                             f"（浮动 {card.get('pnl_pct'):+.2f}%）】")
+                lines.append(f"   生命线 {lv.get('life_line')}｜软止损 {lv.get('soft_stop')}"
+                             f"｜硬止损 {lv.get('hard_stop')}｜MA10 {lv.get('ma10')}｜第一压力 {lv.get('resist')}")
+                for rr in card.get("rules", []):
+                    lines.append("   · " + rr)
+                rows.append({"strategy": "操作纪律", "stage": "watch", "stage_label": "纪律卡",
+                             "code": h, "name": h, "price": card.get("last_close"),
+                             "change_pct": card.get("pnl_pct") or 0,
+                             "reasons": list(card.get("rules", []))})
+        except Exception as _pe:  # noqa: BLE001
+            lines.append(f"（操作纪律卡生成失败：{str(_pe)[:40]}）")
+        # ⑤ 午后展望
+        try:
+            ign = ds.ignition_premium(eff["date"])
+            med = ign.get("median")
+            th = float(cfg2.market_regime.ignition_threshold)
+            if med is not None and med >= th:
+                lines.append("⑤ 午后展望：上午已达标点火——14:00/14:40 推送照常，注意炸板率与板块分化。")
+            else:
+                lines.append("⑤ 午后展望：上午未达标——若午后中位溢价升破阈值，点火监控约1分钟内会提醒。")
+        except Exception:
+            pass
+        title = f"【午盘复盘】{now_hm} 上午小结（候选/持仓/板块/点火）"
+        body = "\n".join(lines)
+        notifications.add(title, body, rows, kind="pattern")
+        if cfg2.notification:
+            notifier.broadcast(cfg2.notification, title, body, rows)
+        print(f"[scheduler] 午盘复盘已发送（持仓行 {len(rows)}）")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 午盘复盘失败: {exc}")
 
 
 def _war_map_job() -> None:

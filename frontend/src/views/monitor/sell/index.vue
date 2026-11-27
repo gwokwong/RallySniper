@@ -9,6 +9,7 @@ defineOptions({ name: 'SellRiskControl' })
 const signals = ref<SellSignal[]>([])
 const status = ref<any>({})
 const holdings = ref<any[]>([])
+const plans = ref<any[]>([])
 const rules = ref<any>({
   enabled: true, volume_surge_ratio: 5, ma20_buffer: 0.01,
   ma20_slope: -0.005, intraday_interval_minutes: 5, confirm_time: '14:50'
@@ -25,13 +26,14 @@ const changeColor = (v: number) => v >= 0 ? '#c62828' : '#2e7d32'
 
 async function loadData() {
   try {
-    const [sigRes, statusRes, holdRes, cfgRes] = await Promise.all([
+    const [sigRes, statusRes, holdRes, cfgRes, planRes] = await Promise.all([
       monitorApi.sellSignals(), monitorApi.sellStatus(),
-      monitorApi.holdings(), monitorApi.getConfig()
+      monitorApi.holdings(), monitorApi.getConfig(), monitorApi.positionsPlan()
     ])
     signals.value = sigRes?.signals || []
     status.value = statusRes || {}
     holdings.value = holdRes?.rows || []
+    plans.value = (planRes?.plans || []).filter((x: any) => x.success !== false)
     if (cfgRes?.sell) rules.value = { ...rules.value, ...cfgRes.sell }
   } catch { /* 请求层已提示 */ }
 }
@@ -68,6 +70,29 @@ onMounted(loadData)
 
 <template>
   <div class="p-4">
+    <ElCard shadow="never" class="mb-4">
+      <template #header><span class="font-semibold">操作纪律卡（每只持仓的关键价位+四条纪律）</span></template>
+      <div v-if="!plans.length" class="text-xs text-gray-400">
+        暂无持仓纪律卡——在「标的池」登记持仓并填写成本后自动生成。
+      </div>
+      <div v-for="p in plans" :key="p.code" class="mb-3 pb-3 border-b border-gray-100 last:border-0">
+        <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+          <span class="font-semibold">{{ p.code }}
+            <span class="text-xs text-gray-500 ml-2">成本 {{ p.cost }}｜最新收盘 {{ p.last_close }}｜浮动 {{ p.pnl_pct }}%</span>
+          </span>
+          <ElTag v-if="p.expiry" type="warning" size="small" effect="plain">验证期至 {{ p.expiry }}</ElTag>
+        </div>
+        <div class="text-xs text-gray-600 mb-1">
+          生命线 <b>{{ p.levels.life_line }}</b>｜软止损 <b>{{ p.levels.soft_stop }}</b>｜硬止损 <b>{{ p.levels.hard_stop }}</b>
+          ｜MA10 {{ p.levels.ma10 }}｜MA20 {{ p.levels.ma20 }}｜第一压力 <b class="text-red-600">{{ p.levels.resist }}</b>
+        </div>
+        <ul class="text-xs text-gray-500 list-disc pl-4 m-0">
+          <li v-for="(rl, i) in p.rules" :key="i">{{ rl }}</li>
+        </ul>
+      </div>
+      <p class="text-xs text-gray-400 m-0">价位由数据自动计算（生命线=近8日洗盘日最低；软止损=最近涨停确认价；硬止损=两者较低者；压力=20日高）。</p>
+    </ElCard>
+
     <ElCard shadow="never" class="mb-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>

@@ -656,6 +656,36 @@ def clear_history() -> dict[str, Any]:
 
 # ----------------------------- 全市场扫描与推送 -----------------------------
 
+@app.get("/api/positions/plan")
+def positions_plan() -> dict[str, Any]:
+    """持仓操作纪律卡：每只持仓的关键价位 + 四条纪律。"""
+    cfg_v = load_config()
+    out = []
+    for h in cfg_v.holdings:
+        if not (len(h) == 6 and h.isdigit()):
+            continue
+        cost = cfg_v.holding_costs.get(h)
+        card = sellwatch.position_plan(h, float(cost or 0))
+        if card.get("success"):
+            out.append(card)
+        else:
+            out.append({"code": h, "success": False, "error": card.get("error")})
+    return ok({"plans": out, "time": datetime.now().isoformat(timespec="seconds")})
+
+
+@app.get("/api/positions/plan")
+def positions_plan() -> dict[str, Any]:
+    """持仓操作纪律卡：每只持仓的关键价位 + 四条纪律。"""
+    cfg_v = load_config()
+    out = []
+    for h in cfg_v.holdings:
+        if not (len(h) == 6 and h.isdigit()):
+            continue
+        cost = cfg_v.holding_costs.get(h)
+        out.append(sellwatch.position_plan(h, float(cost or 0)))
+    return ok({"plans": out, "time": datetime.now().isoformat(timespec="seconds")})
+
+
 @app.get("/api/tdx/latest")
 def tdx_latest() -> dict[str, Any]:
     """最近一个已完成交易日的通达信指标信号（按代码聚合）。"""
