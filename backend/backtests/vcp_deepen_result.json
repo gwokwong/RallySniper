@@ -1,0 +1,279 @@
+{
+ "entries_with_features": 182,
+ "sections": {
+  "threshold_grid": [
+   {
+    "cutoff": 0.45,
+    "shrink": {
+     "n": 72,
+     "win": 88.9,
+     "avg": 7.55,
+     "sum_wan": 5.44
+    },
+    "rest": {
+     "n": 110,
+     "win": 63.6,
+     "avg": 3.7,
+     "sum_wan": 4.07
+    }
+   },
+   {
+    "cutoff": 0.5,
+    "shrink": {
+     "n": 78,
+     "win": 87.2,
+     "avg": 7.94,
+     "sum_wan": 6.19
+    },
+    "rest": {
+     "n": 104,
+     "win": 63.5,
+     "avg": 3.19,
+     "sum_wan": 3.32
+    }
+   },
+   {
+    "cutoff": 0.55,
+    "shrink": {
+     "n": 84,
+     "win": 85.7,
+     "avg": 7.71,
+     "sum_wan": 6.47
+    },
+    "rest": {
+     "n": 98,
+     "win": 63.3,
+     "avg": 3.1,
+     "sum_wan": 3.03
+    }
+   },
+   {
+    "cutoff": 0.6,
+    "shrink": {
+     "n": 89,
+     "win": 84.3,
+     "avg": 7.2,
+     "sum_wan": 6.41
+    },
+    "rest": {
+     "n": 93,
+     "win": 63.4,
+     "avg": 3.34,
+     "sum_wan": 3.1
+    }
+   },
+   {
+    "cutoff": 0.65,
+    "shrink": {
+     "n": 93,
+     "win": 84.9,
+     "avg": 7.29,
+     "sum_wan": 6.78
+    },
+    "rest": {
+     "n": 89,
+     "win": 61.8,
+     "avg": 3.06,
+     "sum_wan": 2.73
+    }
+   },
+   {
+    "cutoff": 0.7,
+    "shrink": {
+     "n": 100,
+     "win": 86.0,
+     "avg": 7.72,
+     "sum_wan": 7.72
+    },
+    "rest": {
+     "n": 82,
+     "win": 58.5,
+     "avg": 2.19,
+     "sum_wan": 1.79
+    }
+   },
+   {
+    "cutoff": 0.75,
+    "shrink": {
+     "n": 108,
+     "win": 81.5,
+     "avg": 7.07,
+     "sum_wan": 7.64
+    },
+    "rest": {
+     "n": 74,
+     "win": 62.2,
+     "avg": 2.53,
+     "sum_wan": 1.87
+    }
+   },
+   {
+    "cutoff": 0.8,
+    "shrink": {
+     "n": 112,
+     "win": 81.2,
+     "avg": 7.01,
+     "sum_wan": 7.85
+    },
+    "rest": {
+     "n": 70,
+     "win": 61.4,
+     "avg": 2.37,
+     "sum_wan": 1.66
+    }
+   },
+   {
+    "cutoff": 0.85,
+    "shrink": {
+     "n": 121,
+     "win": 81.0,
+     "avg": 6.84,
+     "sum_wan": 8.28
+    },
+    "rest": {
+     "n": 61,
+     "win": 59.0,
+     "avg": 2.02,
+     "sum_wan": 1.23
+    }
+   },
+   {
+    "cutoff": 0.9,
+    "shrink": {
+     "n": 124,
+     "win": 80.6,
+     "avg": 6.68,
+     "sum_wan": 8.29
+    },
+    "rest": {
+     "n": 58,
+     "win": 58.6,
+     "avg": 2.11,
+     "sum_wan": 1.22
+    }
+   }
+  ],
+  "monthly": [
+   {
+    "month": "2026-08",
+    "shrink": {
+     "n": 85,
+     "win": 88.2,
+     "avg": 7.22,
+     "sum_wan": 6.14
+    },
+    "rest": {
+     "n": 24,
+     "win": 75.0,
+     "avg": 5.03,
+     "sum_wan": 1.21
+    }
+   },
+   {
+    "month": "2026-11",
+    "shrink": {
+     "n": 8,
+     "win": 50.0,
+     "avg": 8.04,
+     "sum_wan": 0.64
+    },
+    "rest": {
+     "n": 65,
+     "win": 56.9,
+     "avg": 2.34,
+     "sum_wan": 1.52
+    }
+   }
+  ],
+  "tier_interaction": [
+   {
+    "tier": "full",
+    "shrink": {
+     "n": 78,
+     "win": 88.5,
+     "avg": 7.36,
+     "sum_wan": 5.74
+    },
+    "rest": {
+     "n": 65,
+     "win": 69.2,
+     "avg": 4.7,
+     "sum_wan": 3.05
+    }
+   },
+   {
+    "tier": "probe",
+    "shrink": {
+     "n": 15,
+     "win": 66.7,
+     "avg": 6.92,
+     "sum_wan": 1.04
+    },
+    "rest": {
+     "n": 24,
+     "win": 41.7,
+     "avg": -1.36,
+     "sum_wan": -0.33
+    }
+   }
+  ],
+  "tail_filter_ab": {
+   "r_sell": {
+    "baseline": {
+     "n": 182,
+     "win": 73.6,
+     "avg": 5.22,
+     "sum_wan": 9.51
+    },
+    "tail": {
+     "n": 27,
+     "win": 66.7,
+     "avg": 3.01,
+     "sum_wan": 0.81
+    },
+    "after_filter": {
+     "n": 155,
+     "win": 74.8,
+     "avg": 5.61,
+     "sum_wan": 8.7
+    }
+   },
+   "r_t10": {
+    "baseline": {
+     "n": 125,
+     "win": 81.6,
+     "avg": 14.78,
+     "sum_wan": 18.48
+    },
+    "tail": {
+     "n": 7,
+     "win": 14.3,
+     "avg": -11.06,
+     "sum_wan": -0.77
+    },
+    "after_filter": {
+     "n": 118,
+     "win": 85.6,
+     "avg": 16.32,
+     "sum_wan": 19.25
+    }
+   }
+  },
+  "by_strategy": {
+   "洗盘反包": {
+    "shrink": {
+     "n": 93,
+     "win": 84.9,
+     "avg": 7.29,
+     "sum_wan": 6.78
+    },
+    "rest": {
+     "n": 89,
+     "win": 61.8,
+     "avg": 3.06,
+     "sum_wan": 2.73
+    }
+   }
+  }
+ }
+}

@@ -15,7 +15,7 @@ from typing import Any
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from . import analyzer, datasource as ds, mainwave
+from . import analyzer, datasource as ds, mainwave, signalstore
 from .config import AppConfig, load_config
 from .notifier import broadcast
 
@@ -119,6 +119,12 @@ def scan_once(cfg: AppConfig | None = None, push: bool = True) -> dict[str, Any]
         if s.get("direction") == "down" and s.get("code") in _up_codes:
             s["reasons"] = list(s.get("reasons") or []) + [
                 "（同票当日已触发买点信号：反弹首日均线未修复属常见，以生命线为准，跌破再离场）"]
+
+    # 信号验证闭环：标的池 trigger 级信号落盘（record_batch 内部过滤 watch 行）
+    try:
+        signalstore.record_batch(fresh, source="watchlist")
+    except Exception:  # noqa: BLE001
+        pass
 
     if push and fresh and cfg.notification:
         trigger_n = sum(1 for s in fresh if s.get("stage") == "trigger")

@@ -112,6 +112,142 @@ export interface WatchlistRow {
   down_count: number
 }
 
+/** 信号验证：单条实盘信号记录 */
+export interface SignalOutcomeRecord {
+  id: string
+  tdate: string
+  code: string
+  name: string
+  strategy: string
+  direction: 'up' | 'down'
+  stage_label: string
+  entry_price: number | null
+  change_pct: number | null
+  reasons: string[]
+  source: string
+  recorded_at: string
+  pushed_at: string[]
+  outcome: {
+    status: 'pending' | 'resolved' | 'no_data'
+    r_t1?: number
+    r_t5?: number
+    r_t10?: number
+    win_t1?: boolean
+    win_t5?: boolean
+    win_t10?: boolean
+    mfe_t10?: number
+    mae_t10?: number
+  }
+}
+
+/** 信号验证：统计汇总 */
+export interface HorizonStat {
+  n: number
+  win_rate?: number
+  avg?: number
+  med?: number
+  sum_wan?: number
+}
+
+export interface SignalOutcomeSummary {
+  total: number
+  resolved: number
+  pending: number
+  no_data: number
+  horizons: { t1: HorizonStat; t5: HorizonStat; t10: HorizonStat }
+  by_direction: { up: Record<string, HorizonStat>; down: Record<string, HorizonStat> }
+  by_strategy: Array<{
+    strategy: string
+    direction: 'up' | 'down'
+    total: number
+    resolved: number
+    t1: HorizonStat
+    t5: HorizonStat
+    t10: HorizonStat
+  }>
+}
+
+/** ETF 池内标的（含纸面持仓状态） */
+export interface EtfPoolItem {
+  code: string
+  name: string
+  price: number | null
+  date: string | null
+  in_position: boolean
+  entry_date?: string
+  entry_price?: number | null
+  life_line?: number | null
+  pnl_pct?: number | null
+  flags?: {
+    squeeze?: boolean
+    freeze?: boolean
+    in_pos?: boolean
+    z20?: number
+    r5?: number
+    vr?: number
+  }
+}
+
+/** ETF 今日扫描行（含 watch 级：冰点/收缩观察——不进验证闭环） */
+export interface EtfScanSignal {
+  code: string
+  name: string
+  strategy: string
+  stage: 'trigger' | 'watch'
+  stage_label: string
+  direction: 'up' | 'down'
+  price: number
+  change_pct: number
+  reasons: string[]
+}
+
+export interface EtfScanItem {
+  code: string
+  name: string
+  price: number
+  chg: number
+  date: string
+  flags: { squeeze: boolean; freeze: boolean; in_pos: boolean }
+  readings: Record<string, any>
+  signals: EtfScanSignal[]
+}
+
+/** ETF trigger 信号（含验证结果） */
+export interface EtfSignal {
+  id: string
+  tdate: string
+  code: string
+  name: string
+  strategy: string
+  direction: 'up' | 'down'
+  entry_price: number | null
+  reasons: string[]
+  source: string
+  outcome: {
+    status: 'pending' | 'resolved' | 'no_data'
+    r_t1?: number
+    r_t5?: number
+    r_t10?: number
+  }
+}
+
+/** 全市场 ETF 搜索/热榜行 */
+export interface EtfSearchItem {
+  code: string
+  name: string
+  price: number | null
+  pct: number | null
+  volume: number | null
+  turnover?: number | null
+}
+
+export interface EtfStatus {
+  enabled: boolean
+  pool: EtfPoolItem[]
+  last_scan: any
+  cache_n: number
+}
+
 export const monitorApi = {
   health: () => request.get({ url: '/api/health' }),
   marketStatus: () => request.get<MarketStatus>({ url: '/api/market/status' }),
@@ -234,5 +370,25 @@ export const monitorApi = {
   noticeUnread: () => request.get<{ count: number }>({ url: '/api/notifications/unread' }),
   noticeRead: (id?: string) =>
     request.post<any>({ url: `/api/notifications/read${id ? `?notify_id=${id}` : ''}` }),
-  noticeClear: () => request.del<any>({ url: '/api/notifications' })
+  noticeClear: () => request.del<any>({ url: '/api/notifications' }),
+
+  /** 信号验证闭环（实盘信号 T+1/5/10 结果回填） */
+  signalOutcomesSummary: () => request.get<SignalOutcomeSummary>({ url: '/api/signaloutcomes/summary' }),
+  signalOutcomesSignals: (status = 'all', limit = 100, strategy?: string) =>
+    request.get<{ items: SignalOutcomeRecord[] }>({
+      url: '/api/signaloutcomes/signals',
+      params: { status, limit, strategy }
+    }),
+  signalOutcomesRun: () => request.post<SignalOutcomeSummary & { last_run: any }>({ url: '/api/signaloutcomes/run' }),
+
+  /** ETF 监控（S4 波动收缩突破，T+1 收盘确认口径） */
+  etfStatus: () => request.get<EtfStatus>({ url: '/api/etf/status' }),
+  etfSignals: (limit = 50) => request.get<{ items: EtfSignal[] }>({ url: '/api/etf/signals', params: { limit } }),
+  etfSearch: (q: string, limit = 30) => request.get<{ items: EtfSearchItem[] }>({ url: '/api/etf/search', params: { q, limit } }),
+  etfHotlist: (limit = 15) => request.get<{ pct: EtfSearchItem[]; volume: EtfSearchItem[]; n: number }>({ url: '/api/etf/hotlist', params: { limit } }),
+  etfPoolAdd: (code: string, name = '') => request.post<any>({ url: '/api/etf/pool', data: { code, name } }),
+  etfPoolRemove: (code: string) => request.del<any>({ url: `/api/etf/pool/${code}` }),
+  etfHoldingsToggle: (code: string) => request.post<any>({ url: `/api/etf/holdings/${code}` }),
+  etfScan: () => request.post<any>({ url: '/api/etf/scan' }),
+  etfRefresh: () => request.post<any>({ url: '/api/etf/refresh' })
 }

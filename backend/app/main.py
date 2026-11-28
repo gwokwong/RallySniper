@@ -27,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import (
-    analyzer, datasource as ds, ignitionwatch, lanban, mainwave, monitor, market_scan, patternwatch, replay, tdxwatch, wzqwatch,
+    analyzer, auctionwatch, datasource as ds, etfwatch, ignitionwatch, lanban, mainwave, monitor, market_scan, patternwatch, replay, signalstore, tdxwatch, wzqwatch,
     notifications, notifier as notifier_mod, scheduler, sellwatch, yesterday,
 )
 from .config import AppConfig, load_config, save_config, update_config
@@ -793,6 +793,104 @@ def sell_scan(confirm: bool = False) -> dict[str, Any]:
 def sell_push_now(confirm: bool = False) -> dict[str, Any]:
     result = scheduler.run_sell_alert("confirm" if confirm else "intraday")
     return ok(result)
+
+
+# ----------------------------- 信号验证闭环 -----------------------------
+
+@app.get("/api/signaloutcomes/summary")
+def signaloutcomes_summary() -> dict[str, Any]:
+    """实盘信号 T+1/5/10 验证统计：整体 + 分方向 + 分策略胜率。"""
+    return ok(signalstore.summary())
+
+
+@app.get("/api/signaloutcomes/signals")
+def signaloutcomes_signals(status: str = "all", limit: int = 100,
+                           strategy: str | None = None) -> dict[str, Any]:
+    """信号明细列表（status: all/pending/resolved/no_data）。"""
+    return ok({"items": signalstore.list_signals(status, limit, strategy)})
+
+
+@app.post("/api/signaloutcomes/run")
+def signaloutcomes_run() -> dict[str, Any]:
+    """手动立即回填结果（幂等；需K线缓存含信号日后的数据）。"""
+    r = signalstore.resolve_pending()
+    return ok({**signalstore.summary(), "last_run": r})
+
+
+# ----------------------------- ETF 监控 -----------------------------
+
+@app.get("/api/etf/status")
+def etf_status() -> dict[str, Any]:
+    """ETF 池子/纸面持仓/最近扫描状态。"""
+    return ok(etfwatch.status())
+
+
+@app.get("/api/etf/signals")
+def etf_signals(limit: int = 50) -> dict[str, Any]:
+    """ETF trigger 信号明细（含验证结果）。"""
+    return ok({"items": signalstore.list_signals(limit=limit, source="etf")})
+
+
+@app.get("/api/etf/search")
+def etf_search(q: str = "", limit: int = 30) -> dict[str, Any]:
+    """全市场 ETF 搜索（添加池子用）。"""
+    return ok({"items": etfwatch.search_universe(q, limit)})
+
+
+@app.get("/api/etf/hotlist")
+def etf_hotlist(limit: int = 15) -> dict[str, Any]:
+    """全市场 ETF 当日热榜（涨幅/成交量，只荐不入池）。"""
+    return ok(etfwatch.hotlist(limit))
+
+
+@app.post("/api/etf/pool")
+def etf_pool_add(payload: dict[str, Any]) -> dict[str, Any]:
+    code = str(payload.get("code") or "").strip()
+    if not code.isdigit() or len(code) != 6:
+        raise HTTPException(status_code=400, detail="code 必须为6位数字")
+    return ok(etfwatch.pool_add(code, str(payload.get("name") or "")), "已加入池子")
+
+
+@app.delete("/api/etf/pool/{code}")
+def etf_pool_remove(code: str) -> dict[str, Any]:
+    return ok(etfwatch.pool_remove(code), "已移出池子")
+
+
+@app.post("/api/etf/holdings/{code}")
+def etf_holdings_toggle(code: str) -> dict[str, Any]:
+    """标记/取消 ETF 持仓（盘中卖出预警只对登记持仓生效）。"""
+    code = code.zfill(6)
+    cfg = load_config()
+    held = [str(c).zfill(6) for c in (cfg.etf.etf_holdings or [])]
+    if code in held:
+        held.remove(code)
+        msg = "已取消持仓标记"
+    else:
+        held.append(code)
+        msg = "已标记持仓——盘中跌破中轨将推送卖出预警"
+    from .config import update_config
+    update_config({"etf": {"etf_holdings": held}})
+    return ok({"success": True, "code": code, "holdings": held}, msg)
+
+
+@app.post("/api/etf/scan")
+def etf_scan() -> dict[str, Any]:
+    """手动执行一次 ETF 策略扫描（收盘确认口径，信号次日执行）。"""
+    return ok(etfwatch.scan())
+
+
+@app.post("/api/etf/refresh")
+def etf_refresh() -> dict[str, Any]:
+    """手动刷新 ETF K线缓存。"""
+    return ok(etfwatch.refresh())
+
+
+# ----------------------------- 竞价承接 -----------------------------
+
+@app.get("/api/auction/latest")
+def auction_latest() -> dict[str, Any]:
+    """最近一次竞价承接扫描（9:26 生成，含持仓/标的池/ETF 分层处置）。"""
+    return ok(auctionwatch.latest())
 
 
 # ----------------------------- 站内通知 -----------------------------

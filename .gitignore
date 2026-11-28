@@ -21,3 +21,4 @@ backend/backtests/ch5_ab_result.json
 
 # 研究报告归档目录的临时中间文件
 reports/*.tmp
+backend/data/

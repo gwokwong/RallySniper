@@ -14,7 +14,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from . import datasource as ds, ignitionwatch, lanban, market_scan, notifications, notifier, patternwatch, replay, scanstore, tdxwatch, wzqwatch
+from . import auctionwatch, datasource as ds, etfwatch, ignitionwatch, lanban, market_scan, notifications, notifier, patternwatch, replay, scanstore, signalstore, tdxwatch, wzqwatch
 from . import sellwatch, yesterday
 import json
 
@@ -187,6 +187,11 @@ def _tdx_job() -> None:
                 lines.append(f"- {x['name']}({x['code']}) {x['signal']} 现价{x['price']}")
         title = f"【盘尾指标预警】鬼手抄底 {len(dips)} 只 / 减仓预警 {len(jians)} 只"
         body = "\n".join(lines)
+        # 信号验证闭环：抄底(trigger)落盘，减仓(watch)由 record_batch 过滤
+        try:
+            signalstore.record_batch(rows, source="tdx")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[scheduler] 指标信号落盘失败: {exc}")
         notifications.add(title, body, rows, kind="pattern")
         if cfg2.notification:
             notifier.broadcast(cfg2.notification, title, body, rows)
@@ -727,12 +732,104 @@ def _cache_refresh_job() -> None:
         print(f"[scheduler] K线缓存刷新失败: {exc}")
 
 
+def _signal_eval_job() -> None:
+    """信号验证闭环·结果回填（默认15:30，须晚于K线缓存刷新）：离线回填 T+1/5/10 结果。"""
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        tdate = ds.effective_trading_date()["date"]
+        if not scanstore.claim_once(f"signal_eval_{tdate}"):
+            print("[scheduler] 信号结果回填已有进程执行（防重跳过）")
+            return
+        bars = rp._load_bars()
+        try:
+            # ETF 信号的 bars 在 etf_cache（代码前缀与个股不冲突，合并覆盖两类信号）
+            for c, df in etfwatch._load_bars().items():
+                bars.setdefault(c, df)
+        except Exception:  # noqa: BLE001
+            pass
+        r = signalstore.resolve_pending(bars=bars, keep_days=load_config().scan.signal_keep_days)
+        print(f"[scheduler] 信号结果回填: 新完成{r['resolved_new']} "
+              f"待验证{r['pending']} 无数据{r['no_data']} 清理{r['pruned_files']}个文件")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 信号结果回填失败: {exc}")
+
+
+def _auction_job() -> None:
+    """竞价承接扫描（9:26，集合竞价后开盘前）：持仓/标的池/ETF 量价分层处置指引。"""
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        r = auctionwatch.auc_scan()
+        print(f"[scheduler] 竞价承接: 个股{len(r.get('stocks', []))} ETF{len(r.get('etfs', []))}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 竞价承接失败: {exc}")
+
+
+def _etf_refresh_job() -> None:
+    """ETF K线缓存刷新（15:12，晚于个股 15:10；休市日跳过）。"""
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        r = etfwatch.refresh()
+        print(f"[scheduler] ETF缓存刷新: ok={len(r['ok'])} fail={len(r['fail'])}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] ETF缓存刷新失败: {exc}")
+
+
+def _etf_intraday_job() -> None:
+    """ETF 盘中预警（每5分钟，仅交易时段）：跌破中轨/触及突破位的提前知会。"""
+    try:
+        if ds.market_status()["status"] not in ("trading",):
+            return
+        r = etfwatch.intraday_check()
+        if r.get("alerts"):
+            print(f"[scheduler] ETF盘中预警: {len(r['alerts'])} 条")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] ETF盘中预警失败: {exc}")
+
+
+def _etf_freeze_job() -> None:
+    """ETF 盘中冰点快报（默认14:40，仅交易时段；每日至多一次，claim_once 防重）。"""
+    try:
+        if ds.market_status()["status"] != "trading":
+            return
+        tdate = ds.effective_trading_date()["date"]
+        if not scanstore.claim_once(f"etf_freeze_{tdate}"):
+            return
+        r = etfwatch.freeze_intraday()
+        if r.get("hits"):
+            print(f"[scheduler] ETF盘中冰点快报: {len(r['hits'])} 只")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] ETF盘中冰点快报失败: {exc}")
+
+
+def _etf_scan_job() -> None:
+    """ETF 策略扫描推送（15:20 收盘确认口径，信号次日执行；跨进程防重）。"""
+    try:
+        if ds.market_status()["status"] == "closed":
+            return
+        tdate = ds.effective_trading_date()["date"]
+        if not scanstore.claim_once(f"etf_scan_{tdate}"):
+            print("[scheduler] ETF扫描已有进程执行（防重跳过）")
+            return
+        r = etfwatch.scan()
+        print(f"[scheduler] ETF扫描: 信号 {len(r.get('signals', []))} 条")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] ETF扫描失败: {exc}")
+
+
 def run_market_push(push_time: str | None = None, source: str = "系统定时") -> dict[str, Any]:
     """执行一次全市场扫描 + 站内通知 + 邮件推送（成功后落盘为「上一次全市场机会」）。"""
     result = market_scan.scan_market(push_time=push_time)
     if not result.get("success"):
         return result
     market_scan.persist_last_scan(result, source)
+    # 信号验证闭环：trigger 级信号落盘（record_batch 内部过滤 watch/板块行）
+    try:
+        signalstore.record_batch(result.get("signals", []), source="market_scan")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 全市场信号落盘失败: {exc}")
 
     signals = result.get("signals", [])
     label = push_time or datetime.now().strftime("%H:%M")
@@ -916,6 +1013,11 @@ def run_sell_alert(mode: str) -> dict[str, Any]:
         return result
     cfg = load_config()
     times = max(1, int(cfg.sell.notify_times)) if mode == "confirm" else 1
+    # 信号验证闭环：卖出预警落盘（down 信号 r<0 算验证正确）
+    try:
+        signalstore.record_batch(_mail_rows(signals, "sell"), source="sell")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 卖出信号落盘失败: {exc}")
     names = "、".join(f"{s['name']}({s['code']})" for s in signals[:10])
     pushed = 0
     titles: list[str] = []
@@ -1062,6 +1164,46 @@ def start() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(kr_h), minute=int(kr_m), timezone="Asia/Shanghai"),
             id="kline_refresh", max_instances=1, coalesce=True,
         )
+        se_h, se_m = cfg.scan.signal_eval_time.split(":")
+        _scheduler.add_job(
+            _signal_eval_job,
+            trigger=CronTrigger(hour=int(se_h), minute=int(se_m), timezone="Asia/Shanghai"),
+            id="signal_eval", max_instances=1, coalesce=True,
+        )
+        if cfg.etf.enabled:
+            ef_h, ef_m = cfg.etf.refresh_time.split(":")
+            _scheduler.add_job(
+                _etf_refresh_job,
+                trigger=CronTrigger(hour=int(ef_h), minute=int(ef_m), timezone="Asia/Shanghai"),
+                id="etf_refresh", max_instances=1, coalesce=True,
+            )
+            es_h, es_m = cfg.etf.scan_time.split(":")
+            _scheduler.add_job(
+                _etf_scan_job,
+                trigger=CronTrigger(hour=int(es_h), minute=int(es_m), timezone="Asia/Shanghai"),
+                id="etf_scan", max_instances=1, coalesce=True,
+            )
+            if cfg.etf.freeze_intraday_enabled:
+                fz_h, fz_m = cfg.etf.freeze_intraday_time.split(":")
+                _scheduler.add_job(
+                    _etf_freeze_job,
+                    trigger=CronTrigger(hour=int(fz_h), minute=int(fz_m), timezone="Asia/Shanghai"),
+                    id="etf_freeze", max_instances=1, coalesce=True,
+                )
+            if cfg.etf.intraday_enabled:
+                _scheduler.add_job(
+                    _etf_intraday_job,
+                    trigger=IntervalTrigger(minutes=max(1, int(cfg.etf.intraday_interval_minutes)),
+                                            timezone="Asia/Shanghai"),
+                    id="etf_intraday", max_instances=1, coalesce=True,
+                )
+        if cfg.scan.auc_absorb_enabled:
+            au_h, au_m = cfg.scan.auc_absorb_time.split(":")
+            _scheduler.add_job(
+                _auction_job,
+                trigger=CronTrigger(hour=int(au_h), minute=int(au_m), timezone="Asia/Shanghai"),
+                id="auction_watch", max_instances=1, coalesce=True,
+            )
         dc_h, dc_m = cfg.scan.daily_check_time.split(":")
         _scheduler.add_job(
             _daily_check_job,
@@ -1185,6 +1327,58 @@ def refresh() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(kr_h), minute=int(kr_m), timezone="Asia/Shanghai"),
             id="kline_refresh", max_instances=1, coalesce=True,
         )
+        if _scheduler.get_job("signal_eval"):
+            _scheduler.remove_job("signal_eval")
+        se_h, se_m = cfg.scan.signal_eval_time.split(":")
+        _scheduler.add_job(
+            _signal_eval_job,
+            trigger=CronTrigger(hour=int(se_h), minute=int(se_m), timezone="Asia/Shanghai"),
+            id="signal_eval", max_instances=1, coalesce=True,
+        )
+        if _scheduler.get_job("etf_refresh"):
+            _scheduler.remove_job("etf_refresh")
+        if _scheduler.get_job("etf_scan"):
+            _scheduler.remove_job("etf_scan")
+        if cfg.etf.enabled:
+            ef_h, ef_m = cfg.etf.refresh_time.split(":")
+            _scheduler.add_job(
+                _etf_refresh_job,
+                trigger=CronTrigger(hour=int(ef_h), minute=int(ef_m), timezone="Asia/Shanghai"),
+                id="etf_refresh", max_instances=1, coalesce=True,
+            )
+            es_h, es_m = cfg.etf.scan_time.split(":")
+            _scheduler.add_job(
+                _etf_scan_job,
+                trigger=CronTrigger(hour=int(es_h), minute=int(es_m), timezone="Asia/Shanghai"),
+                id="etf_scan", max_instances=1, coalesce=True,
+            )
+            if _scheduler.get_job("etf_freeze"):
+                _scheduler.remove_job("etf_freeze")
+            if cfg.etf.freeze_intraday_enabled:
+                fz_h, fz_m = cfg.etf.freeze_intraday_time.split(":")
+                _scheduler.add_job(
+                    _etf_freeze_job,
+                    trigger=CronTrigger(hour=int(fz_h), minute=int(fz_m), timezone="Asia/Shanghai"),
+                    id="etf_freeze", max_instances=1, coalesce=True,
+                )
+            if _scheduler.get_job("etf_intraday"):
+                _scheduler.remove_job("etf_intraday")
+            if cfg.etf.intraday_enabled:
+                _scheduler.add_job(
+                    _etf_intraday_job,
+                    trigger=IntervalTrigger(minutes=max(1, int(cfg.etf.intraday_interval_minutes)),
+                                            timezone="Asia/Shanghai"),
+                    id="etf_intraday", max_instances=1, coalesce=True,
+                )
+        if _scheduler.get_job("auction_watch"):
+            _scheduler.remove_job("auction_watch")
+        if cfg.scan.auc_absorb_enabled:
+            au_h, au_m = cfg.scan.auc_absorb_time.split(":")
+            _scheduler.add_job(
+                _auction_job,
+                trigger=CronTrigger(hour=int(au_h), minute=int(au_m), timezone="Asia/Shanghai"),
+                id="auction_watch", max_instances=1, coalesce=True,
+            )
         if _scheduler.get_job("daily_check"):
             _scheduler.remove_job("daily_check")
         dc_h, dc_m = cfg.scan.daily_check_time.split(":")

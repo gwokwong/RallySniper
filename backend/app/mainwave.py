@@ -20,6 +20,7 @@ from typing import Any
 import pandas as pd
 
 from . import datasource as ds
+from .config import effective_config
 
 
 # ----------------------------- 指标计算 -----------------------------
@@ -57,6 +58,30 @@ def _indicators(df: pd.DataFrame, code: str = "", name: str = "") -> pd.DataFram
     out["dif"] = ema12 - ema26
     out["dea"] = out["dif"].ewm(span=9, adjust=False).mean()
     out["macd"] = (out["dif"] - out["dea"]) * 2
+
+    # 波动收缩（2026-11-28 引入，仅供信号标注与回测，不参与战法判定）：
+    # 口径对齐 daily_stock_analysis 的 quant_factors，全部排除当前 bar 防前视。
+    high_ = out["high"]
+    low_ = out["low"]
+    bb_mid = close.rolling(20, min_periods=20).mean()
+    bb_std = close.rolling(20, min_periods=20).std(ddof=0)
+    out["bb_mid"] = bb_mid
+    out["bb_up"] = bb_mid + 2.0 * bb_std
+    out["bb_dn"] = bb_mid - 2.0 * bb_std
+    bw = (out["bb_up"] - out["bb_dn"]) / bb_mid.replace(0, float("nan")) * 100.0
+    out["bb_bw"] = bw
+    # 布林squeeze：带宽 ≤ max(6%, 前60日带宽25分位×1.1) 且 < 12%（分位不含当前bar）
+    out["bb_bw_q25"] = bw.rolling(60, min_periods=5).quantile(0.25).shift(1)
+    out["bb_squeeze"] = (
+        (bw <= (out["bb_bw_q25"] * 1.1).clip(lower=6.0)) & (bw < 12.0)
+    ).fillna(False).astype(bool)
+    out["bb_squeeze_prior"] = out["bb_squeeze"].shift(1).fillna(False).astype(bool)
+    # VCP收缩比：近10日振幅(不含当日) / 前20日振幅(截至11日前)，<1 即收敛
+    recent_hi = high_.rolling(10, min_periods=10).max().shift(1)
+    recent_lo = low_.rolling(10, min_periods=10).min().shift(1)
+    prior_hi = high_.rolling(20, min_periods=20).max().shift(11)
+    prior_lo = low_.rolling(20, min_periods=20).min().shift(11)
+    out["vcp_ratio"] = (recent_hi - recent_lo) / (prior_hi - prior_lo).replace(0, float("nan"))
 
     # 阳线 / 涨停 / 缺口（上涨用）
     out["is_yang"] = out["close"] > out["open"]
@@ -764,6 +789,27 @@ def analyze_stock(code: str, strategy_rules: dict[str, Any],
     d = _indicators(hist, code, name)
     out: list[dict[str, Any]] = []
     cur = d.iloc[-1]
+
+    def _f(x: Any) -> float | None:
+        try:
+            return None if pd.isna(x) else round(float(x), 2)
+        except (TypeError, ValueError):
+            return None
+
+    # 波动收缩读数（仅标注，不影响判定）：vcp 收缩比 + 布林 squeeze
+    readings = {
+        "vcp_ratio": _f(cur.get("vcp_ratio")),
+        "bb_squeeze": bool(cur.get("bb_squeeze") or False),
+        "bb_squeeze_prior": bool(cur.get("bb_squeeze_prior") or False),
+    }
+    try:
+        reg = effective_config().market_regime
+        vcp_note_enabled = bool(getattr(reg, "vcp_note_enabled", True))
+        vcp_max = float(getattr(reg, "vcp_contraction_max", 0.65))
+        absorb_note_enabled = bool(getattr(reg, "absorb_note_enabled", True))
+    except Exception:  # noqa: BLE001
+        vcp_note_enabled, vcp_max, absorb_note_enabled = True, 0.65, True
+
     for sname, fn, _desc, direction in STRATEGIES:
         try:
             res = fn(d, strategy_rules)
@@ -787,7 +833,28 @@ def analyze_stock(code: str, strategy_rules: dict[str, Any],
             "signal": f"{sname}{('·' + stage_label) if stage_label else ''}：{' + '.join(res['reasons'])}",
             "strength": res.get("strength", 0),
             "type": "上涨信号" if direction == "up" else "下跌信号",
+            "readings": readings,
         })
+        # 启动信号附波动收缩标注（信息性，不改变判定与 strength）
+        if stage == "trigger" and vcp_note_enabled:
+            bits = []
+            if readings["vcp_ratio"] is not None and readings["vcp_ratio"] <= vcp_max:
+                bits.append(f"VCP {readings['vcp_ratio']:.2f}")
+            if readings["bb_squeeze_prior"]:
+                bits.append("布林带宽squeeze")
+            if bits:
+                out[-1]["reasons"] = list(out[-1]["reasons"]) + [
+                    "启动前波动已收缩（" + "，".join(bits) + "）"]
+        # 分歧强承接标注（洗盘反包专属）：盘中破开盘价后收回——回测该组更强，仅标注不改判定
+        if stage == "trigger" and sname == "洗盘反包" and absorb_note_enabled:
+            try:
+                lo, op_ = float(cur["low"]), float(cur["open"])
+                if lo < op_ <= float(cur["close"]):
+                    out[-1]["readings"]["absorb"] = True
+                    out[-1]["reasons"] = list(out[-1]["reasons"]) + [
+                        "分歧强承接（盘中破开盘后快速收回，强势洗盘特征）"]
+            except (KeyError, TypeError, ValueError):
+                pass
     out.sort(key=lambda x: x["strength"], reverse=True)
     return out
 

@@ -59,6 +59,24 @@ export const monitorRoutes: AppRouteRecord = {
       }
     },
     {
+      path: 'outcomes',
+      name: 'SignalOutcomes',
+      component: '/monitor/outcomes',
+      meta: {
+        title: 'menus.monitor.outcomes',
+        icon: 'ri:checkbox-multiple-line'
+      }
+    },
+    {
+      path: 'etf',
+      name: 'EtfMonitor',
+      component: '/monitor/etf',
+      meta: {
+        title: 'menus.monitor.etf',
+        icon: 'ri:funds-line'
+      }
+    },
+    {
       path: 'strategies',
       name: 'WaveStrategies',
       component: '/monitor/strategies',

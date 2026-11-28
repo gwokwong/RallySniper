@@ -257,6 +257,9 @@ def poll_fast() -> dict[str, Any]:
         high = q.get("high")
         if price is None or pct is None or not pre:
             continue
+        nm_chk = str(q.get("name") or "")
+        if "ST" in nm_chk.upper() or "退" in nm_chk:
+            continue  # ST 烂板 5% 涨跌幅无追打价值（与慢车道口径一致）
         th = 19.5 if code.startswith(("688", "689", "300", "301")) else 9.8
         near_board = pct >= min(5.0, th - 0.5) or (high and high >= pre * (1 + th / 100) * 0.999)
         if not near_board:

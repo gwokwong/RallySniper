@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import datasource as ds, notifications, notifier, patternwatch
+from . import datasource as ds, notifications, notifier, patternwatch, signalstore
 from .config import effective_config, load_config
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -111,6 +111,11 @@ _load_persisted()
 
 
 def _notify(title: str, body: str, rows: list[dict[str, Any]] | None = None) -> int:
+    # 信号验证闭环：精选候选(trigger)落盘；点火/退潮提醒无 rows 自动跳过
+    try:
+        signalstore.record_batch(rows, source="ignition")
+    except Exception:  # noqa: BLE001
+        pass
     notifications.add(title, body, rows or [], kind="ignition")
     cfg = load_config()
     pushed = 0

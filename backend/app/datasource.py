@@ -1283,3 +1283,108 @@ def health() -> dict[str, Any]:
         result["board_degraded"],
     ])
     return result
+
+
+# ----------------------------- ETF 场内基金 -----------------------------
+
+def _etf_symbol_sina(code: str) -> str:
+    c = str(code).zfill(6)
+    return ("sh" if c.startswith(("5", "6")) else "sz") + c
+
+
+def _normalize_etf_hist(df: pd.DataFrame | None) -> pd.DataFrame | None:
+    """东财/新浪 ETF 日K → 与个股日线同列名（mainwave._indicators 可零改动复用）。
+
+    新浪兜底无复权且缺成交额/换手率，置 NaN（degraded 由调用方按列缺失判断）。
+    """
+    if df is None or df.empty:
+        return None
+    out = pd.DataFrame()
+    if "日期" in df.columns:  # 东财 fund_etf_hist_em
+        out["date"] = df["日期"].astype(str)
+        out["open"] = df["开盘"].astype(float)
+        out["close"] = df["收盘"].astype(float)
+        out["high"] = df["最高"].astype(float)
+        out["low"] = df["最低"].astype(float)
+        out["volume"] = df["成交量"].astype(float)
+        out["amount"] = df["成交额"].astype(float)
+        out["pct_change"] = df["涨跌幅"].astype(float)
+        out["turnover"] = df["换手率"].astype(float)
+    elif "date" in df.columns:  # 新浪 fund_etf_hist_sina（不复权兜底）
+        out["date"] = df["date"].astype(str)
+        for k in ("open", "close", "high", "low", "volume"):
+            out[k] = df[k].astype(float)
+        out["pct_change"] = out["close"].pct_change() * 100
+        out["amount"] = float("nan")
+        out["turnover"] = float("nan")
+    else:
+        return None
+    return out.sort_values("date").reset_index(drop=True)
+
+
+def etf_history(code: str, days: int = 250, ttl: int = 1800) -> pd.DataFrame | None:
+    """ETF 日K（东财 qfq → 新浪兜底），列名与个股日线一致，TTL 缓存 + 熔断。"""
+    code = str(code).zfill(6)
+    key = f"etf_hist_{code}_{days}"
+
+    def fetch() -> pd.DataFrame | None:
+        try:
+            ak = get_ak()
+            start = (datetime.now() - timedelta(days=int(days * 1.8) + 40)).strftime("%Y%m%d")
+            end = datetime.now().strftime("%Y%m%d")
+            df = _safe_call(ak.fund_etf_hist_em, code, period="daily",
+                            start_date=start, end_date=end, adjust="qfq")
+            out = _normalize_etf_hist(df)
+            if out is not None and len(out) >= 20:
+                return out
+        except Exception as exc:  # noqa: BLE001
+            print(f"[datasource] etf_history 东财失败 {code}: {str(exc)[:60]}")
+        try:
+            ak = get_ak()
+            df = _safe_call(ak.fund_etf_hist_sina, _etf_symbol_sina(code))
+            out = _normalize_etf_hist(df)
+            if out is not None:
+                out = out.tail(max(days, 60)).reset_index(drop=True)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            print(f"[datasource] etf_history 新浪兜底失败 {code}: {str(exc)[:60]}")
+        return None
+
+    return cache.get_or_fetch(key, ttl, fetch)
+
+
+def etf_spot(ttl: int = 30) -> list[dict[str, Any]]:
+    """全市场场内 ETF 实时快照（东财单接口，短 TTL 用于盘中，长 TTL 用于搜索/热榜）。"""
+
+    def fetch() -> list[dict[str, Any]] | None:
+        try:
+            ak = get_ak()
+            df = _safe_call(ak.fund_etf_spot_em)
+            if df is None or df.empty:
+                return None
+            rows: list[dict[str, Any]] = []
+            for _, r in df.iterrows():
+                try:
+                    rows.append({
+                        "code": str(r["代码"]).zfill(6),
+                        "name": str(r["名称"]),
+                        "price": float(r["最新价"]) if r["最新价"] == r["最新价"] else None,
+                        "pre_close": float(r["昨收"]) if r["昨收"] == r["昨收"] else None,
+                        "pct": float(r["涨跌幅"]) if r["涨跌幅"] == r["涨跌幅"] else None,
+                        "volume": float(r["成交量"]) if r["成交量"] == r["成交量"] else None,
+                        "turnover": float(r["换手率"]) if r["换手率"] == r["换手率"] else None,
+                        "vr": float(r["量比"]) if r["量比"] == r["量比"] else None,
+                    })
+                except (KeyError, TypeError, ValueError):
+                    continue
+            return rows
+        except Exception as exc:  # noqa: BLE001
+            print(f"[datasource] etf_spot 失败: {str(exc)[:60]}")
+            return None
+
+    return cache.get_or_fetch(f"etf_spot_{ttl}", ttl, fetch) or []
+
+
+def etf_universe() -> list[dict[str, Any]]:
+    """全市场 ETF 列表（搜索添加池子用，长缓存）。"""
+    return etf_spot(ttl=3600)

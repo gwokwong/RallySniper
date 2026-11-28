@@ -327,6 +327,8 @@
       "opportunity": "全市场机会",
       "yesterday": "昨日涨停跟进",
       "sell": "持仓风控",
+      "outcomes": "信号验证",
+      "etf": "ETF 监控",
       "strategies": "战法说明",
       "settings": "邮件与配置"
     }

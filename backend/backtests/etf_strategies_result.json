@@ -1,0 +1,639 @@
+{
+ "pool": [
+  [
+   "588000",
+   "科创50ETF"
+  ],
+  [
+   "588200",
+   "科创芯片ETF"
+  ],
+  [
+   "512480",
+   "半导体ETF"
+  ],
+  [
+   "515880",
+   "通信ETF"
+  ],
+  [
+   "159326",
+   "电网设备ETF"
+  ],
+  [
+   "512000",
+   "券商ETF"
+  ],
+  [
+   "512660",
+   "军工ETF"
+  ],
+  [
+   "515030",
+   "新能源车ETF"
+  ],
+  [
+   "512010",
+   "医药ETF"
+  ],
+  [
+   "518880",
+   "黄金ETF"
+  ]
+ ],
+ "degraded": {
+  "588000": true,
+  "588200": true,
+  "512480": true,
+  "515880": true,
+  "159326": true,
+  "512000": true,
+  "512660": true,
+  "515030": true,
+  "512010": true,
+  "518880": true,
+  "511260": true
+ },
+ "sections": {
+  "S1": {
+   "588000": {
+    "n": 1444,
+    "cagr": 6.3,
+    "mdd": -37.1,
+    "calmar": 0.17,
+    "sharpe": 0.36,
+    "monthly_win": 38.0,
+    "trades": 89,
+    "turnover_y": 0
+   },
+   "588200": {
+    "n": 973,
+    "cagr": 20.4,
+    "mdd": -49.9,
+    "calmar": 0.41,
+    "sharpe": 0.68,
+    "monthly_win": 47.9,
+    "trades": 55,
+    "turnover_y": 0
+   },
+   "512480": {
+    "n": 1580,
+    "cagr": 8.1,
+    "mdd": -65.7,
+    "calmar": 0.12,
+    "sharpe": 0.43,
+    "monthly_win": 44.9,
+    "trades": 83,
+    "turnover_y": 0
+   },
+   "515880": {
+    "n": 1580,
+    "cagr": -9.5,
+    "mdd": -80.7,
+    "calmar": -0.12,
+    "sharpe": 0.09,
+    "monthly_win": 42.3,
+    "trades": 85,
+    "turnover_y": 0
+   },
+   "159326": {
+    "n": 516,
+    "cagr": 6.8,
+    "mdd": -26.7,
+    "calmar": 0.26,
+    "sharpe": 0.39,
+    "monthly_win": 48.0,
+    "trades": 26,
+    "turnover_y": 0
+   },
+   "512000": {
+    "n": 1580,
+    "cagr": -10.9,
+    "mdd": -67.3,
+    "calmar": -0.16,
+    "sharpe": -0.21,
+    "monthly_win": 32.1,
+    "trades": 87,
+    "turnover_y": 0
+   },
+   "512660": {
+    "n": 1580,
+    "cagr": 5.6,
+    "mdd": -35.6,
+    "calmar": 0.16,
+    "sharpe": 0.34,
+    "monthly_win": 43.6,
+    "trades": 82,
+    "turnover_y": 0
+   },
+   "515030": {
+    "n": 1580,
+    "cagr": 9.2,
+    "mdd": -62.5,
+    "calmar": 0.15,
+    "sharpe": 0.46,
+    "monthly_win": 38.5,
+    "trades": 94,
+    "turnover_y": 0
+   },
+   "512010": {
+    "n": 1580,
+    "cagr": -18.2,
+    "mdd": -86.0,
+    "calmar": -0.21,
+    "sharpe": -0.25,
+    "monthly_win": 34.6,
+    "trades": 77,
+    "turnover_y": 0
+   },
+   "518880": {
+    "n": 1580,
+    "cagr": 10.5,
+    "mdd": -23.3,
+    "calmar": 0.45,
+    "sharpe": 0.75,
+    "monthly_win": 52.6,
+    "trades": 50,
+    "turnover_y": 0
+   }
+  },
+  "S1_vol": {
+   "588000": {
+    "n": 1444,
+    "cagr": 8.4,
+    "mdd": -34.1,
+    "calmar": 0.25,
+    "sharpe": 0.46,
+    "monthly_win": 23.9,
+    "trades": 51,
+    "turnover_y": 0
+   },
+   "588200": {
+    "n": 973,
+    "cagr": 24.7,
+    "mdd": -38.6,
+    "calmar": 0.64,
+    "sharpe": 0.82,
+    "monthly_win": 39.6,
+    "trades": 43,
+    "turnover_y": 0
+   },
+   "512480": {
+    "n": 1580,
+    "cagr": 12.7,
+    "mdd": -56.8,
+    "calmar": 0.22,
+    "sharpe": 0.55,
+    "monthly_win": 41.0,
+    "trades": 65,
+    "turnover_y": 0
+   },
+   "515880": {
+    "n": 1580,
+    "cagr": -6.6,
+    "mdd": -72.9,
+    "calmar": -0.09,
+    "sharpe": 0.06,
+    "monthly_win": 26.9,
+    "trades": 65,
+    "turnover_y": 0
+   },
+   "159326": {
+    "n": 516,
+    "cagr": 4.0,
+    "mdd": -15.2,
+    "calmar": 0.27,
+    "sharpe": 0.33,
+    "monthly_win": 20.0,
+    "trades": 10,
+    "turnover_y": 0
+   },
+   "512000": {
+    "n": 1580,
+    "cagr": -8.5,
+    "mdd": -62.2,
+    "calmar": -0.14,
+    "sharpe": -0.13,
+    "monthly_win": 28.2,
+    "trades": 73,
+    "turnover_y": 0
+   },
+   "512660": {
+    "n": 1580,
+    "cagr": 1.1,
+    "mdd": -40.0,
+    "calmar": 0.03,
+    "sharpe": 0.16,
+    "monthly_win": 30.8,
+    "trades": 62,
+    "turnover_y": 0
+   },
+   "515030": {
+    "n": 1580,
+    "cagr": 23.7,
+    "mdd": -50.7,
+    "calmar": 0.47,
+    "sharpe": 1.01,
+    "monthly_win": 32.1,
+    "trades": 52,
+    "turnover_y": 0
+   },
+   "512010": {
+    "n": 1580,
+    "cagr": -21.5,
+    "mdd": -86.2,
+    "calmar": -0.25,
+    "sharpe": -0.39,
+    "monthly_win": 25.6,
+    "trades": 63,
+    "turnover_y": 0
+   },
+   "518880": {
+    "n": 1580,
+    "cagr": 10.0,
+    "mdd": -21.0,
+    "calmar": 0.48,
+    "sharpe": 0.75,
+    "monthly_win": 43.6,
+    "trades": 38,
+    "turnover_y": 0
+   }
+  },
+  "S4": {
+   "588000": {
+    "n": 1444,
+    "cagr": 15.6,
+    "mdd": -19.0,
+    "calmar": 0.82,
+    "sharpe": 0.86,
+    "monthly_win": 18.3,
+    "trades": 22,
+    "turnover_y": 0
+   },
+   "588200": {
+    "n": 973,
+    "cagr": 9.2,
+    "mdd": -22.9,
+    "calmar": 0.4,
+    "sharpe": 0.62,
+    "monthly_win": 14.6,
+    "trades": 18,
+    "turnover_y": 0
+   },
+   "512480": {
+    "n": 1580,
+    "cagr": 9.3,
+    "mdd": -28.1,
+    "calmar": 0.33,
+    "sharpe": 0.59,
+    "monthly_win": 16.7,
+    "trades": 32,
+    "turnover_y": 0
+   },
+   "515880": {
+    "n": 1580,
+    "cagr": 17.7,
+    "mdd": -18.4,
+    "calmar": 0.96,
+    "sharpe": 0.93,
+    "monthly_win": 17.9,
+    "trades": 36,
+    "turnover_y": 0
+   },
+   "159326": {
+    "n": 516,
+    "cagr": 15.1,
+    "mdd": -14.2,
+    "calmar": 1.06,
+    "sharpe": 0.91,
+    "monthly_win": 24.0,
+    "trades": 14,
+    "turnover_y": 0
+   },
+   "512000": {
+    "n": 1580,
+    "cagr": 5.7,
+    "mdd": -24.3,
+    "calmar": 0.24,
+    "sharpe": 0.41,
+    "monthly_win": 17.9,
+    "trades": 42,
+    "turnover_y": 0
+   },
+   "512660": {
+    "n": 1580,
+    "cagr": 9.8,
+    "mdd": -18.4,
+    "calmar": 0.53,
+    "sharpe": 0.61,
+    "monthly_win": 17.9,
+    "trades": 40,
+    "turnover_y": 0
+   },
+   "515030": {
+    "n": 1580,
+    "cagr": 8.8,
+    "mdd": -17.1,
+    "calmar": 0.52,
+    "sharpe": 0.65,
+    "monthly_win": 16.7,
+    "trades": 24,
+    "turnover_y": 0
+   },
+   "512010": {
+    "n": 1580,
+    "cagr": 2.0,
+    "mdd": -21.6,
+    "calmar": 0.09,
+    "sharpe": 0.23,
+    "monthly_win": 12.8,
+    "trades": 30,
+    "turnover_y": 0
+   },
+   "518880": {
+    "n": 1580,
+    "cagr": 4.9,
+    "mdd": -13.1,
+    "calmar": 0.38,
+    "sharpe": 0.56,
+    "monthly_win": 24.4,
+    "trades": 44,
+    "turnover_y": 0
+   }
+  },
+  "S2_rotation": {
+   "lb5_weekly_cash": {
+    "n": 1601,
+    "cagr": 13.1,
+    "mdd": -56.4,
+    "calmar": 0.23,
+    "sharpe": 0.52,
+    "monthly_win": 53.2,
+    "trades": 232,
+    "turnover_y": 0
+   },
+   "lb5_weekly_511260": {
+    "n": 1601,
+    "cagr": 10.7,
+    "mdd": -50.8,
+    "calmar": 0.21,
+    "sharpe": 0.46,
+    "monthly_win": 49.4,
+    "trades": 259,
+    "turnover_y": 0
+   },
+   "lb5_monthly_cash": {
+    "n": 1601,
+    "cagr": -22.7,
+    "mdd": -91.9,
+    "calmar": -0.25,
+    "sharpe": -0.21,
+    "monthly_win": 48.1,
+    "trades": 59,
+    "turnover_y": 0
+   },
+   "lb5_monthly_511260": {
+    "n": 1601,
+    "cagr": -23.9,
+    "mdd": -91.9,
+    "calmar": -0.26,
+    "sharpe": -0.25,
+    "monthly_win": 46.8,
+    "trades": 64,
+    "turnover_y": 0
+   },
+   "lb10_weekly_cash": {
+    "n": 1601,
+    "cagr": 16.7,
+    "mdd": -51.7,
+    "calmar": 0.32,
+    "sharpe": 0.61,
+    "monthly_win": 50.6,
+    "trades": 159,
+    "turnover_y": 0
+   },
+   "lb10_weekly_511260": {
+    "n": 1601,
+    "cagr": 20.7,
+    "mdd": -40.4,
+    "calmar": 0.51,
+    "sharpe": 0.72,
+    "monthly_win": 50.6,
+    "trades": 179,
+    "turnover_y": 0
+   },
+   "lb10_monthly_cash": {
+    "n": 1601,
+    "cagr": -8.0,
+    "mdd": -73.6,
+    "calmar": -0.11,
+    "sharpe": 0.02,
+    "monthly_win": 53.2,
+    "trades": 57,
+    "turnover_y": 0
+   },
+   "lb10_monthly_511260": {
+    "n": 1601,
+    "cagr": -9.8,
+    "mdd": -73.6,
+    "calmar": -0.13,
+    "sharpe": -0.04,
+    "monthly_win": 51.9,
+    "trades": 64,
+    "turnover_y": 0
+   },
+   "lb15_weekly_cash": {
+    "n": 1601,
+    "cagr": 0.7,
+    "mdd": -73.3,
+    "calmar": 0.01,
+    "sharpe": 0.25,
+    "monthly_win": 53.2,
+    "trades": 137,
+    "turnover_y": 0
+   },
+   "lb15_weekly_511260": {
+    "n": 1601,
+    "cagr": -3.0,
+    "mdd": -75.0,
+    "calmar": -0.04,
+    "sharpe": 0.15,
+    "monthly_win": 51.9,
+    "trades": 155,
+    "turnover_y": 0
+   },
+   "lb15_monthly_cash": {
+    "n": 1601,
+    "cagr": -1.1,
+    "mdd": -73.4,
+    "calmar": -0.02,
+    "sharpe": 0.19,
+    "monthly_win": 49.4,
+    "trades": 54,
+    "turnover_y": 0
+   },
+   "lb15_monthly_511260": {
+    "n": 1601,
+    "cagr": -4.5,
+    "mdd": -73.4,
+    "calmar": -0.06,
+    "sharpe": 0.1,
+    "monthly_win": 46.8,
+    "trades": 62,
+    "turnover_y": 0
+   },
+   "lb20_weekly_cash": {
+    "n": 1601,
+    "cagr": 6.2,
+    "mdd": -71.8,
+    "calmar": 0.09,
+    "sharpe": 0.38,
+    "monthly_win": 57.0,
+    "trades": 104,
+    "turnover_y": 0
+   },
+   "lb20_weekly_511260": {
+    "n": 1601,
+    "cagr": 3.9,
+    "mdd": -72.2,
+    "calmar": 0.05,
+    "sharpe": 0.32,
+    "monthly_win": 57.0,
+    "trades": 119,
+    "turnover_y": 0
+   },
+   "lb20_monthly_cash": {
+    "n": 1601,
+    "cagr": -1.2,
+    "mdd": -81.7,
+    "calmar": -0.01,
+    "sharpe": 0.24,
+    "monthly_win": 46.8,
+    "trades": 53,
+    "turnover_y": 0
+   },
+   "lb20_monthly_511260": {
+    "n": 1601,
+    "cagr": 2.4,
+    "mdd": -81.7,
+    "calmar": 0.03,
+    "sharpe": 0.32,
+    "monthly_win": 50.6,
+    "trades": 57,
+    "turnover_y": 0
+   },
+   "bench_equal": {
+    "n": 1600,
+    "cagr": 1.1,
+    "mdd": -46.3,
+    "calmar": 0.02,
+    "sharpe": 0.17,
+    "monthly_win": 46.8,
+    "trades": 0,
+    "turnover_y": 0
+   }
+  },
+  "S3": {
+   "588000": {
+    "n": 1463,
+    "cagr": 3.3,
+    "mdd": -42.5,
+    "calmar": 0.08,
+    "sharpe": 0.27,
+    "monthly_win": 11.1,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "588200": {
+    "n": 992,
+    "cagr": -15.2,
+    "mdd": -82.2,
+    "calmar": -0.18,
+    "sharpe": -0.13,
+    "monthly_win": 18.4,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "512480": {
+    "n": 1599,
+    "cagr": -6.1,
+    "mdd": -73.0,
+    "calmar": -0.08,
+    "sharpe": -0.06,
+    "monthly_win": 11.4,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "515880": {
+    "n": 1599,
+    "cagr": 6.1,
+    "mdd": -49.0,
+    "calmar": 0.12,
+    "sharpe": 0.4,
+    "monthly_win": 12.7,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "159326": {
+    "n": 535,
+    "cagr": -5.4,
+    "mdd": -32.9,
+    "calmar": -0.16,
+    "sharpe": -0.17,
+    "monthly_win": 26.9,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "512000": {
+    "n": 1599,
+    "cagr": -2.7,
+    "mdd": -32.6,
+    "calmar": -0.08,
+    "sharpe": -0.26,
+    "monthly_win": 7.6,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "512660": {
+    "n": 1599,
+    "cagr": -3.4,
+    "mdd": -35.0,
+    "calmar": -0.1,
+    "sharpe": -0.24,
+    "monthly_win": 8.9,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "515030": {
+    "n": 1599,
+    "cagr": -0.9,
+    "mdd": -31.7,
+    "calmar": -0.03,
+    "sharpe": -0.03,
+    "monthly_win": 8.9,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "512010": {
+    "n": 1599,
+    "cagr": 1.7,
+    "mdd": -17.6,
+    "calmar": 0.1,
+    "sharpe": 0.25,
+    "monthly_win": 10.1,
+    "trades": 33,
+    "turnover_y": 0
+   },
+   "518880": {
+    "n": 1599,
+    "cagr": -1.4,
+    "mdd": -32.4,
+    "calmar": -0.04,
+    "sharpe": -0.1,
+    "monthly_win": 8.9,
+    "trades": 33,
+    "turnover_y": 0
+   }
+  }
+ }
+}

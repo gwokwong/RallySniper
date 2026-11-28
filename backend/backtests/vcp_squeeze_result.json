@@ -1,0 +1,259 @@
+{
+ "start": "2026-07-01",
+ "end": "2026-11-27",
+ "entries_total": 435,
+ "entries_with_features": 125,
+ "dropped_no_forward": 310,
+ "buckets": {
+  "vcp": {
+   "r_sell": {
+    "stats": [
+     {
+      "label": "强收敛<0.65",
+      "n": 89,
+      "win_rate": 87.6,
+      "avg": 7.6,
+      "sum_wan": 6.76
+     },
+     {
+      "label": "收敛0.65~1",
+      "n": 19,
+      "win_rate": 73.7,
+      "avg": 4.87,
+      "sum_wan": 0.92
+     },
+     {
+      "label": "轻扩张1~1.3",
+      "n": 10,
+      "win_rate": 60.0,
+      "avg": 1.5,
+      "sum_wan": 0.15
+     },
+     {
+      "label": "扩张≥1.3",
+      "n": 7,
+      "win_rate": 57.1,
+      "avg": 1.75,
+      "sum_wan": 0.12
+     }
+    ],
+    "spearman": -0.274
+   },
+   "r_t5": {
+    "stats": [
+     {
+      "label": "强收敛<0.65",
+      "n": 89,
+      "win_rate": 93.3,
+      "avg": 13.15,
+      "sum_wan": 11.7
+     },
+     {
+      "label": "收敛0.65~1",
+      "n": 19,
+      "win_rate": 89.5,
+      "avg": 8.31,
+      "sum_wan": 1.58
+     },
+     {
+      "label": "轻扩张1~1.3",
+      "n": 10,
+      "win_rate": 70.0,
+      "avg": 5.79,
+      "sum_wan": 0.58
+     },
+     {
+      "label": "扩张≥1.3",
+      "n": 7,
+      "win_rate": 57.1,
+      "avg": 3.27,
+      "sum_wan": 0.23
+     }
+    ],
+    "spearman": -0.356
+   },
+   "r_t10": {
+    "stats": [
+     {
+      "label": "强收敛<0.65",
+      "n": 89,
+      "win_rate": 91.0,
+      "avg": 19.44,
+      "sum_wan": 17.31
+     },
+     {
+      "label": "收敛0.65~1",
+      "n": 19,
+      "win_rate": 78.9,
+      "avg": 9.05,
+      "sum_wan": 1.72
+     },
+     {
+      "label": "轻扩张1~1.3",
+      "n": 10,
+      "win_rate": 50.0,
+      "avg": 2.28,
+      "sum_wan": 0.23
+     },
+     {
+      "label": "扩张≥1.3",
+      "n": 7,
+      "win_rate": 14.3,
+      "avg": -11.06,
+      "sum_wan": -0.77
+     }
+    ],
+    "spearman": -0.38
+   }
+  },
+  "sq_prior": {
+   "r_sell": {
+    "stats": [
+     {
+      "label": "非squeeze",
+      "n": 125,
+      "win_rate": 81.6,
+      "avg": 6.37,
+      "sum_wan": 7.96
+     }
+    ],
+    "spearman": NaN
+   },
+   "r_t5": {
+    "stats": [
+     {
+      "label": "非squeeze",
+      "n": 125,
+      "win_rate": 88.8,
+      "avg": 11.27,
+      "sum_wan": 14.09
+     }
+    ],
+    "spearman": NaN
+   },
+   "r_t10": {
+    "stats": [
+     {
+      "label": "非squeeze",
+      "n": 125,
+      "win_rate": 81.6,
+      "avg": 14.78,
+      "sum_wan": 18.48
+     }
+    ],
+    "spearman": NaN
+   }
+  },
+  "release": {
+   "r_sell": {
+    "stats": [
+     {
+      "label": "非释放",
+      "n": 125,
+      "win_rate": 81.6,
+      "avg": 6.37,
+      "sum_wan": 7.96
+     }
+    ],
+    "spearman": NaN
+   },
+   "r_t5": {
+    "stats": [
+     {
+      "label": "非释放",
+      "n": 125,
+      "win_rate": 88.8,
+      "avg": 11.27,
+      "sum_wan": 14.09
+     }
+    ],
+    "spearman": NaN
+   },
+   "r_t10": {
+    "stats": [
+     {
+      "label": "非释放",
+      "n": 125,
+      "win_rate": 81.6,
+      "avg": 14.78,
+      "sum_wan": 18.48
+     }
+    ],
+    "spearman": NaN
+   }
+  },
+  "shrunk": {
+   "r_sell": {
+    "stats": [
+     {
+      "label": "收缩组",
+      "n": 89,
+      "win_rate": 87.6,
+      "avg": 7.6,
+      "sum_wan": 6.76
+     },
+     {
+      "label": "其余",
+      "n": 36,
+      "win_rate": 66.7,
+      "avg": 3.32,
+      "sum_wan": 1.2
+     }
+    ],
+    "spearman": 0.252
+   },
+   "r_t5": {
+    "stats": [
+     {
+      "label": "收缩组",
+      "n": 89,
+      "win_rate": 93.3,
+      "avg": 13.15,
+      "sum_wan": 11.7
+     },
+     {
+      "label": "其余",
+      "n": 36,
+      "win_rate": 77.8,
+      "avg": 6.63,
+      "sum_wan": 2.39
+     }
+    ],
+    "spearman": 0.303
+   },
+   "r_t10": {
+    "stats": [
+     {
+      "label": "收缩组",
+      "n": 89,
+      "win_rate": 91.0,
+      "avg": 19.44,
+      "sum_wan": 17.31
+     },
+     {
+      "label": "其余",
+      "n": 36,
+      "win_rate": 58.3,
+      "avg": 3.26,
+      "sum_wan": 1.17
+     }
+    ],
+    "spearman": 0.366
+   }
+  }
+ },
+ "by_strategy": {
+  "洗盘反包": {
+   "shrunk": {
+    "n": 89,
+    "win_rate": 87.6,
+    "avg": 7.6
+   },
+   "rest": {
+    "n": 36,
+    "win_rate": 66.7,
+    "avg": 3.32
+   }
+  }
+ }
+}

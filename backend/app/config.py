@@ -194,6 +194,18 @@ class ScanConfig(BaseModel):
                                              description="板块异动·拉涨阈值(%)：板块涨跌幅≥此值触发拉涨提醒（默认1.9）")
     pattern_board_down_pct: float = Field(default=2.3, ge=0.5, le=10,
                                           description="板块异动·砸盘阈值(%)：板块涨跌幅≤-此值触发砸盘提醒（默认2.3，独立于拉涨阈值，可更灵敏）")
+    signal_track_enabled: bool = Field(default=True,
+                                       description="信号验证闭环：trigger 级实盘信号落盘（data/signals/），"
+                                                   "每日收盘后自动回填 T+1/5/10 结果并统计分策略胜率")
+    signal_eval_time: str = Field(default="15:30",
+                                  description="信号结果回填时点(HH:MM)：须晚于 kline_refresh（默认15:10），"
+                                              "否则当日收盘K线未入库会少算一天的T+N窗口")
+    signal_keep_days: int = Field(default=120, ge=7, le=3650,
+                                  description="信号记录保留天数(默认120)，超期自动清理")
+    auc_absorb_enabled: bool = Field(default=True,
+                                     description="竞价承接扫描（9:26）：持仓个股+标的池+ETF池的量价分层处置指引。"
+                                                 "口径=竞价承接矩阵（158万样本）：放量承接日内+3~4%、缩量高开-0.8~-1%")
+    auc_absorb_time: str = Field(default="9:26", description="竞价承接扫描时点(HH:MM，集合竞价结束后、开盘前)")
 
 
 class SellConfig(BaseModel):
@@ -350,6 +362,16 @@ class MarketRegimeConfig(BaseModel):
                                      description="动量死区下界(%)：等权市场5日动量低于此值视为超跌反转区（允许，历史出黄金坑）")
     momentum_dead_high: float = Field(default=0.0, ge=-10.0, le=10.0,
                                       description="动量死区上界(%)：等权市场5日动量高于此值视为动量向上（允许）")
+    # 波动收缩标注（2026-11-28 引入，仅信息标注不改判定——回测结论见 STRATEGY_BOUNDARY.md）
+    vcp_note_enabled: bool = Field(default=True,
+                                   description="启动信号附带波动收缩读数：trigger 信号 readings 带 VCP收缩比/"
+                                               "布林squeeze，收缩成立时在买入理由追加标注（不影响战法判定）")
+    vcp_contraction_max: float = Field(default=0.65, ge=0.2, le=1.5,
+                                       description="波动收缩判定：近10日振幅/前20日振幅 ≤ 此值视为收缩（VCP 口径，默认0.65）")
+    absorb_note_enabled: bool = Field(default=True,
+                                      description="洗盘反包信号附带「分歧强承接」标注：盘中破开盘价后收回（低点<开盘≤现价）。"
+                                                  "2026-11-28 回测：该组 141笔 胜率75.9%/+5.48% vs 全天不破开盘组 65.9%/+4.36%"
+                                                  "——短暂击穿快速收回=强势洗盘（仅标注不改判定）")
 
 
 class MarketFilterConfig(BaseModel):
@@ -383,6 +405,58 @@ class MarketFilterConfig(BaseModel):
                                       description="四象限过滤同时剔除C4（换手>10%且量比<1，无量诱多）：入场45.9%偏弱但合计仍+0.13万，剔除约中性，默认不剔")
 
 
+class EtfItem(BaseModel):
+    code: str = Field(description="ETF 代码（6位）")
+    name: str = Field(default="", description="ETF 名称")
+
+
+class EtfConfig(BaseModel):
+    """场内板块 ETF 监控：策略经 2026-11-28 长历史回测定稿（见 STRATEGY_BOUNDARY.md ETF 节）。
+
+    S4 波动收缩突破为唯一稳健胜出（12 组参数 9~10/10 正收益），默认开启；
+    S1 趋势/S2 轮动/S3 情绪联动被证伪或过拟合，开关保留默认关。
+    所有信号收盘确认、次日执行（ETF 为 T+1，当日买入不可当日卖出）。
+    """
+
+    enabled: bool = Field(default=True, description="是否启用 ETF 监控（盘后刷新+扫描推送）")
+    pool: list[EtfItem] = Field(default_factory=lambda: [
+        EtfItem(code="588000", name="科创50ETF"),
+        EtfItem(code="588200", name="科创芯片ETF"),
+        EtfItem(code="512480", name="半导体ETF"),
+        EtfItem(code="515880", name="通信ETF"),
+        EtfItem(code="159326", name="电网设备ETF"),
+        EtfItem(code="518880", name="黄金ETF"),
+    ], description="ETF 自选池（页面上可搜索全市场 ETF 增删）")
+    safe_asset: str = Field(default="cash", description="空仓去处：cash=持币，或货币/国债ETF代码（回测未胜出现金，字段保留）")
+    etf_holdings: list[str] = Field(default_factory=list,
+                                    description="手动登记的 ETF 持仓（代码列表）——盘中跌破中轨卖出预警只对登记持仓生效")
+    squeeze_enabled: bool = Field(default=True,
+                                  description="S4 波动收缩突破（主策略）：布林带宽 squeeze 后放量突破上轨买入，跌回中轨卖出")
+    trend_enabled: bool = Field(default=False, description="S1 趋势 MA20 生命线（回测不稳健，默认关）")
+    rotation_enabled: bool = Field(default=False, description="S2 双动量轮动（参数悬崖过拟合，默认关）")
+    ignition_link_enabled: bool = Field(default=False, description="S3 情绪联动（回测证伪，默认关）")
+    bb_window: int = Field(default=20, ge=10, le=60, description="布林带窗口")
+    bb_std: float = Field(default=2.0, ge=1.0, le=3.0, description="布林带标准差倍数")
+    squeeze_window: int = Field(default=60, ge=20, le=120, description="带宽 25 分位回看窗口")
+    vol_ratio_min: float = Field(default=1.2, ge=1.0, le=3.0, description="突破日量比门槛（量/前5日均量）")
+    freeze_note_enabled: bool = Field(default=True,
+                                      description="情绪冰点状态提醒（非买入信号）：z20≤freeze_z 且 5日跌幅≤freeze_r5 双确认时标注。"
+                                                  "2026-11-28 回测：冰点组 T+10 平均 -0.4~-0.6%——冰点后大概率继续弱，提醒勿急于抄底")
+    freeze_z: float = Field(default=-1.5, ge=-4.0, le=0.0, description="冰点判定：收盘距 MA20 的 z 值上限")
+    freeze_r5: float = Field(default=-4.0, ge=-20.0, le=0.0, description="冰点判定：5日累计跌幅上限(%)")
+    freeze_intraday_enabled: bool = Field(default=True,
+                                          description="盘中冰点快报（14:40）：用实时价近似 z20/5日涨幅，双确认即推送"
+                                                      "「盘中冰点（收盘复核为准）」——2026-11-26 14:40 该提醒可覆盖科创50/半导体/电网设备/黄金四只冰点")
+    freeze_intraday_time: str = Field(default="14:40", description="盘中冰点快报时点(HH:MM，仅交易时段)", pattern=r"^\d{1,2}:\d{2}$")
+    intraday_enabled: bool = Field(default=True,
+                                   description="ETF 盘中预警（每5分钟）：持仓标的盘中跌破中轨→卖出预警（当日可卖，高价值）；"
+                                               "未持仓标的盘中触及突破位→买入预警（当日买入T+1次日起可卖）。"
+                                               "预警≠确认——执行仍以 15:20 收盘复核为准（该口径已经回测验证）")
+    intraday_interval_minutes: int = Field(default=5, ge=1, le=30, description="盘中预警轮询间隔(分钟)")
+    refresh_time: str = Field(default="15:12", description="ETF K线缓存刷新时点（须晚于个股 kline_refresh 15:10）")
+    scan_time: str = Field(default="15:20", description="ETF 策略扫描推送时点（收盘确认口径，信号次日执行）")
+
+
 class AppConfig(BaseModel):
     run_mode: str = Field(
         default="stable", pattern="^(stable|monster)$",
@@ -410,6 +484,7 @@ class AppConfig(BaseModel):
     market_filter: MarketFilterConfig = Field(default_factory=MarketFilterConfig)
     fundamental_filter: FundamentalFilterConfig = Field(default_factory=FundamentalFilterConfig)
     market_regime: MarketRegimeConfig = Field(default_factory=MarketRegimeConfig)
+    etf: EtfConfig = Field(default_factory=EtfConfig)
     rules: AlertRules = Field(default_factory=AlertRules)
     notification: list[NotifierConfig] = Field(
         default_factory=lambda: [NotifierConfig()]

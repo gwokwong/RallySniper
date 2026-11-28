@@ -327,6 +327,8 @@
       "opportunity": "Market Opportunities",
       "yesterday": "Yesterday Limit-ups",
       "sell": "Position Risk",
+      "outcomes": "Signal Outcomes",
+      "etf": "ETF Monitor",
       "strategies": "Strategies",
       "settings": "Email & Settings"
     }
