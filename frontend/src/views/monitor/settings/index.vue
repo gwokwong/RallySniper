@@ -8,6 +8,11 @@
           <ElTag type="info" size="small">保存后立即生效</ElTag>
         </div>
         <div class="flex items-center gap-2">
+          <ElTooltip :content="showAdvanced ? '隐藏回测证伪/实验性开关' : '显示回测证伪/实验性开关（默认隐藏，建议保持关闭）'" placement="bottom">
+            <ElButton :type="showAdvanced ? 'warning' : 'default'" plain @click="showAdvanced = !showAdvanced">
+              <span>{{ showAdvanced ? '隐藏高级配置' : '高级配置' }}</span>
+            </ElButton>
+          </ElTooltip>
           <ElButton :loading="loading" @click="loadConfig">
             <ElIcon><Refresh /></ElIcon>
             <span class="ml-1">重新加载</span>
@@ -223,39 +228,44 @@
                 </ElFormItem>
               </ElCol>
             </ElRow>
-            <ElDivider class="my-2" />
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs text-gray-500">浮盈分档止损（厚利票放宽，让主升浪跑完）</span>
-              <ElSwitch v-model="config.sell.tier_enabled" size="small" />
-            </div>
-            <ElRow :gutter="12">
-              <ElCol :span="12">
-                <ElFormItem label="浮盈达标比例">
-                  <ElInputNumber v-model="config.sell.tier_profit_pct" :min="0.05" :max="0.5" :step="0.01" style="width:100%" />
-                </ElFormItem>
-              </ElCol>
-              <ElCol :span="12">
-                <ElFormItem label="厚利档急跌阈值">
-                  <ElInputNumber v-model="config.sell.tier_rapid_pct" :min="0.08" :max="0.3" :step="0.01" style="width:100%" />
-                </ElFormItem>
-              </ElCol>
-            </ElRow>
-            <ElRow :gutter="12">
-              <ElCol :span="12">
-                <ElFormItem label="厚利档缩量跌幅">
-                  <ElInputNumber v-model="config.sell.tier_shrink_drop" :min="0.08" :max="0.25" :step="0.005" style="width:100%" />
-                </ElFormItem>
-              </ElCol>
-              <ElCol :span="12">
-                <div class="flex items-center justify-between h-full pt-1">
-                  <span class="text-xs text-gray-500">厚利档10日线移动止盈</span>
-                  <ElSwitch v-model="config.sell.tier_ma10_trail" size="small" />
-                </div>
-              </ElCol>
-            </ElRow>
             <p class="text-xs text-gray-400 mt-1">
-              盘中跌幅≥8%照常立即预警；但尾盘「急跌破位」确认已收紧为：收盘破MA10且跌幅≥5%，或缩量跌停（量比≤上限且跌幅达门槛，买盘枯竭非洗盘）——放量洗盘不再触发确认轰炸。确认冷却期：同一波下跌首日发一次尾盘确认，股价未收复下跌前高点前不再重复发确认邮件（盘中预警不受影响）。浮盈分档：持仓成本价录入后，浮盈达标的票放宽急跌阈值并启用10日线移动止盈。注意：8-10月下跌市回测未证明其有效（胜率不变、且15%门槛会误伤妖股），故默认关闭；如要在震荡/上涨市尝试，建议门槛≥30%。需在标的池标记持有（可录入成本价）才会生效。
+              盘中跌幅≥8%照常立即预警；但尾盘「急跌破位」确认已收紧为：收盘破MA10且跌幅≥5%，或缩量跌停（量比≤上限且跌幅达门槛，买盘枯竭非洗盘）——放量洗盘不再触发确认轰炸。确认冷却期：同一波下跌首日发一次尾盘确认，股价未收复下跌前高点前不再重复发确认邮件（盘中预警不受影响）。
             </p>
+            <div v-show="showAdvanced" class="advanced-block">
+              <ElDivider class="my-2" />
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-gray-500">浮盈分档止损（厚利票放宽，让主升浪跑完）<ElTag size="small" type="info" effect="plain">实验</ElTag></span>
+                <ElSwitch v-model="config.sell.tier_enabled" size="small" />
+              </div>
+              <ElRow :gutter="12">
+                <ElCol :span="12">
+                  <ElFormItem label="浮盈达标比例">
+                    <ElInputNumber v-model="config.sell.tier_profit_pct" :min="0.05" :max="0.5" :step="0.01" style="width:100%" />
+                  </ElFormItem>
+                </ElCol>
+                <ElCol :span="12">
+                  <ElFormItem label="厚利档急跌阈值">
+                    <ElInputNumber v-model="config.sell.tier_rapid_pct" :min="0.08" :max="0.3" :step="0.01" style="width:100%" />
+                  </ElFormItem>
+                </ElCol>
+              </ElRow>
+              <ElRow :gutter="12">
+                <ElCol :span="12">
+                  <ElFormItem label="厚利档缩量跌幅">
+                    <ElInputNumber v-model="config.sell.tier_shrink_drop" :min="0.08" :max="0.25" :step="0.005" style="width:100%" />
+                  </ElFormItem>
+                </ElCol>
+                <ElCol :span="12">
+                  <div class="flex items-center justify-between h-full pt-1">
+                    <span class="text-xs text-gray-500">厚利档10日线移动止盈</span>
+                    <ElSwitch v-model="config.sell.tier_ma10_trail" size="small" />
+                  </div>
+                </ElCol>
+              </ElRow>
+              <p class="text-xs text-gray-400 mt-1">
+                8-10月下跌市回测未证明其有效（胜率不变、15%门槛误伤妖股），故默认关闭；震荡/上涨市如需尝试建议门槛≥30%。需在标的池标记持有并录入成本价才生效。
+              </p>
+            </div>
           </ElForm>
         </ElCard>
 
@@ -748,40 +758,40 @@
               回测提示：点火日信号会集中爆发（单日最多 71 只，单只 1 万需 71 万资金）。按资金量设 10~20 可控占用，
               超出部分随机等权抽取（强度排序已被回测证伪，高分=追高，不采用）。每日上限 20 的回测总营收约为不限的 40%，峰值资金占用从 71 万降到 20 万。
             </p>
-            <ElDivider style="margin:12px 0" />
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs text-gray-500">A杀过滤（多日连跌杀到低位，触底后N个交易日内不碰）</span>
-              <ElSwitch v-model="config.market_filter.a_kill_skip_enabled" size="small" />
+            <div v-show="showAdvanced" class="advanced-block">
+              <ElDivider style="margin:12px 0" />
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-gray-500">A杀过滤（多日连跌杀到低位，触底后N个交易日内不碰）<ElTag size="small" type="danger" effect="plain">已证伪</ElTag></span>
+                <ElSwitch v-model="config.market_filter.a_kill_skip_enabled" size="small" />
+              </div>
+              <ElRow v-if="config.market_filter.a_kill_skip_enabled" :gutter="12">
+                <ElCol :span="8">
+                  <ElFormItem label="触底后不碰(交易日)">
+                    <ElInputNumber v-model="config.market_filter.a_kill_days" :min="0" :max="10" style="width:100%" />
+                  </ElFormItem>
+                </ElCol>
+                <ElCol :span="8">
+                  <ElFormItem label="连续下跌天数≥">
+                    <ElInputNumber v-model="config.market_filter.a_kill_down_days" :min="2" :max="20" style="width:100%" />
+                  </ElFormItem>
+                </ElCol>
+                <ElCol :span="8">
+                  <ElFormItem label="累计跌幅≥(%)">
+                    <ElInputNumber v-model="config.market_filter.a_kill_cum_drop" :min="5" :max="50" :step="1" style="width:100%" />
+                  </ElFormItem>
+                </ElCol>
+              </ElRow>
+              <p v-if="config.market_filter.a_kill_skip_enabled" class="text-xs text-gray-400 m-0">
+                ⚠️ 回测证伪（7-11月）：被过滤的 56 笔反而更强（胜率 57.1% / +3.09% vs 其余 49.3% / +0.77%）——深跌后反包涨停是「超跌深度洗盘」，质量更高。默认关闭，仅供对照。
+              </p>
             </div>
-            <ElRow v-if="config.market_filter.a_kill_skip_enabled" :gutter="12">
-              <ElCol :span="8">
-                <ElFormItem label="触底后不碰(交易日)">
-                  <ElInputNumber v-model="config.market_filter.a_kill_days" :min="0" :max="10" style="width:100%" />
-                </ElFormItem>
-              </ElCol>
-              <ElCol :span="8">
-                <ElFormItem label="连续下跌天数≥">
-                  <ElInputNumber v-model="config.market_filter.a_kill_down_days" :min="2" :max="20" style="width:100%" />
-                </ElFormItem>
-              </ElCol>
-              <ElCol :span="8">
-                <ElFormItem label="累计跌幅≥(%)">
-                  <ElInputNumber v-model="config.market_filter.a_kill_cum_drop" :min="5" :max="50" :step="1" style="width:100%" />
-                </ElFormItem>
-              </ElCol>
-            </ElRow>
-            <p v-if="config.market_filter.a_kill_skip_enabled" class="text-xs text-gray-400 m-0">
-              ⚠️ 回测证伪提示（7-11月，连跌≥5天且累计≥15%，触底后3日）：被过滤的 56 笔反而更强
-              （胜率 57.1% / 平均+3.09% vs 其余 49.3% / +0.77%）——深跌后的反包涨停是「超跌深度洗盘」形态，
-              质量更高。默认关闭，仅供实盘对照验证。
-            </p>
             <ElDivider style="margin:12px 0" />
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs text-gray-500">换手率×量比四象限过滤（剔除C1温和放量反包）</span>
               <ElSwitch v-model="config.market_filter.vp_combo_filter_enabled" size="small" />
             </div>
-            <div v-if="config.market_filter.vp_combo_filter_enabled" class="flex items-center justify-between mt-2 mb-1">
-              <span class="text-xs text-gray-500">同时剔除C4（换手&gt;10%且量比&lt;1，无量诱多）</span>
+            <div v-if="config.market_filter.vp_combo_filter_enabled && showAdvanced" class="flex items-center justify-between mt-2 mb-1">
+              <span class="text-xs text-gray-500">同时剔除C4（换手&gt;10%且量比&lt;1，无量诱多）<ElTag size="small" type="info" effect="plain">可选</ElTag></span>
               <ElSwitch v-model="config.market_filter.vp_combo_exclude_c4" size="small" />
             </div>
             <p v-if="config.market_filter.vp_combo_filter_enabled" class="text-xs text-gray-400 m-0">
@@ -859,17 +869,18 @@
             <p v-if="config.sell.touch_ma10_exit_enabled" class="text-xs text-gray-400 m-0">
               回踩 = 收盘触及/跌破 MA10×1.02 且未大阳线脱离（涨跌幅&lt;+3%）；连续多天贴线只算一次回踩，反弹离开后再贴近才是新的一次。
             </p>
-            <div v-if="config.sell.touch_ma10_exit_enabled" class="flex items-center justify-between mt-2 mb-1">
-              <span class="text-xs text-gray-500">回踩计数从强势日起算（等价于买入日起算）</span>
-              <ElSwitch v-model="config.sell.touch_strong_reset_enabled" size="small" />
+            <div v-show="showAdvanced" class="advanced-block">
+              <div v-if="config.sell.touch_ma10_exit_enabled" class="flex items-center justify-between mt-2 mb-1">
+                <span class="text-xs text-gray-500">回踩计数从强势日起算（等价于买入日起算）<ElTag size="small" type="danger" effect="plain">已证伪</ElTag></span>
+                <ElSwitch v-model="config.sell.touch_strong_reset_enabled" size="small" />
+              </div>
+              <ElFormItem v-if="config.sell.touch_ma10_exit_enabled && config.sell.touch_strong_reset_enabled" label="强势日涨幅≥(%)">
+                <ElInputNumber v-model="config.sell.touch_strong_pct" :min="3" :max="15" :step="0.5" style="width:100%" />
+              </ElFormItem>
+              <p v-if="config.sell.touch_ma10_exit_enabled && config.sell.touch_strong_reset_enabled" class="text-xs text-gray-400 m-0">
+                ⚠️ 回测证伪（7-11月）：此模式总收益 +3.08万 vs 首板起算 +4.52万——入场前的洗盘回踩被清零后，第5通道止损闸门失效。仅作实验保留，建议保持关闭。
+              </p>
             </div>
-            <ElFormItem v-if="config.sell.touch_ma10_exit_enabled && config.sell.touch_strong_reset_enabled" label="强势日涨幅≥(%)">
-              <ElInputNumber v-model="config.sell.touch_strong_pct" :min="3" :max="15" :step="0.5" style="width:100%" />
-            </ElFormItem>
-            <p v-if="config.sell.touch_ma10_exit_enabled && config.sell.touch_strong_reset_enabled" class="text-xs text-gray-400 m-0">
-              ⚠️ 回测证伪提示（7-11月）：此模式总收益 +3.08万 vs 首板起算 +4.52万——入场前的洗盘回踩被清零后，
-              第5通道的快速止损闸门失效，收益回落到接近关闭状态。仅作实验开关保留，建议保持关闭。
-            </p>
             <p class="text-xs text-gray-400 mt-1">
               默认排除 ST 与北交所，主板/科创/创业全开，价格不限。筛选在候选阶段生效，可显著减少扫描耗时。
             </p>
@@ -893,6 +904,7 @@ import { cleanStaleCache } from '@/utils/sys/cache-cleaner'
 const loading = ref(false)
 const saving = ref(false)
 const testing = ref(false)
+const showAdvanced = ref(false)
 const strategyList = ref<any[]>([])
 const upStrategies = computed(() => strategyList.value.filter((s: any) => s.direction === 'up'))
 const downStrategies = computed(() => strategyList.value.filter((s: any) => s.direction === 'down'))
@@ -1114,4 +1126,5 @@ onMounted(() => { loadConfig(); loadCacheStatus() })
 .mode-opt-desc { font-size: 12px; font-weight: 400; color: #6b7280; }
 .mode-tip { margin-top: 12px; padding: 10px 12px; font-size: 12px; line-height: 1.7; color: #6b7280; background: #f5f7fa; border-left: 3px solid #409eff; border-radius: 4px; }
 .mode-warn { display: block; margin-top: 6px; color: #b8860b; }
+.advanced-block { padding-left: 10px; border-left: 2px dashed #e5c07b; }
 </style>

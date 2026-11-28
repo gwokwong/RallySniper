@@ -15,3 +15,9 @@ backend/data/notifications.json
 backend/data/last_scan.json
 backend/data/last_yesterday.json
 backend/data/locks/
+
+# 回测原始大JSON（脚本可重建，不入库；脚本与结论已在 backtests/ 固化）
+backend/backtests/ch5_ab_result.json
+
+# 研究报告归档目录的临时中间文件
+reports/*.tmp
