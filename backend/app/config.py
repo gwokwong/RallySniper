@@ -174,6 +174,11 @@ class ScanConfig(BaseModel):
                                                        "鬼手减仓（信号后5日均-2.50%的卖出预警）等；CCI超卖/金叉反弹触发过频不提醒")
     tdx_time: str = Field(default="15:15", description="通达信指标预警发送时点(HH:MM)：收盘后等K线刷新完成再扫描，用于次日操作")
     lanban_evening_time: str = Field(default="15:25", description="烂板接力·盘后候选发送时点(HH:MM)：收盘数据刷新完成后发送次日接力候选+接力确认价")
+    oversold_alert_enabled: bool = Field(default=True,
+                                         description="超跌反转盘中提醒：等权市场5日动量低于超跌线（动量死区下界-5%）时，"
+                                                     "在指定时点播报超跌状态+点火读数+接力候选表现——超跌+点火=反转黄金坑（回测8月/9-14）")
+    oversold_times: list[str] = Field(default_factory=lambda: ["10:30", "11:20", "14:00", "14:40"],
+                                      description="超跌反转提醒时点列表(HH:MM)")
     lanban_auction_time: str = Field(default="09:24", description="烂板接力·竞价提醒发送时点(HH:MM)：集合竞价撮合期间发送候选竞价高开分层，供竞价买入")
     early_review_time: str = Field(default="09:31", description="早盘快评发送时点(HH:MM)：集合竞价结束后立即发送——"
                                                                "昨日涨停股开盘溢价中位数（竞价版点火读数）+ 反包候选/鬼手表高开排行 + 可用资金的激进版组合")

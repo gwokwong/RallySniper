@@ -320,6 +320,14 @@
               回测（6-11月）：过滤后 +8.36万→+9.51万；阴跌死区入场 24.7% 胜率/场均-1.77%（89笔-1.58万）为最差环境。
               注意：动量>0（向上）与 <-5%（超跌反转）都是好环境，只过滤中间阴跌带；12月为验证期。
             </p>
+            <ElDivider style="margin:12px 0" />
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">超跌反转盘中提醒（动量＜{{ config.market_regime.momentum_dead_low }}% 超跌状态时，在下列时点播报点火读数+入场窗口判断）</span>
+              <ElSwitch v-model="config.scan.oversold_alert_enabled" size="small" />
+            </div>
+            <p v-if="config.scan.oversold_alert_enabled" class="text-xs text-gray-400 m-0">
+              提醒时点（逗号分隔）：{{ config.scan.oversold_times.join(' / ') }}。超跌+点火同时成立=反转黄金坑入场窗口（回测：8月爆发月、9-14单日+13.74% 均从此启动）。
+            </p>
             <ElFormItem v-if="config.market_regime.ignition_enabled && config.market_regime.ignition_bomb_gate_enabled" label="炸板闸门阈值(%)">
               <ElInputNumber v-model="config.market_regime.ignition_bomb_rate_max" :min="10" :max="80" :step="5" style="width:100%" />
               <div class="text-xs text-gray-400">
@@ -911,6 +919,7 @@ const config = reactive<any>({
     ignition_watch_enabled: true, ignition_watch_minutes: 5, ignition_sustain_checks: 3,
     ignition_bomb_gate_enabled: true, ignition_bomb_rate_max: 45.0,
     momentum_dead_zone_enabled: true, momentum_dead_low: -5.0, momentum_dead_high: 0.0,
+    oversold_alert_enabled: true, oversold_times: ['10:30', '11:20', '14:00', '14:40'],
     ignition_min_pool: 10, ignition_auto_scan: false
   },
   scan: {},

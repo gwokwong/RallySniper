@@ -432,6 +432,80 @@ def _lunch_review_job() -> None:
         print(f"[scheduler] 午盘复盘失败: {exc}")
 
 
+def _oversold_job() -> None:
+    """超跌反转盘中提醒：市场5日动量<-5%时，在指定时点播报超跌状态+入场窗口判断。
+
+    超跌+点火=反转黄金坑（回测：8月爆发月、9-14单日+13.74% 均从此环境启动）。
+    """
+    try:
+        if ds.market_status()["status"] not in ("trading", "lunch"):
+            return
+        cfg2 = load_config()
+        if not cfg2.scan.oversold_alert_enabled:
+            return
+        eff = ds.effective_trading_date()
+        today = str(eff["date"])
+        if "-" not in today:
+            today = f"{today[:4]}-{today[4:6]}-{today[6:8]}"
+        dts = replay.trading_dates()
+        prev_list = [x for x in dts if x < today]
+        if not prev_list:
+            return
+        prev = prev_list[-1]
+        mom = replay.market_momentum(5).get(prev)
+        oversold_th = float(cfg2.market_regime.momentum_dead_low)  # -5.0 超跌线
+        if mom is None or mom >= oversold_th:
+            return  # 未超跌 → 静默（不发邮件）
+        now_hm = datetime.now().strftime("%H:%M")
+        lines = [f"市场超跌状态确认：等权5日动量 {mom:+.2f}%（超跌线 {oversold_th:g}%）",
+                 "此类环境历史上包含反转黄金坑（8月爆发/9-14单日+13.74% 均从此启动）。"]
+        # ① 点火读数
+        try:
+            ign = ds.ignition_premium(eff["date"])
+            med = ign.get("median")
+            th_ig = float(cfg2.market_regime.ignition_threshold)
+            state_s = "已达标" if (med is not None and med >= th_ig) else "未达标"
+            lines.append(f"① 点火读数：{ign.get('prev_date', '')} 池今日中位溢价 "
+                         f"{med if med is None else format(med, '+.2f')}% → {state_s}")
+        except Exception:  # noqa: BLE001
+            lines.append("① 点火读数暂不可用")
+        # ② 接力候选实时表现
+        try:
+            r = lanban.candidates()
+            codes = [c["code"] for c in r.get("candidates", [])]
+            if codes:
+                snap = ds.spot_quote_map(codes) or {}
+                perf = []
+                for c in r.get("candidates", [])[:20]:
+                    q = snap.get(c["code"]) or {}
+                    if q.get("change_pct") is not None:
+                        perf.append(f"{c['name']} {float(q['change_pct']):+.1f}%")
+                lines.append(f"② 接力候选实时（{len(codes)} 只）： " + "、".join(perf))
+        except Exception:  # noqa: BLE001
+            pass
+        # ③ 入场窗口判断
+        try:
+            ign = ds.ignition_premium(eff["date"])
+            med = ign.get("median")
+            th_ig = float(cfg2.market_regime.ignition_threshold)
+            if med is not None and med >= th_ig:
+                lines.append("③ ⭐超跌+点火同时成立——反转黄金坑入场窗口开启："
+                             "按推送信号执行（高置信档优先），生命线纪律不放松。")
+            else:
+                lines.append("③ 等待点火确认：超跌环境下反转一触即发，点火监控约1分钟级盯守，"
+                             "确认后立即提醒。竞价/盘中勿抢跑，等确认信号。")
+        except Exception:  # noqa: BLE001
+            pass
+        title = f"【超跌反转·盘中提醒】{now_hm} 市场5日动量 {mom:+.2f}%（超跌）"
+        body = "\n".join(lines)
+        notifications.add(title, body, [], kind="pattern")
+        if cfg2.notification:
+            notifier.broadcast(cfg2.notification, title, body, [])
+        print(f"[scheduler] 超跌反转提醒已发送（动量 {mom:+.2f}%）")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 超跌反转提醒失败: {exc}")
+
+
 def _lanban_evening_job() -> None:
     """盘后烂板接力候选（15:25）：等收盘数据刷新完成后发送次日接力名单+接力确认价。"""
     try:
@@ -1033,6 +1107,14 @@ def start() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(lb_a_h), minute=int(lb_a_m), timezone="Asia/Shanghai"),
             id="lanban_auction", max_instances=1, coalesce=True,
         )
+        if cfg.scan.oversold_alert_enabled:
+            for _t in cfg.scan.oversold_times:
+                _h, _m = _t.split(":")
+                _scheduler.add_job(
+                    _oversold_job,
+                    trigger=CronTrigger(hour=int(_h), minute=int(_m), timezone="Asia/Shanghai"),
+                    id=f"oversold_{_h}{_m}", max_instances=1, coalesce=True,
+                )
         _scheduler.start()
         return {"success": True, "message": "定时推送已启动", "times": _times()}
 
@@ -1168,6 +1250,17 @@ def refresh() -> dict[str, Any]:
             trigger=CronTrigger(hour=int(lb_a_h), minute=int(lb_a_m), timezone="Asia/Shanghai"),
             id="lanban_auction", max_instances=1, coalesce=True,
         )
+        for _jid in list(_scheduler.get_jobs()):
+            if _jid.id.startswith("oversold_"):
+                _scheduler.remove_job(_jid.id)
+        if cfg.scan.oversold_alert_enabled:
+            for _t in cfg.scan.oversold_times:
+                _h, _m = _t.split(":")
+                _scheduler.add_job(
+                    _oversold_job,
+                    trigger=CronTrigger(hour=int(_h), minute=int(_m), timezone="Asia/Shanghai"),
+                    id=f"oversold_{_h}{_m}", max_instances=1, coalesce=True,
+                )
         return {"success": True, "message": "定时任务已按新配置重排",
                 "times": _times()}
 
