@@ -337,6 +337,14 @@ class MarketRegimeConfig(BaseModel):
                                                          "情绪周期经典指标——7-11月回测：叠加后总收益+5.99→+8.36万，胜率51.8%→57.5%（全网因子研究最优）")
     ignition_bomb_rate_max: float = Field(default=45.0, ge=10.0, le=80.0,
                                           description="炸板闸门阈值(%)：昨日炸板率超过此值拦截开新仓（默认45，对应「资金分歧极大」）")
+    momentum_dead_zone_enabled: bool = Field(default=True,
+                                             description="市场动量死区过滤：等权全市场5日动量在阴跌区间（默认-5~0%）时"
+                                                         "即使点火也不开新仓。6-11月回测：该区间入场24.7%胜率/场均-1.77%（89笔-1.58万）"
+                                                         "为最差环境；过滤后改善约+1.58万（+20%）。与炸板闸门互补（阴跌区≠炸板高潮）")
+    momentum_dead_low: float = Field(default=-5.0, ge=-30.0, le=0.0,
+                                     description="动量死区下界(%)：等权市场5日动量低于此值视为超跌反转区（允许，历史出黄金坑）")
+    momentum_dead_high: float = Field(default=0.0, ge=-10.0, le=10.0,
+                                      description="动量死区上界(%)：等权市场5日动量高于此值视为动量向上（允许）")
 
 
 class MarketFilterConfig(BaseModel):

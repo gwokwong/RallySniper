@@ -404,6 +404,34 @@ def scan_market(push_time: str | None = None, workers: int = 8) -> dict[str, Any
                         }
                 except Exception:  # noqa: BLE001
                     pass  # 情绪统计不可用时不拦截（降级）
+        # 市场动量死区闸门（2026-11-28 动量回测）：等权全市场5日动量在阴跌区间
+        # （-5~0%）时资金无动能，即使点火达标也大概率一日游——暂停开新仓。
+        # 全部由昨日K线计算，开盘前已知。回测：过滤后改善约+1.58万（+20%）。
+        if ignition.get("ignited") and cfg.market_regime.momentum_dead_zone_enabled:
+            try:
+                from . import replay as _rp2
+                dts2 = _rp2.trading_dates()
+                pos2 = dts2.index(eff["date"]) if eff["date"] in dts2 else -1
+                prev2 = dts2[pos2 - 1] if pos2 >= 1 else None
+                mom = (_rp2.market_momentum(5).get(prev2, 0)) if prev2 else None
+                lo_dz = float(cfg.market_regime.momentum_dead_low)
+                hi_dz = float(cfg.market_regime.momentum_dead_high)
+                ignition["market_momentum_prev"] = mom
+                if mom is not None and lo_dz <= mom < hi_dz:
+                    ignition["ignited"] = False
+                    with state._lock:
+                        state.ignition = ignition
+                    return {
+                        "success": True, "paused_by_ignition": True, "candidates": 0,
+                        "scanned": 0, "signal_count": 0, "trigger_count": 0,
+                        "watch_count": 0, "signals": [], "ignition": ignition,
+                        "market_regime": regime,
+                        "note": (f"动量死区：市场5日动量 {mom:+.2f}% 位于 {lo_dz:g}%~{hi_dz:g}%"
+                                 f"阴跌区间（无动能），暂停开新仓"),
+                        **_date_fields(),
+                    }
+            except Exception:  # noqa: BLE001
+                pass  # 动量统计不可用时不拦截（降级）
         # 广度档位（2026-11-22 阶段研究）：点火日当日涨停家数≥全仓档阈值(默认100)
         # = 普涨高潮，信号胜率82.7%；家数不足 = 修复反弹，胜率19.8% → 建议试错1/4仓。
         # 纯提示不拦截；硬拦截用 ignition_min_breadth。

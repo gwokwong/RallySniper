@@ -94,11 +94,12 @@ def _load_bars(force: bool = False) -> dict[str, pd.DataFrame]:
 
 def invalidate() -> None:
     """缓存文件更新后调用，强制下次重新加载。"""
-    global _bars_loaded, _sentiment_cache
+    global _bars_loaded, _sentiment_cache, _momentum_cache
     with _lock:
         _bars_loaded = False
         _turnover_cache.clear()
         _sentiment_cache = None
+        _momentum_cache = None
 
 
 def _row_of(code: str, date: str) -> int | None:
@@ -194,7 +195,7 @@ def refresh(end_date: str | None = None) -> dict[str, Any]:
 
 def _cfg_fingerprint(cfg) -> str:
     raw = json.dumps({
-        "v": 4,  # v4: 卖出日期改用个股自身日期（修复停牌股 dates[j] 错位）
+        "v": 5,  # v5: 动量死区闸门
         "strategies": cfg.strategies.model_dump(),
         "rules": cfg.strategy_rules.model_dump(),
         "sell": cfg.sell.model_dump(),
@@ -205,6 +206,9 @@ def _cfg_fingerprint(cfg) -> str:
         "ignition_enabled": cfg.market_regime.ignition_enabled,
         "bomb_gate": [cfg.market_regime.ignition_bomb_gate_enabled,
                       float(cfg.market_regime.ignition_bomb_rate_max)],
+        "mom_dead": [cfg.market_regime.momentum_dead_zone_enabled,
+                     cfg.market_regime.momentum_dead_low,
+                     cfg.market_regime.momentum_dead_high],
     }, sort_keys=True, ensure_ascii=False)
     return hashlib.md5(raw.encode()).hexdigest()[:10]
 
@@ -290,6 +294,15 @@ def replay(date: str) -> dict[str, Any]:
             and n_zt < int(cfg.market_regime.ignition_min_breadth):
         blocked = (f"情绪点火但广度不足（当日涨停 {n_zt} 家 < {cfg.market_regime.ignition_min_breadth}，"
                    f"属修复反弹非高潮）")
+
+    # 动量死区闸门（2026-11-28）：等权市场5日动量在阴跌区间（默认-5~0%）不接力。
+    if ignited and cfg.market_regime.momentum_dead_zone_enabled:
+        mom = market_momentum(5).get(prev_day, 0) if prev_day else None
+        lo_dz = float(cfg.market_regime.momentum_dead_low)
+        hi_dz = float(cfg.market_regime.momentum_dead_high)
+        if mom is not None and lo_dz <= mom < hi_dz:
+            ignited = False
+            blocked = f"动量死区（市场5日动量 {mom:+.2f}% 于 {lo_dz:g}%~{hi_dz:g}% 阴跌区间）"
 
     signals: list[dict[str, Any]] = []
     cands: list[tuple[str, int]] = []
@@ -484,6 +497,43 @@ def market_sentiment() -> dict[str, dict[str, float]]:
     with _lock:
         _sentiment_cache = out
     return out
+
+
+def market_momentum(days: int = 5) -> dict[str, float]:
+    """等权全市场 N 日动量（每日全市场涨跌幅均值累计）。
+
+    与上证指数相比更贴近本策略交易的中小盘风格；基于 K 线缓存计算，
+    入场决策前一交易日即可知，无未来函数。缓存按最新交易日键控。
+    """
+    global _momentum_cache
+    dates = trading_dates()
+    key = f"{dates[-1]}|{days}"
+    with _lock:
+        if _momentum_cache is not None and _momentum_cache.get("_key") == key:
+            return _momentum_cache
+    bars = _load_bars()
+    daily: dict[str, list[float]] = {}
+    for code, df in bars.items():
+        if code.startswith(("4", "8", "92")):
+            continue
+        p = df["pct_change"].astype(float).to_numpy()
+        dt = [str(x)[:10] for x in df["date"]]
+        for j in range(len(p)):
+            if not np.isnan(p[j]):
+                daily.setdefault(dt[j], []).append(float(p[j]))
+    md = sorted(daily)
+    mean_d = {d: float(np.mean(v)) for d, v in daily.items()}
+    out: dict[str, float] = {}
+    for i in range(days - 1, len(md)):
+        cum = sum(mean_d[x] for x in md[i - days + 1:i + 1])
+        out[md[i]] = round(cum, 2)
+    out["_key"] = key
+    with _lock:
+        _momentum_cache = out
+    return out
+
+
+_momentum_cache: dict[str, Any] | None = None
 
 
 def lu_codes_on(date: str) -> list[str]:

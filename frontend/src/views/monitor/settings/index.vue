@@ -310,6 +310,16 @@
               <span class="text-xs text-gray-500">炸板闸门（昨日市场炸板率过高=资金分歧极大，不点火）</span>
               <ElSwitch v-model="config.market_regime.ignition_bomb_gate_enabled" size="small" />
             </div>
+            <div v-if="config.market_regime.ignition_enabled" class="flex items-center justify-between mb-1">
+              <span class="text-xs text-gray-500">动量死区过滤（市场5日动量阴跌区间不接力，与炸板闸门互补）</span>
+              <ElSwitch v-model="config.market_regime.momentum_dead_zone_enabled" size="small" />
+            </div>
+            <p v-if="config.market_regime.ignition_enabled && config.market_regime.momentum_dead_zone_enabled" class="text-xs text-gray-400 m-0">
+              等权全市场5日动量位于 {{ config.market_regime.momentum_dead_low }}%~{{ config.market_regime.momentum_dead_high }}%
+              阴跌区间（有跌势但无动能、无极端超跌）时不点火。全部由昨日K线计算，开盘前已知。
+              回测（6-11月）：过滤后 +8.36万→+9.51万；阴跌死区入场 24.7% 胜率/场均-1.77%（89笔-1.58万）为最差环境。
+              注意：动量>0（向上）与 <-5%（超跌反转）都是好环境，只过滤中间阴跌带；12月为验证期。
+            </p>
             <ElFormItem v-if="config.market_regime.ignition_enabled && config.market_regime.ignition_bomb_gate_enabled" label="炸板闸门阈值(%)">
               <ElInputNumber v-model="config.market_regime.ignition_bomb_rate_max" :min="10" :max="80" :step="5" style="width:100%" />
               <div class="text-xs text-gray-400">
@@ -900,6 +910,7 @@ const config = reactive<any>({
     ignition_enabled: true, ignition_threshold: 3.0, ignition_min_breadth: 0,
     ignition_watch_enabled: true, ignition_watch_minutes: 5, ignition_sustain_checks: 3,
     ignition_bomb_gate_enabled: true, ignition_bomb_rate_max: 45.0,
+    momentum_dead_zone_enabled: true, momentum_dead_low: -5.0, momentum_dead_high: 0.0,
     ignition_min_pool: 10, ignition_auto_scan: false
   },
   scan: {},
