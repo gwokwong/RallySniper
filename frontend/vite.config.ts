@@ -32,6 +32,11 @@ export default ({ mode }: { mode: string }) => {
         '/api': {
           target: VITE_API_PROXY_URL,
           changeOrigin: true
+        },
+        '/gupiao': {
+          target: VITE_API_PROXY_URL,
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/gupiao/, '')
         }
       },
       host: true
@@ -45,6 +50,11 @@ export default ({ mode }: { mode: string }) => {
         '/api': {
           target: VITE_API_PROXY_URL,
           changeOrigin: true
+        },
+        '/gupiao': {
+          target: VITE_API_PROXY_URL,
+          changeOrigin: true,
+          rewrite: (p: string) => p.replace(/^\/gupiao/, '')
         }
       }
     },

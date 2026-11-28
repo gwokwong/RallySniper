@@ -982,10 +982,23 @@ def ignition_check() -> dict[str, Any]:
 # ----------------------------- 前端静态托管 -----------------------------
 
 # 存在前端构建产物时由后端直接托管 UI（前端路由为 hash 模式，无需 SPA 回退）：
+# 子路径兼容：/gupiao/api/xxx → /api/xxx（nginx 子路径反代不剥前缀时由后端兜底）
+
+@app.middleware("http")
+async def _strip_gupiao_api_prefix(request, call_next):
+    path = request.url.path
+    if path.startswith("/gupiao/api/"):
+        request.scope["path"] = path.replace("/gupiao/api", "/api", 1)
+    elif path == "/gupiao/api":
+        request.scope["path"] = "/api"
+    return await call_next(request)
+
+
 # 单端口 8000 同时提供页面与 /api，服务器部署无需 nginx/node。
 # 挂载在所有路由之后，/api、/docs 等已注册路由优先匹配。
 _UI_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if _UI_DIST.is_dir():
     from fastapi.staticfiles import StaticFiles
 
+    app.mount("/gupiao", StaticFiles(directory=str(_UI_DIST), html=True), name="ui_sub")
     app.mount("/", StaticFiles(directory=str(_UI_DIST), html=True), name="ui")
