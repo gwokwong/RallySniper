@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 from datetime import datetime
 from typing import Any
 
@@ -92,8 +93,24 @@ def run_daily_check() -> dict[str, Any]:
             "checks": [{"name": n, "ok": ok, "detail": d} for n, ok, d in checks]}
 
 
+def _rotate_local_log() -> None:
+    """本地 nohup 日志轮转（copytruncate）：>20MB 时备份并截断，服务器走 journal 不受影响。"""
+    try:
+        log_path = Path(__file__).resolve().parent.parent / "logs" / "local_8000.log"
+        if not log_path.exists() or log_path.stat().st_size < 20 * 1024 * 1024:
+            return
+        backup = log_path.with_suffix(".log.1")
+        backup.write_bytes(log_path.read_bytes())
+        with open(log_path, "w"):
+            pass  # 截断原文件（append fd 继续写入）
+        print("[scheduler] 本地日志已轮转（>20MB → .1）")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[scheduler] 日志轮转失败: {exc}")
+
+
 def _daily_check_job() -> None:
     try:
+        _rotate_local_log()
         run_daily_check()
     except Exception as exc:  # noqa: BLE001
         print(f"[scheduler] 每日自检失败: {exc}")

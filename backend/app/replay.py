@@ -18,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+import time
 from bisect import bisect_left
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -64,6 +65,25 @@ def _turnover_at(code: str, row: int) -> float | None:
 
 def _cache_files() -> list[Path]:
     return sorted(CACHE_DIR.glob("*.csv"))
+
+
+def _cleanup_replay_cache() -> int:
+    """清理旧指纹的回放缓存文件（保留当前指纹与 24 小时内的文件）。"""
+    try:
+        cfg = effective_config()
+        fp = _cfg_fingerprint(cfg)
+        now = time.time()
+        removed = 0
+        for f in REPLAY_DIR.glob("*.json"):
+            if fp in f.name:
+                continue
+            if now - f.stat().st_mtime < 86400:
+                continue  # 24小时内的旧指纹文件保留（便于口径对照）
+            f.unlink(missing_ok=True)
+            removed += 1
+        return removed
+    except Exception:  # noqa: BLE001
+        return 0
 
 
 def _load_bars(force: bool = False) -> dict[str, pd.DataFrame]:
@@ -188,6 +208,7 @@ def refresh(end_date: str | None = None) -> dict[str, Any]:
         finally:
             _refresh_progress["finished"] = datetime.now().isoformat(timespec="seconds")
             _refreshing = False
+            _cleanup_replay_cache()
 
     threading.Thread(target=_run, daemon=True).start()
     return {"success": True, "message": "刷新已启动", "refresh": dict(_refresh_progress)}
